@@ -15,6 +15,31 @@ metadata:
 
 You MUST follow these phases in order (0 → 1 → 2 → 3 → 4 → 5 → 6). Do NOT skip phases. Each phase has prerequisites and exit criteria — do not proceed until the exit criteria are met. You MUST run the scripts specified in each phase (do not substitute your own checks). You MUST modify the user's source files to complete the migration.
 
+### Migration State Tracking
+
+Track migration progress in `migration-state.json` using the state script. This preserves resource IDs (messaging_profile_id, connection_id, verify_profile_id) across phases and enables resume after interruption.
+
+```bash
+# Initialize at start of migration (Phase 0):
+bash {baseDir}/scripts/migration-state.sh init <project-root>
+
+# Update phase at each phase boundary:
+bash {baseDir}/scripts/migration-state.sh set-phase <project-root> <phase>
+
+# Store resource IDs when created (Phase 0/3):
+bash {baseDir}/scripts/migration-state.sh set <project-root> resources.messaging_profile_id <id>
+
+# Track completed products and files (Phase 4):
+bash {baseDir}/scripts/migration-state.sh add-product <project-root> <product>
+bash {baseDir}/scripts/migration-state.sh add-file <project-root> <product> <file>
+
+# Record commits at phase boundaries:
+bash {baseDir}/scripts/migration-state.sh set-commit <project-root> <phase>
+
+# Check current status (resume after interruption):
+bash {baseDir}/scripts/migration-state.sh status <project-root>
+```
+
 For a complete product mapping, see `{baseDir}/references/product-mapping.md`.
 
 ## Universal Changes (All Migrations)
@@ -31,9 +56,10 @@ For a complete product mapping, see `{baseDir}/references/product-mapping.md`.
 > **Prerequisites**: User has a Telnyx account with KYC complete and payment method added.
 > **Exit criteria**: `TELNYX_API_KEY` validates successfully, user has approved estimated costs.
 
-### Step 0.1: Verify API Key
+### Step 0.1: Initialize State & Verify API Key
 
 ```bash
+bash {baseDir}/scripts/migration-state.sh init <project-root>
 if [ -z "$TELNYX_API_KEY" ]; then echo "ERROR: Set TELNYX_API_KEY first"; exit 1; fi
 curl -s -H "Authorization: Bearer $TELNYX_API_KEY" https://api.telnyx.com/v2/balance
 ```
@@ -99,6 +125,8 @@ Present the triaged results to the user. Confirm:
 **Out-of-scope products** (no Telnyx equivalent): Flex, Studio, TaskRouter, Conversations, Sync, Notify, Proxy, Pay, Autopilot. If detected, present alternatives from `unsupported-products.md` and ask the user to decide: keep on Twilio, replace with alternative, or remove.
 
 **Unsupported platforms** (detected but not auto-migrated): iOS native, Android native, React Native, Flutter. These require manual SDK migration — see `unsupported-products.md` for docs links.
+
+**Phase 1 exit**: `bash {baseDir}/scripts/migration-state.sh set-phase <project-root> 1 && bash {baseDir}/scripts/migration-state.sh set <project-root> scan_file "twilio-scan.json"`
 
 ---
 
@@ -190,6 +218,8 @@ Update `.env`, secrets manager, CI/CD variables, and deployment configs.
 
 ```bash
 git add <changed-files> && git commit -m "chore: add Telnyx SDK alongside Twilio, update env vars"
+bash {baseDir}/scripts/migration-state.sh set-phase <project-root> 3
+bash {baseDir}/scripts/migration-state.sh set-commit <project-root> 3
 ```
 
 ---
@@ -231,6 +261,9 @@ Process each product area in priority order: **messaging → voice → verify �
 7. **Validate**: `bash {baseDir}/scripts/validate-migration.sh <project-root> --product {product}`
 8. **Fix** any validation failures, re-validate until exit code is 0
 9. **Commit**: `git add <changed-files> && git commit -m "migrate: {product} — Twilio to Telnyx"`
+10. **Track**: `bash {baseDir}/scripts/migration-state.sh add-product <project-root> {product}` (and `add-file` for each file migrated)
+
+**Phase 4 exit**: `bash {baseDir}/scripts/migration-state.sh set-phase <project-root> 4 && bash {baseDir}/scripts/migration-state.sh set-commit <project-root> 4`
 
 If validation fails and you cannot fix the issue, document it and continue to the next product. Do not abandon the migration.
 
@@ -328,10 +361,11 @@ bash {baseDir}/scripts/run-validation.sh <project-root>
 ### Resume / Recovery
 
 If the migration is interrupted:
-1. Run `bash {baseDir}/scripts/validate-migration.sh <project-root> --json` to see current state
-2. Check git log for which product migrations are already committed
-3. Resume the Phase 4 migration loop from the next uncompleted product
-4. Validation exit code 0 = migration complete, non-zero = work remaining
+1. Run `bash {baseDir}/scripts/migration-state.sh status <project-root>` to see current phase and completed products
+2. Run `bash {baseDir}/scripts/migration-state.sh show <project-root>` for full state including resource IDs
+3. Resume from the current phase — resource IDs (messaging_profile_id, connection_id, etc.) are preserved in state
+4. Run `bash {baseDir}/scripts/validate-migration.sh <project-root> --json` to check remaining work
+5. Validation exit code 0 = migration complete, non-zero = work remaining
 
 ---
 
@@ -377,6 +411,7 @@ Highlight capabilities unavailable on Twilio: AI Assistants (voice/chat AI agent
 
 All scripts are in `{baseDir}/scripts/`. Run them — do not substitute your own checks.
 
+**State tracking**: `migration-state.sh init|status|show|set-phase|set|add-product|add-file|set-commit <root> [args]`
 **Phase wrappers**: `run-discovery.sh <root>` (Phase 1), `run-validation.sh <root>` (Phase 5)
 **Scanners (free)**: `preflight-check.sh [--quick]`, `scan-twilio-usage.sh <root>`, `scan-twilio-deep.py <root>`
 **Validators (free)**: `validate-migration.sh <root> [--product X] [--json]`, `validate-texml.sh <file>`
