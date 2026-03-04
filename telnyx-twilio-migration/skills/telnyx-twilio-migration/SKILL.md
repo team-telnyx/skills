@@ -13,110 +13,99 @@ metadata:
 
 # Twilio to Telnyx Migration
 
-Orchestrate a complete migration from Twilio to Telnyx. This skill drives a 6-phase workflow: scan the user's codebase, plan the migration, swap SDKs and config, transform code file-by-file, validate the result, and generate a migration report.
+You MUST follow these phases in order (0 → 1 → 2 → 3 → 4 → 5 → 6). Do NOT skip phases. Each phase has prerequisites and exit criteria — do not proceed until the exit criteria are met. You MUST run the scripts specified in each phase (do not substitute your own checks). You MUST modify the user's source files to complete the migration.
 
-> **Standalone skill**: Fully self-contained. For deeper SDK-specific code examples, install the relevant language plugin (`telnyx-python`, `telnyx-javascript`, `telnyx-go`, `telnyx-java`, `telnyx-ruby`, or `telnyx-curl`). For client-side WebRTC, install `telnyx-webrtc-client`.
-
-> **SDK reference files**: This skill includes auto-extracted SDK reference docs for 27 products × 6 languages in `{baseDir}/sdk-reference/`. Regenerate with `bash {baseDir}/scripts/extract-sdk-reference.sh`.
-
-## Quick Product Mapping
-
-| Twilio Product | Telnyx Equivalent | Complexity | Reference File |
-|---|---|---|---|
-| Programmable Voice (TwiML) | TeXML | Low | `voice-migration.md` |
-| Programmable Voice (REST) | Call Control API | Medium | `voice-migration.md` |
-| Programmable Messaging | Messaging API | Medium | `messaging-migration.md` |
-| Elastic SIP Trunking | SIP Connections | Low | `sip-trunking-migration.md` |
-| Voice SDK (WebRTC) | WebRTC SDKs | Medium | `webrtc-migration.md` |
-| Phone Numbers | Number Management | Low | *(SDK reference)* |
-| Twilio Verify | Verify API | Medium | `verify-migration.md` |
-| Twilio Lookup | Number Lookup | Low | `lookup-migration.md` |
-| Twilio Video (retired) | Video Rooms API | Medium | `video-migration.md` |
-| Twilio Fax (deprecated) | Programmable Fax | Low | `fax-migration.md` |
-| Super SIM / IoT | IoT SIM Cards | Medium | `iot-migration.md` |
-| 10DLC Registration | 10DLC Campaign Registry | Low | `messaging-migration.md` |
-| Number Porting | FastPort | Low | `number-porting.md` |
-
-Full mapping with Telnyx-only products and unsupported Twilio products: `{baseDir}/references/product-mapping.md`
+For a complete product mapping, see `{baseDir}/references/product-mapping.md`.
 
 ## Universal Changes (All Migrations)
 
-These changes apply regardless of which Twilio product you're migrating.
+1. **Authentication**: Basic Auth (`AccountSID:AuthToken`) → Bearer Token (`Authorization: Bearer $TELNYX_API_KEY`). Get key at https://portal.telnyx.com/#/app/api-keys
+2. **Webhook Signatures**: HMAC-SHA1 → Ed25519. Get public key at https://portal.telnyx.com/#/app/account/public-key
+3. **Webhook Payloads**: Flat form-encoded → nested JSON under `data.payload`. See `{baseDir}/references/webhook-migration.md`
+4. **Recording Defaults**: Single → dual-channel. Set `channels="single"` to match Twilio behavior.
 
-### 1. Authentication
+---
+
+## Phase 0: Account & Cost Approval
+
+> **Prerequisites**: User has a Telnyx account with KYC complete and payment method added.
+> **Exit criteria**: `TELNYX_API_KEY` validates successfully, user has approved estimated costs.
+
+### Step 0.1: Verify API Key
 
 ```bash
-# Twilio: Basic Auth (AccountSID:AuthToken)
-curl -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" https://api.twilio.com/...
-
-# Telnyx: Bearer Token (API Key v2)
-curl -H "Authorization: Bearer $TELNYX_API_KEY" https://api.telnyx.com/v2/...
+if [ -z "$TELNYX_API_KEY" ]; then echo "ERROR: Set TELNYX_API_KEY first"; exit 1; fi
+curl -s -H "Authorization: Bearer $TELNYX_API_KEY" https://api.telnyx.com/v2/balance
 ```
 
-Get your API key at https://portal.telnyx.com/#/app/api-keys
+If this fails, the user must: create account (https://telnyx.com/sign-up), complete KYC, add payment method, generate API Key v2 (https://portal.telnyx.com/#/app/api-keys).
 
-### 2. Webhook Signatures: HMAC-SHA1 → Ed25519
+### Step 0.2: Present Cost Estimate and Get Approval
 
-Get your public key at https://portal.telnyx.com/#/app/account/public-key
+**Before proceeding, present the following cost estimate to the user and get explicit approval:**
 
-### 3. Webhook Payloads: Flat → Nested
+| Item | Cost | When Charged | Required? |
+|------|------|-------------|-----------|
+| Phone number (if account has none) | ~$1.00/month | Phase 5 integration tests | Only if no numbers on account |
+| Integration test — SMS | ~$0.004 | Phase 5 (opt-in) | Recommended |
+| Integration test — Voice | ~$0.01 | Phase 5 (opt-in) | Recommended |
+| Integration test — Verify OTP | ~$0.05 | Phase 5 (opt-in) | Recommended |
+| 10DLC brand registration (US A2P messaging only) | ~$4.00 one-time | Phase 3 setup | Only for US messaging |
+| 10DLC campaign (US A2P messaging only) | ~$15.00/quarter | Phase 3 setup | Only for US messaging |
+| Number porting (if porting from Twilio) | Free | Post-migration | Optional |
 
-Twilio sends flat key-value pairs. Telnyx nests event data under `data.payload`:
+**Total estimated cost for most migrations: $0.064 — $1.064** (test costs + optional number purchase). 10DLC adds ~$19 if applicable.
 
-```json
-{"data": {"event_type": "message.received", "payload": {"from": {"phone_number": "+1..."}, "text": "Hello"}}}
-```
+Ask the user: *"The migration itself is free — only integration testing and resource setup have small costs. The estimated total is $X. Do you approve proceeding? I will confirm again before any individual purchase."*
 
-### 4. Recording Defaults: Single → Dual Channel
+**Do not proceed until the user explicitly approves.** The scripts also have `--confirm` gates on individual paid actions.
 
-Telnyx defaults to dual-channel. Set `channels="single"` to match Twilio behavior.
+### Step 0.3: Resource Setup (After Phase 1 Scan)
+
+Return here after Phase 1 scanning to create Telnyx resources per detected products. The integration test scripts auto-create missing resources (messaging profiles, voice connections, verify profiles), but for production use, create them now via `{baseDir}/references/account-setup-guide.md`.
 
 ---
 
 ## Phase 1: Discovery
 
-Scan the codebase and validate the Telnyx account is ready.
+> **Prerequisites**: `TELNYX_API_KEY` is set and valid, user has approved costs.
+> **Exit criteria**: `twilio-scan.json` exists with scan results, user has confirmed migration scope.
 
-### Step 1.1: Preflight Check
+### Step 1.1: Run Full Discovery
 
-```bash
-bash {baseDir}/scripts/preflight-check.sh <project-root>
-```
-
-Validates: API key, account balance, phone number inventory, voice connections, messaging profiles, installed SDKs, git status. Use `--quick` to skip API calls.
-
-### Step 1.2: Scan for Twilio Usage
+Run the discovery script — this executes preflight check, Twilio scan, deep scan, and partial migration check in one command:
 
 ```bash
-bash {baseDir}/scripts/scan-twilio-usage.sh <project-root> > twilio-scan.json
+bash {baseDir}/scripts/run-discovery.sh <project-root>
 ```
 
-Produces a JSON manifest with:
-- `languages_detected` — which programming languages the project uses
-- `products_used` — which Twilio products are in use (voice, messaging, verify, etc.)
-- `files` — every file with Twilio references, with matched patterns and product mapping
-- `env_vars` — Twilio environment variables found
-- `config_files` — dependency files referencing Twilio
-- `twiml_files` — XML files containing TwiML verbs
-- `webhook_handlers` — files with Twilio webhook validation code
+This produces `<project-root>/twilio-scan.json` (and optionally `twilio-deep-scan.json`).
 
-For deeper analysis (catches aliased imports, dynamic config):
-```bash
-python3 {baseDir}/scripts/scan-twilio-deep.py <project-root> > twilio-deep-scan.json
-```
+**You must run this script.** Do not manually scan files or skip this step.
 
-### Step 1.3: Review and Confirm Scope
+### Step 1.2: Triage and Confirm Scope
 
-Present the scan results to the user. Confirm:
+Review scan results and classify each match:
+- **Active import/SDK call** (e.g., `from twilio.rest import Client`, `client.messages.create()`): Needs migration
+- **String reference** (e.g., `# formerly used Twilio`, URL in docs, log message): Usually no code change needed — just update text
+- **Config/env var** (e.g., `TWILIO_ACCOUNT_SID`): Needs env var rename (see Phase 3)
+- **Test mock** (e.g., `mock_twilio_response`): Migrate in Phase 5 with test migration
+
+Present the triaged results to the user. Confirm:
 - Which products are in scope for migration
-- Which files will be modified
-- Any products that are out of scope (e.g., no Telnyx equivalent)
+- Which files will be modified (exclude string-only references)
+- Any products that are **out of scope** — see `{baseDir}/references/unsupported-products.md`
+
+**Out-of-scope products** (no Telnyx equivalent): Flex, Studio, TaskRouter, Conversations, Sync, Notify, Proxy, Pay, Autopilot. If detected, present alternatives from `unsupported-products.md` and ask the user to decide: keep on Twilio, replace with alternative, or remove.
+
+**Unsupported platforms** (detected but not auto-migrated): iOS native, Android native, React Native, Flutter. These require manual SDK migration — see `unsupported-products.md` for docs links.
 
 ---
 
 ## Phase 2: Planning
 
-Build a migration plan based on the scan results.
+> **Prerequisites**: Phase 1 complete, `twilio-scan.json` exists, user has confirmed scope.
+> **Exit criteria**: `MIGRATION-PLAN.md` exists in project root, user has approved the plan.
 
 ### Step 2.1: Read Relevant References
 
@@ -133,114 +122,117 @@ For each product detected in the scan, read the corresponding reference file:
 | `video` | `{baseDir}/references/video-migration.md` |
 | `iot` | `{baseDir}/references/iot-migration.md` |
 | `lookup` | `{baseDir}/references/lookup-migration.md` |
+| `numbers`, `numbers-config` | `{baseDir}/references/numbers-migration.md` |
 | `porting-in`, `porting-out` | `{baseDir}/references/number-porting.md` |
+| *(all products)* | `{baseDir}/references/webhook-migration.md` |
 
 ### Step 2.2: Present Decision Points
 
-Ask the user to decide:
-- **Voice approach**: TeXML (XML-compatible, lowest effort) vs Call Control API (imperative, more powerful) vs Both (incremental)
-- **WebRTC auth**: Server-side credential management vs Direct client auth
-- **Webhook validation**: Implement Ed25519 now (recommended) vs Skip for initial migration
-- **Migration strategy**: Big-bang (all products at once) vs Product-by-product (incremental)
+**Voice approach** — use this decision matrix:
+
+| Choose TeXML when... | Choose Call Control when... |
+|---|---|
+| App uses TwiML/XML extensively | App needs mid-call branching logic |
+| Simple IVR (Say, Gather, Dial, Record) | Real-time media streaming needed |
+| Want minimal code changes (TwiML → TeXML is nearly 1:1) | Need to fork audio, transcribe live |
+| Status callbacks are sufficient | Need granular call events (ringing, answered, bridged) |
+
+> **Mixed pattern**: You CAN use both. TeXML for inbound (webhook returns XML) AND Call Control for outbound (REST API). They coexist on the same account.
+
+**Migration strategy**:
+- **Big-bang** (all at once): <10 files, single product, small team
+- **Incremental** (product by product): >10 files, multiple products, need app running during migration
+- **Migration order** when incremental: messaging → voice → verify → webhooks → other products
 
 ### Step 2.3: Generate Migration Plan
-
-Fill in the template and save to the project:
 
 ```bash
 cp {baseDir}/templates/MIGRATION-PLAN.md <project-root>/MIGRATION-PLAN.md
 ```
 
-Populate: project overview, migration scope table, decision points, migration order, environment changes, webhook URL changes, risks/mitigations, rollback plan. Present to user for approval.
+Populate and present to user for approval before proceeding.
 
 ---
 
 ## Phase 3: Setup
 
-Prepare the project for migration.
+> **Prerequisites**: Phase 2 complete, user has approved the migration plan.
+> **Exit criteria**: Telnyx SDK installed, environment variables updated, setup committed to git.
 
 ### Step 3.1: Create Migration Branch
 
 ```bash
-cd <project-root>
-git checkout -b migrate/twilio-to-telnyx
+cd <project-root> && git checkout -b migrate/twilio-to-telnyx
 ```
 
-### Step 3.2: Update Dependencies
+### Step 3.2: Install Telnyx SDK (Keep Twilio Until Phase 6)
 
-Install Telnyx SDK for the detected language(s):
+Install Telnyx SDK **alongside** Twilio — do NOT remove Twilio from the package manifest yet (removal is Phase 6). Keep `twilio` in `requirements.txt`/`package.json`/`Gemfile`/`go.mod` until Phase 6 so you can revert if validation fails.
 
-```bash
-# Python
-pip install telnyx && pip freeze > requirements.txt
-
-# Node.js
-npm install telnyx
-
-# Ruby
-# Add to Gemfile: gem 'telnyx'
-bundle install
-
-# Go
-go get github.com/telnyx/telnyx-go
-
-# Java (Maven) — add to pom.xml:
-# <dependency><groupId>com.telnyx</groupId><artifactId>telnyx-java</artifactId></dependency>
-
-# PHP
-composer require telnyx/telnyx-php
-```
-
-Remove Twilio SDK:
-
-```bash
-# Python
-pip uninstall twilio -y && pip freeze > requirements.txt
-
-# Node.js
-npm uninstall twilio
-
-# Ruby
-# Remove from Gemfile: gem 'twilio-ruby'
-bundle install
-
-# Go
-go get -u github.com/twilio/twilio-go@none && go mod tidy
-```
+Python: `pip install telnyx` | Node: `npm install telnyx` | Ruby: `gem 'telnyx'` in Gemfile + `bundle install` | Go: `go get github.com/team-telnyx/telnyx-go` | Java: add `com.telnyx:telnyx-java` to pom.xml | PHP: `composer require telnyx/telnyx-php`
 
 ### Step 3.3: Update Environment Variables
 
-| Remove | Add | Notes |
+| Twilio Variable | Telnyx Replacement | Notes |
 |---|---|---|
 | `TWILIO_ACCOUNT_SID` | `TELNYX_API_KEY` | Bearer token, get from portal |
-| `TWILIO_AUTH_TOKEN` | `TELNYX_PUBLIC_KEY` | For webhook validation |
-| `TWILIO_API_KEY` | — | Not needed |
-| `TWILIO_API_KEY_SECRET` | — | Not needed |
+| `TWILIO_AUTH_TOKEN` | `TELNYX_PUBLIC_KEY` | For webhook validation (Ed25519) |
+| `TWILIO_API_KEY` / `_SECRET` / `_SID` | — | Not needed (single API key model) |
+| `TWILIO_PHONE_NUMBER` | `TELNYX_PHONE_NUMBER` | Your Telnyx number (E.164) |
+| `TWILIO_MESSAGING_SERVICE_SID` | `TELNYX_MESSAGING_PROFILE_ID` | Messaging profile UUID |
+| `TWILIO_VERIFY_SERVICE_SID` | `TELNYX_VERIFY_PROFILE_ID` | Verify profile UUID |
 
 Update `.env`, secrets manager, CI/CD variables, and deployment configs.
+
+> **Rate limits**: Messaging: 1 msg/sec per number (10DLC), voice: varies by connection type. Implement exponential backoff for 429 responses.
 
 ### Step 3.4: Commit Setup Changes
 
 ```bash
-git add -A && git commit -m "chore: swap Twilio SDK for Telnyx SDK, update env vars"
+git add <changed-files> && git commit -m "chore: add Telnyx SDK alongside Twilio, update env vars"
 ```
+
+---
+
+## Supported Languages
+
+**Full SDK**: Python (`telnyx` pip), JavaScript/TypeScript (`telnyx` npm), Go (`telnyx-go`), Ruby (`telnyx` gem) — all v2 Stainless clients with sdk-reference docs in `{baseDir}/sdk-reference/{lang}/`
+**REST/curl only**: Java, PHP, C#/.NET — no official SDK. Use `{baseDir}/sdk-reference/curl/{product}.md` for complete REST API examples with all parameters.
 
 ---
 
 ## Phase 4: Migration
 
-Transform code file-by-file, grouped by product area.
+> **Prerequisites**: Phase 3 complete, Telnyx SDK installed, env vars updated, setup committed.
+> **Exit criteria**: All source files transformed, per-product validation passes, all changes committed.
+
+Transform code file-by-file, grouped by product area. **You must actually modify the user's source files** — reading references alone is not sufficient.
 
 ### Migration Loop
 
-For each product area detected in the scan (in priority order: messaging first, then voice, then others):
+Process each product area in priority order: **messaging → voice → verify → numbers → others**.
 
-1. **Read the user's file** from the scan manifest
-2. **Read the conceptual mapping** from `{baseDir}/references/{product}-migration.md`
-3. **Read the SDK reference** from `{baseDir}/sdk-reference/{language}/{product}.md` for exact Telnyx API syntax
-4. **Transform the code**: Replace Twilio imports, client initialization, API calls, webhook handlers, and payload parsing with Telnyx equivalents
-5. **Validate incrementally**: Run `bash {baseDir}/scripts/validate-migration.sh <project-root> --product {product}` after each product area
-6. **Commit per product area**: `git commit -m "migrate: {product} — Twilio to Telnyx"`
+**For each product area:**
+
+1. Read `{baseDir}/references/{product}-migration.md` — this is the **primary source** with Twilio→Telnyx before/after code, parameter mappings, and pitfall warnings
+2. Collect all files for this product from the scan manifest (`twilio-scan.json`)
+
+**For each file in the product area:**
+
+1. **Read** the user's source file
+2. **Identify** every Twilio pattern (imports, client init, API calls, webhooks, env vars)
+3. **Transform** each pattern using the reference guide's before/after examples
+4. **If the reference doesn't cover a specific API call**, look it up in `{baseDir}/sdk-reference/{language}/{product}.md` for the exact Telnyx method signature. The `{baseDir}/sdk-reference/curl/{product}.md` files have the richest examples with optional fields.
+5. **Write** the transformed file
+6. **Self-check**: Re-read the file and verify no Twilio patterns remain
+
+**After all files in the product area:**
+
+7. **Validate**: `bash {baseDir}/scripts/validate-migration.sh <project-root> --product {product}`
+8. **Fix** any validation failures, re-validate until exit code is 0
+9. **Commit**: `git add <changed-files> && git commit -m "migrate: {product} — Twilio to Telnyx"`
+
+If validation fails and you cannot fix the issue, document it and continue to the next product. Do not abandon the migration.
 
 ### Product-Specific Transform Guidance
 
@@ -261,7 +253,9 @@ For each product area detected in the scan (in priority order: messaging first, 
 - `from_` → `from` (same in most SDKs)
 - `StatusCallback` per-message → configure on Messaging Profile
 - `MessagingServiceSid` → `messaging_profile_id`
+- **Always include `messaging_profile_id`** in send requests — messages without a profile will fail
 - Webhook payload: flat `{From, Body}` → nested `{data.payload.from.phone_number, data.payload.text}`
+- **10DLC blocker**: US A2P SMS requires 10DLC campaign registration. See `{baseDir}/references/messaging-migration.md` → "10DLC Registration".
 
 **WebRTC:**
 - Delete simple dial TwiML endpoints (use `client.newCall()` instead)
@@ -284,73 +278,76 @@ For each product area detected in the scan (in priority order: messaging first, 
 
 ## Phase 5: Validation
 
-Verify the migration is complete and working.
+> **Prerequisites**: Phase 4 complete, all product migrations committed.
+> **Exit criteria**: `run-validation.sh` exits 0, smoke test passes. Integration tests recommended.
 
-### Step 5.1: Full Validation Scan
+### Step 5.1: Run Full Validation
 
-```bash
-bash {baseDir}/scripts/validate-migration.sh <project-root>
-```
-
-Checks for: residual Twilio imports, API URLs, env vars, signature patterns, Telnyx SDK presence, Bearer auth, Ed25519 validation code, config cleanup.
-
-Use `--json` for machine-readable output. Exit code 0 = fully migrated.
-
-### Step 5.2: TeXML Validation (if applicable)
+Run the validation pipeline — this executes migration validation, TeXML validation, and smoke test in one command:
 
 ```bash
-# For each XML file that was migrated or left as-is
-bash {baseDir}/scripts/validate-texml.sh <file.xml>
+bash {baseDir}/scripts/run-validation.sh <project-root>
 ```
 
-### Step 5.3: Smoke Test (Free)
+**You must run this script.** It checks for: residual Twilio imports, API URLs, env vars, signature patterns, Telnyx SDK presence, Bearer auth, Ed25519 validation code.
+
+**If validation fails, STOP.** Fix the issues, re-run validation, and do not proceed until exit code is 0.
+
+### Step 5.2: Integration Tests (Recommended)
+
+Real API calls with small charges (~$0.064 total). **Ask the user for their phone number** (E.164 format, e.g., `+15551234567`) to receive the test SMS/call/OTP.
 
 ```bash
-bash {baseDir}/scripts/test-migration/smoke-test.sh
+export TELNYX_TO_NUMBER="+1XXXXXXXXXX"  # Ask user for this number
+
+# Run whichever tests match the migrated products:
+bash {baseDir}/scripts/test-migration/test-messaging.sh --confirm  # ~$0.004
+bash {baseDir}/scripts/test-migration/test-voice.sh --confirm      # ~$0.01
+bash {baseDir}/scripts/test-migration/test-verify.sh --confirm     # ~$0.05
 ```
 
-Validates: SDK imports, API key, account balance, number inventory, connections, messaging profiles, webhook URL reachability. No cost.
+Only `TELNYX_API_KEY` and `TELNYX_TO_NUMBER` are required. All other resources (from number, profiles, connections) are auto-detected or auto-created by the scripts. If the account has no phone numbers, the scripts will purchase one (with `--confirm` gate — cost already approved in Phase 0).
 
-### Step 5.4: Webhook Mock Test (Free)
+### Step 5.3: Migrate Tests
+
+If the project has unit or integration tests that reference Twilio:
+1. Update test imports from Twilio to Telnyx
+2. Update mock payloads from Twilio format to Telnyx format (see `{baseDir}/references/webhook-migration.md`)
+3. Update assertions for new response field names
+4. Run the full test suite: Python: `pytest` | Node: `npm test` | Go: `go test ./...` | Ruby: `bundle exec rspec`
+
+### Step 5.4: Fix and Re-validate
+
+If any check fails, fix the issue, re-run validation, and commit:
 
 ```bash
-# Terminal 1: Start local webhook receiver
-python3 {baseDir}/scripts/test-migration/webhook-receiver.py --port 8080
-
-# Terminal 2: Send mock Telnyx webhooks
-python3 {baseDir}/scripts/test-migration/test-webhooks-local.py --url http://localhost:8080/webhooks
+git add <changed-files> && git commit -m "fix: resolve migration validation issues"
+bash {baseDir}/scripts/run-validation.sh <project-root>
 ```
 
-Tests that your webhook handlers correctly parse Telnyx event payloads for voice, messaging, verify, and fax events.
+### Resume / Recovery
 
-### Step 5.5: Integration Tests (Opt-in, Real API Calls)
-
-These tests make real API calls and incur small charges. Each requires `--confirm` to execute.
-
-```bash
-# Voice: outbound call with TTS (~$0.01)
-bash {baseDir}/scripts/test-migration/test-voice.sh --confirm
-
-# Messaging: send SMS (~$0.004)
-bash {baseDir}/scripts/test-migration/test-messaging.sh --confirm
-
-# Verify: send OTP (~$0.05)
-bash {baseDir}/scripts/test-migration/test-verify.sh --confirm
-```
-
-Use `--dry-run` to validate setup without making real calls.
-
-### Step 5.6: Fix Issues
-
-If validation fails, review the specific check output, fix the issue, re-run validation, and commit:
-
-```bash
-git commit -m "fix: resolve migration validation issues"
-```
+If the migration is interrupted:
+1. Run `bash {baseDir}/scripts/validate-migration.sh <project-root> --json` to see current state
+2. Check git log for which product migrations are already committed
+3. Resume the Phase 4 migration loop from the next uncompleted product
+4. Validation exit code 0 = migration complete, non-zero = work remaining
 
 ---
 
 ## Phase 6: Cleanup & Handoff
+
+> **Prerequisites**: Phase 5 validation passes (exit code 0).
+> **Exit criteria**: Twilio SDK removed, migration report generated, post-migration checklist presented.
+
+### Step 6.0: Remove Twilio SDK
+
+Now that all code is migrated and validated, remove Twilio:
+Python: `pip uninstall twilio -y` | Node: `npm uninstall twilio` | Ruby: remove `twilio-ruby` from Gemfile + `bundle install` | Go: `go get -u github.com/twilio/twilio-go@none && go mod tidy` | PHP: `composer remove twilio/sdk`
+
+```bash
+git add <changed-files> && git commit -m "chore: remove Twilio SDK — migration complete"
+```
 
 ### Step 6.1: Generate Migration Report
 
@@ -362,79 +359,33 @@ Fill in: summary metrics, changes by product, validation results, environment ch
 
 ### Step 6.2: Post-Migration Checklist
 
-Present to the user:
-
-- [ ] **Number porting**: Submit porting order for Twilio numbers → Telnyx via FastPort (see `{baseDir}/references/number-porting.md`)
-- [ ] **DNS/webhook URLs**: Update any hardcoded webhook URLs in load balancers, DNS, or external services
-- [ ] **Secrets manager**: Update environment variables in production secrets (AWS Secrets Manager, Vault, etc.)
-- [ ] **CI/CD**: Update pipeline environment variables
-- [ ] **Monitoring**: Update alerts for Telnyx error codes and webhook formats
-- [ ] **Documentation**: Update internal docs referencing Twilio APIs
-- [ ] **Run existing test suite**: Ensure unit/integration tests pass with the new SDK
-- [ ] **Staging deployment**: Deploy to staging and run end-to-end tests before production
-- [ ] **Cancel Twilio**: After validation period, cancel Twilio account (keep porting active first)
+Present to user:
+- [ ] Port numbers via FastPort (see `{baseDir}/references/number-porting.md`)
+- [ ] Update webhook URLs in load balancers, DNS, external services
+- [ ] Update secrets manager + CI/CD env vars for production
+- [ ] Update monitoring alerts for Telnyx error codes/webhook formats
+- [ ] Deploy to staging → run e2e tests → deploy to production
+- [ ] Cancel Twilio account after validation period
 
 ### Step 6.3: Explore Telnyx-Only Features
 
-Now that you're on Telnyx, highlight capabilities unavailable on Twilio:
-
-- **AI Assistants**: Voice/chat AI agents with built-in LLM orchestration
-- **Inference API**: OpenAI-compatible LLM hosting on Telnyx GPUs
-- **Embeddings**: Vector search and RAG pipelines
-- **Cloud Storage**: S3-compatible object storage
-- **Multiple STT Engines**: Google, Deepgram, Telnyx, Azure (in TeXML `<Gather>`)
-- **ElevenLabs TTS**: Premium voice synthesis (in TeXML `<Say>`)
-- **FastPort**: Same-day number porting with on-demand activation windows
-- **Private Wireless Gateway**: IoT connectivity with private networking
+Highlight capabilities unavailable on Twilio: AI Assistants (voice/chat AI agents), Inference API (OpenAI-compatible LLM hosting), Embeddings (vector search/RAG), Cloud Storage (S3-compatible), multiple STT engines (Google/Deepgram/Telnyx/Azure in `<Gather>`), ElevenLabs TTS (in `<Say>`), FastPort (same-day porting), Private Wireless Gateway (IoT networking).
 
 ---
 
 ## Scripts Reference
 
-| Script | Purpose | Cost |
-|---|---|---|
-| `scripts/preflight-check.sh [<root>] [--quick]` | Environment readiness validation | Free |
-| `scripts/scan-twilio-usage.sh <root>` | Grep-based Twilio codebase scanner → JSON | Free |
-| `scripts/scan-twilio-deep.py <root>` | AST-level deep scanner (Python/JS) → JSON | Free |
-| `scripts/validate-migration.sh <root> [--product X] [--json]` | Post-migration validation | Free |
-| `scripts/validate-texml.sh <file>` | TwiML/TeXML XML compatibility check | Free |
-| `scripts/extract-sdk-reference.sh [--dry-run]` | Populate sdk-reference/ from sibling plugins | Free |
-| `scripts/test-migration/smoke-test.sh` | Free API validation checks | Free |
-| `scripts/test-migration/test-webhooks-local.py` | Mock webhook payload sender | Free |
-| `scripts/test-migration/webhook-receiver.py` | Local webhook receiver + optional ngrok | Free |
-| `scripts/test-migration/test-voice.sh [--confirm]` | Real outbound call test | ~$0.01 |
-| `scripts/test-migration/test-messaging.sh [--confirm]` | Real SMS send test | ~$0.004 |
-| `scripts/test-migration/test-verify.sh [--confirm]` | Real OTP verification test | ~$0.05 |
+All scripts are in `{baseDir}/scripts/`. Run them — do not substitute your own checks.
+
+**Phase wrappers**: `run-discovery.sh <root>` (Phase 1), `run-validation.sh <root>` (Phase 5)
+**Scanners (free)**: `preflight-check.sh [--quick]`, `scan-twilio-usage.sh <root>`, `scan-twilio-deep.py <root>`
+**Validators (free)**: `validate-migration.sh <root> [--product X] [--json]`, `validate-texml.sh <file>`
+**Tests (free)**: `test-migration/smoke-test.sh`, `test-migration/webhook-receiver.py`, `test-migration/test-webhooks-local.py`
+**Tests (paid, --confirm)**: `test-migration/test-voice.sh` (~$0.01), `test-migration/test-messaging.sh` (~$0.004), `test-migration/test-verify.sh` (~$0.05)
 
 ## Related Skills
 
-After migration, these skills provide deeper coverage for ongoing development:
-
-| Migration Area | Related Skills | Coverage |
-|---|---|---|
-| Voice (Call Control) | `telnyx-voice-*` | dial, bridge, transfer, answer, hangup with all optional params |
-| Voice (Advanced) | `telnyx-voice-advanced-*` | client_state, SIP Refer, DTMF, SIPREC, noise suppression |
-| Voice (Conferencing) | `telnyx-voice-conferencing-*` | conference CRUD, supervisor roles, recording |
-| Voice (Gather/IVR) | `telnyx-voice-gather-*` | DTMF gathering, AI gather, speech recognition |
-| Voice (Media) | `telnyx-voice-media-*` | audio playback, recording, streaming |
-| Voice (TeXML REST) | `telnyx-texml-*` | TeXML API operations |
-| Voice (Streaming) | `telnyx-voice-streaming-*` | WebSocket audio streaming |
-| WebRTC (Backend) | `telnyx-webrtc-*` | credential CRUD, SIP connection setup |
-| WebRTC (Client) | `telnyx-webrtc-client-*` | JS, iOS, Android, Flutter, React Native SDKs |
-| SIP / Trunking | `telnyx-sip-*` | outbound voice profiles, credential/IP connections |
-| Messaging | `telnyx-messaging-*` | SMS/MMS send/receive, webhooks |
-| Messaging (Profiles) | `telnyx-messaging-profiles-*` | profile CRUD, number pool config |
-| Numbers | `telnyx-numbers-*` | number search, purchase, configuration |
-| Porting | `telnyx-porting-in-*`, `telnyx-porting-out-*` | porting orders, requirements, activation |
-| Verify | `telnyx-verify-*` | SMS/voice/flash call verification |
-| Video | `telnyx-video-*` | video rooms, participants, tokens |
-| Fax | `telnyx-fax-*` | send/receive fax |
-| IoT | `telnyx-iot-*` | SIM management, data plans |
-| 10DLC | `telnyx-10dlc-*` | brand/campaign registration |
-| AI | `telnyx-ai-assistants-*`, `telnyx-ai-inference-*` | LLM orchestration, inference |
-| Storage | `telnyx-storage-*` | S3-compatible object storage |
-
-Install the relevant language plugin to access these skills.
+For ongoing Telnyx development after migration: `telnyx-python`, `telnyx-javascript`, `telnyx-go`, `telnyx-java`, `telnyx-ruby`, `telnyx-curl`. Pattern: `telnyx-{product}-{language}` (e.g., `telnyx-voice-python`).
 
 ## Resources
 

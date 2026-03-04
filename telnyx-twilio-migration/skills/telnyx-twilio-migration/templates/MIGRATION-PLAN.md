@@ -36,12 +36,16 @@
 
 ## Migration Order
 
-1. **Setup** — Install Telnyx SDK, update env vars, create branch
-2. **[First product]** — [Rationale for order, e.g., "simplest, builds confidence"]
-3. **[Second product]** — [Rationale]
-4. **[Third product]** — [Rationale]
-5. **Validation** — Run full validation suite
-6. **Cleanup** — Remove Twilio deps, final review
+Check off each step as it completes. If interrupted, resume from the first unchecked item.
+
+- [ ] **Phase 0: Account Setup** — Telnyx account, API key, required resources created
+- [ ] **Phase 3: Setup** — Migration branch, Telnyx SDK installed alongside Twilio, env vars updated
+- [ ] **Phase 4: [First product]** — [Rationale for order, e.g., "simplest, builds confidence"]
+- [ ] **Phase 4: [Second product]** — [Rationale]
+- [ ] **Phase 4: [Third product]** — [Rationale]
+- [ ] **Phase 5: Validation** — Full validation suite passed
+- [ ] **Phase 5: Tests** — Existing test suite passes with new SDK
+- [ ] **Phase 6: Cleanup** — Twilio SDK removed, report generated
 
 ## Environment Changes
 
