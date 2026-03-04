@@ -11,11 +11,11 @@
 #
 # Environment variables (required):
 #   TELNYX_API_KEY       Your Telnyx API key
-#   TELNYX_FROM_NUMBER   Caller ID (your Telnyx number, E.164 format)
-#   TELNYX_TO_NUMBER     Destination number (E.164 format)
+#   TELNYX_TO_NUMBER     Destination number (E.164 format) — agent should ask user
 #
-# Environment variables (optional):
-#   TELNYX_CONNECTION_ID   Connection ID to use (auto-detected if not set)
+# Environment variables (optional — auto-detected/created if not set):
+#   TELNYX_FROM_NUMBER     Caller ID (auto-detected from account if not set)
+#   TELNYX_CONNECTION_ID   Connection ID (auto-detected/created if not set)
 #
 # Exit codes:
 #   0 — Call completed successfully
@@ -54,9 +54,9 @@ for arg in "$@"; do
       echo ""
       echo "Environment variables:"
       echo "  TELNYX_API_KEY       (required) Your Telnyx API key"
-      echo "  TELNYX_FROM_NUMBER   (required) Caller ID, E.164 format (e.g., +15551234567)"
-      echo "  TELNYX_TO_NUMBER     (required) Destination number, E.164 format"
-      echo "  TELNYX_CONNECTION_ID (optional) Connection ID (auto-detected if not set)"
+      echo "  TELNYX_TO_NUMBER     (required) Destination phone number, E.164 format"
+      echo "  TELNYX_FROM_NUMBER   (optional) Caller ID (auto-detected from account)"
+      echo "  TELNYX_CONNECTION_ID (optional) Connection ID (auto-created if needed)"
       exit 0
       ;;
     *)
@@ -73,7 +73,7 @@ echo ""
 echo -e "${YELLOW}${BOLD}COST WARNING: This test makes a real outbound call (~\$0.01)${NC}"
 echo ""
 
-# --- Validate prerequisites ---
+# --- Validate hard prerequisites ---
 ERRORS=0
 
 if [ -z "${TELNYX_API_KEY:-}" ]; then
@@ -83,15 +83,9 @@ else
   echo -e "  ${GREEN}PASS${NC}  TELNYX_API_KEY is set (${TELNYX_API_KEY:0:8}...)"
 fi
 
-if [ -z "${TELNYX_FROM_NUMBER:-}" ]; then
-  echo -e "  ${RED}FAIL${NC}  TELNYX_FROM_NUMBER is not set"
-  ERRORS=$((ERRORS + 1))
-else
-  echo -e "  ${GREEN}PASS${NC}  TELNYX_FROM_NUMBER: ${TELNYX_FROM_NUMBER}"
-fi
-
 if [ -z "${TELNYX_TO_NUMBER:-}" ]; then
   echo -e "  ${RED}FAIL${NC}  TELNYX_TO_NUMBER is not set"
+  echo -e "         The agent should ask the user for their phone number to receive the test call."
   ERRORS=$((ERRORS + 1))
 else
   echo -e "  ${GREEN}PASS${NC}  TELNYX_TO_NUMBER: ${TELNYX_TO_NUMBER}"
@@ -107,7 +101,8 @@ if command -v jq &>/dev/null; then
   HAS_JQ=true
   echo -e "  ${GREEN}PASS${NC}  jq is available"
 else
-  echo -e "  ${YELLOW}WARN${NC}  jq not installed (output will be limited)"
+  echo -e "  ${YELLOW}WARN${NC}  jq not installed — required for auto-setup. Install with: brew install jq / apt install jq"
+  ERRORS=$((ERRORS + 1))
 fi
 
 if [ "$ERRORS" -gt 0 ]; then
@@ -129,6 +124,75 @@ if [ "$HTTP_CODE" != "200" ]; then
   exit 1
 fi
 echo -e "  ${GREEN}PASS${NC}  API key is valid"
+
+# --- Auto-detect TELNYX_FROM_NUMBER if not set ---
+if [ -z "${TELNYX_FROM_NUMBER:-}" ]; then
+  echo ""
+  echo -e "${BOLD}Auto-detecting caller ID number...${NC}"
+  NUMS_RESPONSE=$(curl -s -g \
+    -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+    "https://api.telnyx.com/v2/phone_numbers?page[size]=50&filter[status]=active" 2>/dev/null || echo "")
+  NUM_TOTAL=$(echo "$NUMS_RESPONSE" | jq -r '.meta.total_results // 0' 2>/dev/null)
+  if [ "$NUM_TOTAL" = "0" ] || [ -z "$NUM_TOTAL" ]; then
+    echo -e "  ${YELLOW}WARN${NC}  No phone numbers on account"
+    echo -e "  ${BLUE}INFO${NC}  Searching for a voice-capable number to purchase..."
+    TO_COUNTRY="US"
+    if [[ "${TELNYX_TO_NUMBER}" == +353* ]]; then TO_COUNTRY="IE"
+    elif [[ "${TELNYX_TO_NUMBER}" == +44* ]]; then TO_COUNTRY="GB"
+    elif [[ "${TELNYX_TO_NUMBER}" == +1* ]]; then TO_COUNTRY="US"
+    elif [[ "${TELNYX_TO_NUMBER}" == +61* ]]; then TO_COUNTRY="AU"
+    elif [[ "${TELNYX_TO_NUMBER}" == +49* ]]; then TO_COUNTRY="DE"
+    elif [[ "${TELNYX_TO_NUMBER}" == +33* ]]; then TO_COUNTRY="FR"
+    fi
+    SEARCH_RESPONSE=$(curl -s -g \
+      -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+      "https://api.telnyx.com/v2/available_phone_numbers?filter[country_code]=${TO_COUNTRY}&filter[features][]=voice&filter[limit]=1" 2>/dev/null || echo "")
+    AVAIL_NUMBER=$(echo "$SEARCH_RESPONSE" | jq -r '.data[0].phone_number // empty' 2>/dev/null)
+    if [ -n "$AVAIL_NUMBER" ]; then
+      echo -e "  ${YELLOW}${BOLD}PURCHASE REQUIRED${NC}: Need to buy a number for testing"
+      echo -e "  Available: ${AVAIL_NUMBER} (${TO_COUNTRY})"
+      if [ "$CONFIRMED" = true ]; then
+        echo -e "  ${BLUE}INFO${NC}  Purchasing ${AVAIL_NUMBER}..."
+        ORDER_RESPONSE=$(curl -s -X POST \
+          -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+          -H "Content-Type: application/json" \
+          -d "{\"phone_numbers\": [{\"phone_number\": \"${AVAIL_NUMBER}\"}]}" \
+          "https://api.telnyx.com/v2/number_orders" 2>/dev/null || echo "")
+        ORDER_ERROR=$(echo "$ORDER_RESPONSE" | jq -r '.errors[0].detail // empty' 2>/dev/null)
+        if [ -n "$ORDER_ERROR" ]; then
+          echo -e "  ${RED}FAIL${NC}  Could not purchase number: $ORDER_ERROR"
+          exit 1
+        fi
+        echo -e "  ${GREEN}PASS${NC}  Number ordered: ${AVAIL_NUMBER}"
+        sleep 3
+        TELNYX_FROM_NUMBER="$AVAIL_NUMBER"
+      else
+        echo -e "  Run with --confirm to auto-purchase this number."
+        exit 0
+      fi
+    else
+      echo -e "  ${RED}FAIL${NC}  No voice-capable numbers available in ${TO_COUNTRY}"
+      echo -e "         Purchase a number at https://portal.telnyx.com/#/app/numbers/search-numbers"
+      exit 1
+    fi
+  else
+    # Pick a number that has a connection assigned, preferring voice-enabled
+    TELNYX_FROM_NUMBER=$(echo "$NUMS_RESPONSE" | jq -r '
+      [.data[] | select(.connection_id != null and .connection_id != "")] | .[0].phone_number // empty
+    ' 2>/dev/null)
+    if [ -z "$TELNYX_FROM_NUMBER" ]; then
+      TELNYX_FROM_NUMBER=$(echo "$NUMS_RESPONSE" | jq -r '.data[0].phone_number // empty' 2>/dev/null)
+    fi
+    if [ -n "$TELNYX_FROM_NUMBER" ]; then
+      echo -e "  ${GREEN}PASS${NC}  Auto-detected caller ID: ${TELNYX_FROM_NUMBER}"
+    else
+      echo -e "  ${RED}FAIL${NC}  Could not determine a caller ID from account"
+      exit 1
+    fi
+  fi
+else
+  echo -e "  ${GREEN}PASS${NC}  TELNYX_FROM_NUMBER: ${TELNYX_FROM_NUMBER}"
+fi
 
 # --- Dry run exits here ---
 if [ "$DRY_RUN" = true ]; then
@@ -167,11 +231,62 @@ if [ -z "$CONNECTION_ID" ]; then
   if [ "$HAS_JQ" = true ] && [ -n "$CONN_RESPONSE" ]; then
     CONNECTION_ID=$(echo "$CONN_RESPONSE" | jq -r '.data[0].id // empty' 2>/dev/null)
   fi
-  if [ -z "$CONNECTION_ID" ]; then
-    echo -e "  ${RED}FAIL${NC}  No connection found. Create one in the Telnyx portal or set TELNYX_CONNECTION_ID."
-    exit 1
+  if [ -n "$CONNECTION_ID" ]; then
+    echo -e "  ${GREEN}PASS${NC}  Using existing connection: ${CONNECTION_ID}"
+  else
+    # Auto-create a Call Control connection
+    echo -e "  ${BLUE}INFO${NC}  No connection found — creating Call Control app..."
+    CONN_CREATE_RESPONSE=$(curl -s -X POST \
+      -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "{
+        \"application_name\": \"Migration Test (auto-created)\",
+        \"webhook_event_url\": \"https://example.com/webhooks\",
+        \"connection_name\": \"Migration Test Connection\"
+      }" \
+      "https://api.telnyx.com/v2/call_control_applications" 2>/dev/null || echo "")
+    if [ "$HAS_JQ" = true ] && [ -n "$CONN_CREATE_RESPONSE" ]; then
+      CONNECTION_ID=$(echo "$CONN_CREATE_RESPONSE" | jq -r '.data.id // empty' 2>/dev/null)
+      CONN_CREATE_ERROR=$(echo "$CONN_CREATE_RESPONSE" | jq -r '.errors[0].detail // empty' 2>/dev/null)
+      if [ -n "$CONN_CREATE_ERROR" ]; then
+        echo -e "  ${RED}FAIL${NC}  Could not create connection: $CONN_CREATE_ERROR"
+        exit 1
+      fi
+    fi
+    if [ -n "$CONNECTION_ID" ]; then
+      echo -e "  ${GREEN}PASS${NC}  Created Call Control app: ${CONNECTION_ID}"
+      # Assign the from number to this connection
+      echo -e "  ${BLUE}INFO${NC}  Assigning ${TELNYX_FROM_NUMBER} to connection..."
+      NUM_RESPONSE=$(curl -s -g \
+        -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+        "https://api.telnyx.com/v2/phone_numbers?filter[phone_number]=${TELNYX_FROM_NUMBER}&page[size]=1" 2>/dev/null || echo "")
+      PHONE_ID=""
+      if [ "$HAS_JQ" = true ] && [ -n "$NUM_RESPONSE" ]; then
+        PHONE_ID=$(echo "$NUM_RESPONSE" | jq -r '.data[0].id // empty' 2>/dev/null)
+      fi
+      if [ -n "$PHONE_ID" ]; then
+        ASSIGN_RESPONSE=$(curl -s -X PATCH \
+          -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+          -H "Content-Type: application/json" \
+          -d "{\"connection_id\": \"${CONNECTION_ID}\"}" \
+          "https://api.telnyx.com/v2/phone_numbers/${PHONE_ID}" 2>/dev/null || echo "")
+        ASSIGN_ERROR=""
+        if [ "$HAS_JQ" = true ] && [ -n "$ASSIGN_RESPONSE" ]; then
+          ASSIGN_ERROR=$(echo "$ASSIGN_RESPONSE" | jq -r '.errors[0].detail // empty' 2>/dev/null)
+        fi
+        if [ -n "$ASSIGN_ERROR" ]; then
+          echo -e "  ${YELLOW}WARN${NC}  Could not assign number to connection: $ASSIGN_ERROR"
+        else
+          echo -e "  ${GREEN}PASS${NC}  Number assigned to connection"
+        fi
+      else
+        echo -e "  ${YELLOW}WARN${NC}  Could not find phone number ID for ${TELNYX_FROM_NUMBER}"
+      fi
+    else
+      echo -e "  ${RED}FAIL${NC}  Could not create connection. Create one in the Telnyx portal or set TELNYX_CONNECTION_ID."
+      exit 1
+    fi
   fi
-  echo -e "  ${GREEN}PASS${NC}  Using connection: ${CONNECTION_ID}"
 fi
 
 # --- Place the call ---
@@ -265,9 +380,16 @@ while true; do
 
   CURRENT_STATE=""
   if [ "$HAS_JQ" = true ] && [ -n "$STATUS_RESPONSE" ]; then
-    CURRENT_STATE=$(echo "$STATUS_RESPONSE" | jq -r '.data.state // .data.is_alive // empty' 2>/dev/null)
-    # Also check if the call is alive
+    # Call Control GET returns is_alive (boolean) and call_duration, not a state name
     IS_ALIVE=$(echo "$STATUS_RESPONSE" | jq -r '.data.is_alive // empty' 2>/dev/null)
+    CALL_DURATION=$(echo "$STATUS_RESPONSE" | jq -r '.data.call_duration // empty' 2>/dev/null)
+    if [ "$IS_ALIVE" = "true" ]; then
+      CURRENT_STATE="active"
+    elif [ "$IS_ALIVE" = "false" ]; then
+      CURRENT_STATE="ended"
+    else
+      CURRENT_STATE=""
+    fi
   fi
 
   # Report state changes
@@ -276,7 +398,7 @@ while true; do
     STATUS_LOG="${STATUS_LOG}${CURRENT_STATE} -> "
     LAST_STATE="$CURRENT_STATE"
 
-    if [ "$CURRENT_STATE" = "answered" ] || [ "$CURRENT_STATE" = "active" ]; then
+    if [ "$CURRENT_STATE" = "answered" ] || [ "$CURRENT_STATE" = "active" ] || [ "$IS_ALIVE" = "true" ]; then
       REACHED_ANSWERED=true
 
       # Send TTS speak command

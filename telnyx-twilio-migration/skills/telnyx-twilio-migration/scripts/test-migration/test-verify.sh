@@ -11,8 +11,10 @@
 #
 # Environment variables (required):
 #   TELNYX_API_KEY             Your Telnyx API key
-#   TELNYX_VERIFY_PROFILE_ID   Verify profile ID (from Telnyx portal)
-#   TELNYX_TO_NUMBER           Destination number (E.164 format)
+#   TELNYX_TO_NUMBER           Destination number (E.164 format) — agent should ask user
+#
+# Environment variables (optional — auto-detected/created if not set):
+#   TELNYX_VERIFY_PROFILE_ID   Verify profile ID (auto-detected/created if not set)
 #
 # Exit codes:
 #   0 — Verification completed successfully
@@ -51,8 +53,8 @@ for arg in "$@"; do
       echo ""
       echo "Environment variables:"
       echo "  TELNYX_API_KEY             (required) Your Telnyx API key"
-      echo "  TELNYX_VERIFY_PROFILE_ID   (required) Verify profile ID"
       echo "  TELNYX_TO_NUMBER           (required) Destination number, E.164 format"
+      echo "  TELNYX_VERIFY_PROFILE_ID   (optional) Verify profile ID (auto-detected/created if not set)"
       exit 0
       ;;
     *)
@@ -80,15 +82,14 @@ else
 fi
 
 if [ -z "${TELNYX_VERIFY_PROFILE_ID:-}" ]; then
-  echo -e "  ${RED}FAIL${NC}  TELNYX_VERIFY_PROFILE_ID is not set"
-  echo -e "         Create one at: https://portal.telnyx.com/#/app/verify/profiles"
-  ERRORS=$((ERRORS + 1))
+  echo -e "  ${BLUE}INFO${NC}  TELNYX_VERIFY_PROFILE_ID not set — will auto-detect or create"
 else
   echo -e "  ${GREEN}PASS${NC}  TELNYX_VERIFY_PROFILE_ID: ${TELNYX_VERIFY_PROFILE_ID}"
 fi
 
 if [ -z "${TELNYX_TO_NUMBER:-}" ]; then
   echo -e "  ${RED}FAIL${NC}  TELNYX_TO_NUMBER is not set"
+  echo -e "         The agent should ask the user for their phone number to receive the OTP."
   ERRORS=$((ERRORS + 1))
 else
   echo -e "  ${GREEN}PASS${NC}  TELNYX_TO_NUMBER: ${TELNYX_TO_NUMBER}"
@@ -104,7 +105,8 @@ if command -v jq &>/dev/null; then
   HAS_JQ=true
   echo -e "  ${GREEN}PASS${NC}  jq is available"
 else
-  echo -e "  ${YELLOW}WARN${NC}  jq not installed (output will be limited)"
+  echo -e "  ${YELLOW}WARN${NC}  jq not installed — required for auto-setup. Install with: brew install jq / apt install jq"
+  ERRORS=$((ERRORS + 1))
 fi
 
 # Check stdin is a terminal (needed for code input)
@@ -131,6 +133,59 @@ if [ "$HTTP_CODE" != "200" ]; then
   exit 1
 fi
 echo -e "  ${GREEN}PASS${NC}  API key is valid"
+
+# --- Auto-detect or create verify profile ---
+VERIFY_PROFILE_ID="${TELNYX_VERIFY_PROFILE_ID:-}"
+if [ -z "$VERIFY_PROFILE_ID" ]; then
+  echo ""
+  echo -e "${BOLD}Auto-detecting verify profile...${NC}"
+
+  HAS_JQ_EARLY=false
+  if command -v jq &>/dev/null; then
+    HAS_JQ_EARLY=true
+  fi
+
+  # Try to find an existing verify profile
+  VP_RESPONSE=$(curl -s \
+    -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+    "https://api.telnyx.com/v2/verify_profiles?page[size]=1" 2>/dev/null || echo "")
+  if [ "$HAS_JQ_EARLY" = true ] && [ -n "$VP_RESPONSE" ]; then
+    VERIFY_PROFILE_ID=$(echo "$VP_RESPONSE" | jq -r '.data[0].id // empty' 2>/dev/null)
+  fi
+
+  if [ -n "$VERIFY_PROFILE_ID" ]; then
+    echo -e "  ${GREEN}PASS${NC}  Using existing verify profile: ${VERIFY_PROFILE_ID}"
+  else
+    # Auto-create a verify profile
+    echo -e "  ${BLUE}INFO${NC}  No verify profile found — creating one..."
+    VP_CREATE_RESPONSE=$(curl -s -X POST \
+      -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "{
+        \"name\": \"Migration Test Verify Profile (auto-created)\",
+        \"messaging_enabled\": true,
+        \"default_timeout_secs\": 300
+      }" \
+      "https://api.telnyx.com/v2/verify_profiles" 2>/dev/null || echo "")
+    if [ "$HAS_JQ_EARLY" = true ] && [ -n "$VP_CREATE_RESPONSE" ]; then
+      VERIFY_PROFILE_ID=$(echo "$VP_CREATE_RESPONSE" | jq -r '.data.id // empty' 2>/dev/null)
+      VP_CREATE_ERROR=$(echo "$VP_CREATE_RESPONSE" | jq -r '.errors[0].detail // empty' 2>/dev/null)
+      if [ -n "$VP_CREATE_ERROR" ]; then
+        echo -e "  ${RED}FAIL${NC}  Could not create verify profile: $VP_CREATE_ERROR"
+        exit 1
+      fi
+    fi
+    if [ -n "$VERIFY_PROFILE_ID" ]; then
+      echo -e "  ${GREEN}PASS${NC}  Created verify profile: ${VERIFY_PROFILE_ID}"
+    else
+      echo -e "  ${RED}FAIL${NC}  Could not create verify profile"
+      echo -e "         Create one manually at: https://portal.telnyx.com/#/app/verify/profiles"
+      exit 1
+    fi
+  fi
+  # Export for use in the rest of the script
+  TELNYX_VERIFY_PROFILE_ID="$VERIFY_PROFILE_ID"
+fi
 
 # --- Dry run exits here ---
 if [ "$DRY_RUN" = true ]; then

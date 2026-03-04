@@ -62,6 +62,8 @@ EXCLUDE_ARGS=()
 for d in "${EXCLUDE_DIRS[@]}"; do
   EXCLUDE_ARGS+=(--exclude-dir="$d")
 done
+# Exclude minified/bundled files (can cause grep OOM and produce false positives)
+EXCLUDE_ARGS+=(--exclude='*.min.js' --exclude='*.min.css' --exclude='*.bundle.js' --exclude='*.chunk.js')
 
 # ---------------------------------------------------------------------------
 # State — associative arrays / arrays collected during the scan
@@ -165,6 +167,38 @@ pattern_to_products() {
   # Webhook validation
   if echo "$pat" | grep -qiE 'RequestValidator|validateRequest|X-Twilio-Signature'; then
     products="$products webhook-validation"
+  fi
+  # SIP trunking
+  if echo "$pat" | grep -qiE 'trunking|TrunkingGrant|SipGrant'; then
+    products="$products sip"
+  fi
+  # IoT / Wireless
+  if echo "$pat" | grep -qiE 'wireless|supersim|SuperSim|SimResource|fleet\.create'; then
+    products="$products iot"
+  fi
+  # Conversations
+  if echo "$pat" | grep -qiE 'conversations\.v1|ConversationResource'; then
+    products="$products conversations"
+  fi
+  # Notify
+  if echo "$pat" | grep -qiE 'notify\.v1|NotificationResource'; then
+    products="$products notify"
+  fi
+  # Proxy
+  if echo "$pat" | grep -qiE 'proxy\.v1|ProxyService'; then
+    products="$products proxy"
+  fi
+  # Autopilot
+  if echo "$pat" | grep -qiE 'autopilot\.v1|AutopilotTask'; then
+    products="$products autopilot"
+  fi
+  # TaskRouter
+  if echo "$pat" | grep -qiE 'taskrouter|TaskRouterWorker|WorkflowResource'; then
+    products="$products taskrouter"
+  fi
+  # Studio
+  if echo "$pat" | grep -qiE 'studio\.v2|studio\.v1|flow\.create'; then
+    products="$products studio"
   fi
   echo "$products"
 }
@@ -300,6 +334,23 @@ PRODUCT_PATTERNS_FIXED=(
   'FaxResource:fax'
   'RequestValidator:webhook-validation'
   'validateRequest:webhook-validation'
+  # SIP trunking
+  'TrunkingGrant:sip'
+  'SipGrant:sip'
+  # IoT / Wireless
+  'SuperSim:iot'
+  'SimResource:iot'
+  # Conversations
+  'ConversationResource:conversations'
+  # Notify
+  'NotificationResource:notify'
+  # Proxy
+  'ProxyService:proxy'
+  # Autopilot
+  'AutopilotTask:autopilot'
+  # TaskRouter
+  'TaskRouterWorker:taskrouter'
+  'WorkflowResource:taskrouter'
 )
 
 for entry in "${PRODUCT_PATTERNS_FIXED[@]}"; do
@@ -335,6 +386,40 @@ PRODUCT_PATTERNS_REGEX=(
   'twiml\.messaging:messaging'
   'VoiceGrant:voice'
   'SipGrant:voice'
+  # SIP trunking
+  'twilio\.rest\.trunking:sip'
+  'trunking\.v1:sip'
+  'trunk\.create:sip'
+  # IoT / Wireless / Super SIM
+  'twilio\.rest\.wireless:iot'
+  'twilio\.rest\.supersim:iot'
+  'wireless\.v1:iot'
+  'supersim\.v1:iot'
+  'sim\.create:iot'
+  'fleet\.create:iot'
+  # Conversations
+  'twilio\.rest\.conversations:conversations'
+  'conversations\.v1:conversations'
+  'conversation\.create:conversations'
+  # Sync
+  'twilio\.rest\.sync:sync'
+  'sync\.v1:sync'
+  # Notify
+  'twilio\.rest\.notify:notify'
+  'notify\.v1:notify'
+  # Proxy
+  'twilio\.rest\.proxy:proxy'
+  'proxy\.v1:proxy'
+  # Autopilot
+  'twilio\.rest\.autopilot:autopilot'
+  'autopilot\.v1:autopilot'
+  # TaskRouter
+  'twilio\.rest\.taskrouter:taskrouter'
+  'taskrouter\.v1:taskrouter'
+  # Studio
+  'twilio\.rest\.studio:studio'
+  'studio\.v2:studio'
+  'flow\.create:studio'
 )
 
 for entry in "${PRODUCT_PATTERNS_REGEX[@]}"; do
@@ -569,7 +654,7 @@ for i in "${!FILE_PATHS[@]}"; do
   done
   # Build patterns array from ||-separated
   pats_arr=""
-  IFS='||' read -ra patlist <<< "${FILE_PATTERNS[$i]}"
+  IFS=$'\x1f' read -ra patlist <<< "${FILE_PATTERNS[$i]//'||'/$'\x1f'}"
   for pt in "${patlist[@]}"; do
     [[ -z "$pt" ]] && continue
     [[ -n "$pats_arr" ]] && pats_arr="$pats_arr, "

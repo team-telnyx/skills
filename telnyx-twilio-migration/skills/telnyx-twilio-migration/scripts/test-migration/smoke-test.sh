@@ -90,11 +90,15 @@ else
   check_info "Python3 not found — skipping Python SDK check"
 fi
 
-# Node.js
+# Node.js (check global first, then local node_modules)
 if command -v node &>/dev/null; then
   if node -e "require('telnyx')" 2>/dev/null; then
     TELNYX_NODE_VER=$(node -e "try{console.log(require('telnyx/package.json').version)}catch(e){console.log('unknown')}" 2>/dev/null || echo "unknown")
     check_pass "Node.js: require('telnyx') succeeded (version: $TELNYX_NODE_VER)"
+    SDK_FOUND=true
+  elif [ -d "node_modules/telnyx" ]; then
+    TELNYX_NODE_VER=$(node -e "try{console.log(require('./node_modules/telnyx/package.json').version)}catch(e){console.log('unknown')}" 2>/dev/null || echo "unknown")
+    check_pass "Node.js: telnyx found in local node_modules (version: $TELNYX_NODE_VER)"
     SDK_FOUND=true
   else
     check_warn "Node.js: require('telnyx') failed — install with: npm install telnyx"

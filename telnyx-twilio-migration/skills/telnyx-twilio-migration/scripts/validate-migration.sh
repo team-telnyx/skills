@@ -38,6 +38,7 @@ PRODUCT_FILTER="all"
 PROJECT_ROOT=""
 
 EXCLUDE_DIRS="node_modules .git vendor __pycache__ venv .venv dist build"
+EXCLUDE_FILES="MIGRATION-PLAN.md MIGRATION-REPORT.md"
 
 # JSON accumulator
 JSON_CHECKS="[]"
@@ -138,6 +139,19 @@ search_files() {
   done
   # shellcheck disable=SC2086
   grep -rn $GREP_EXCLUDES $include_args -E "$pattern" "$PROJECT_ROOT" 2>/dev/null || true
+}
+
+# Search helper that excludes .md files and minified JS (for config/env var checks)
+# Avoids false positives from migration docs that reference old env var names
+search_source_files() {
+  local pattern="$1"
+  shift
+  local include_args=""
+  for glob in "$@"; do
+    include_args="$include_args --include=$glob"
+  done
+  # shellcheck disable=SC2086
+  grep -rn $GREP_EXCLUDES --exclude='*.md' --exclude='*.min.js' $include_args -E "$pattern" "$PROJECT_ROOT" 2>/dev/null || true
 }
 
 # Convert grep output lines to JSON files array
@@ -322,9 +336,9 @@ if product_applies "all"; then
   fi
 fi
 
-# --- Check 2: Twilio API URLs ---
+# --- Check 2: Twilio API URLs (excludes .md docs and minified JS) ---
 if product_applies "all"; then
-  matches=$(search_files "(api\.twilio\.com|verify\.twilio\.com|video\.twilio\.com|taskrouter\.twilio\.com|chat\.twilio\.com|conversations\.twilio\.com|sync\.twilio\.com|proxy\.twilio\.com|studio\.twilio\.com)")
+  matches=$(search_source_files "(api\.twilio\.com|verify\.twilio\.com|video\.twilio\.com|taskrouter\.twilio\.com|chat\.twilio\.com|conversations\.twilio\.com|sync\.twilio\.com|proxy\.twilio\.com|studio\.twilio\.com)")
   count=$(count_matches "$matches")
   if [ "$count" -gt 0 ]; then
     check_fail "twilio_api_urls" "Twilio API URLs found in $count file(s):" "$(matches_to_json "$matches")"
@@ -333,9 +347,9 @@ if product_applies "all"; then
   fi
 fi
 
-# --- Check 3: Twilio env vars ---
+# --- Check 3: Twilio env vars (excludes .md docs and minified JS) ---
 if product_applies "all"; then
-  matches=$(search_files "(TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|TWILIO_API_KEY|TWILIO_API_SECRET|TWILIO_SID)")
+  matches=$(search_source_files "(TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|TWILIO_API_KEY|TWILIO_API_SECRET|TWILIO_SID)")
   count=$(count_matches "$matches")
   if [ "$count" -gt 0 ]; then
     check_fail "twilio_env_vars" "Twilio environment variables found in $count file(s):" "$(matches_to_json "$matches")"
