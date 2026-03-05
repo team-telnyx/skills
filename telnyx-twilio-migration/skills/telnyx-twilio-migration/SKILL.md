@@ -6,6 +6,7 @@ description: >-
   Covers voice (TwiML to TeXML, Call Control API), messaging, WebRTC,
   SIP trunking, verify, fax, video, IoT, number lookup, and porting.
   Includes automated scanners, validation scripts, and integration tests.
+user_invocable: true
 metadata:
   author: telnyx
   product: migration
