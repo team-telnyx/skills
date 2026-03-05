@@ -620,7 +620,7 @@ section_header "Webhook Validation"
 
 # --- Check 10: Ed25519 signature validation ---
 if product_applies "voice,messaging,verify,sip,fax"; then
-  matches=$(search_files "(ed25519|Ed25519|telnyx-signature-ed25519|verify_signature|construct_event|webhook.*signature.*telnyx)")
+  matches=$(search_files "(ed25519|Ed25519|telnyx-signature-ed25519|verify_signature|construct_event|webhooks\.unwrap|webhook.*signature.*telnyx)")
   count=$(count_matches "$matches")
   if [ "$count" -gt 0 ]; then
     check_pass "ed25519_validation" "Ed25519 webhook signature validation found in $count file(s)"

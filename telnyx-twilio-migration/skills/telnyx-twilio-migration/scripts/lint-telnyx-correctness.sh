@@ -402,7 +402,7 @@ if product_applies "all"; then
   webhook_handlers=$(search_files "(app\.(post|put)|router\.(post|put)|@app\.route|@csrf_exempt|http\.HandleFunc|post.*do)" "*.py" "*.js" "*.ts" "*.rb" "*.go" "*.java" "*.php")
   webhook_count=$(count_matches "$webhook_handlers")
   if [ "$webhook_count" -gt 0 ]; then
-    ed25519_refs=$(search_files "(telnyx-signature-ed25519|ed25519|verify_signature|verifySignature|construct_event|TELNYX_PUBLIC_KEY)" "*.py" "*.js" "*.ts" "*.rb" "*.go" "*.java" "*.php")
+    ed25519_refs=$(search_files "(telnyx-signature-ed25519|ed25519|verify_signature|verifySignature|construct_event|webhooks\.unwrap|TELNYX_PUBLIC_KEY)" "*.py" "*.js" "*.ts" "*.rb" "*.go" "*.java" "*.php")
     ed25519_count=$(count_matches "$ed25519_refs")
     telnyx_webhook_parse=$(search_files "(data\.payload|data\[.payload.\]|data\.event_type|data\[.event_type.\])" "*.py" "*.js" "*.ts" "*.rb" "*.go" "*.java" "*.php")
     telnyx_parse_count=$(count_matches "$telnyx_webhook_parse")
