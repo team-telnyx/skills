@@ -48,11 +48,11 @@ Ask the user for these **three things** in a single message:
 | Item | Cost | When Charged |
 |------|------|-------------|
 | Phone number (if account has none) | ~$1.00/month | Phase 5 integration tests |
-| Integration tests (SMS + voice + verify) | ~$0.064 total | Phase 5 |
+| Integration tests (SMS + voice + verify + lookup + fax) | ~$0.144 total | Phase 5 |
 | 10DLC registration (US A2P messaging only) | ~$19 | Phase 3 setup (only if applicable) |
 | Number porting | Free | Post-migration (optional) |
 
-**Total estimated cost for most migrations: under $1.10.** 10DLC adds ~$19 if applicable. Individual paid actions still have `--confirm` gates in the scripts.
+**Total estimated cost for most migrations: under $1.20.** 10DLC adds ~$19 if applicable. Individual paid actions still have `--confirm` gates in the scripts.
 
 **Do not proceed until the user provides all three items.** This is the last time you will ask the user for input.
 
@@ -163,6 +163,8 @@ cp {baseDir}/templates/MIGRATION-PLAN.md <project-root>/MIGRATION-PLAN.md
 
 Populate the plan based on the decisions above. Do not ask for user approval — proceed directly to Phase 3.
 
+**Phase 2 exit**: `bash {baseDir}/scripts/migration-state.sh set-phase <project-root> 2`
+
 ---
 
 ## Phase 3: Setup
@@ -203,9 +205,14 @@ Install Telnyx SDK **alongside** Twilio — do NOT remove Twilio from the packag
 | `TWILIO_PHONE_NUMBER` | `TELNYX_PHONE_NUMBER` | Your Telnyx number (E.164) |
 | `TWILIO_MESSAGING_SERVICE_SID` | `TELNYX_MESSAGING_PROFILE_ID` | Messaging profile UUID |
 | `TWILIO_VERIFY_SERVICE_SID` | `TELNYX_VERIFY_PROFILE_ID` | Verify profile UUID |
-| *(voice — TeXML)* | `TELNYX_TEXML_APP_ID` | TeXML Application ID from `POST /v2/texml_applications` — this is the application that owns your webhook URLs and outbound calling config. NOT a SIP connection ID. |
-| *(voice — Call Control)* | `TELNYX_CALL_CONTROL_APP_ID` | Call Control Application ID from `POST /v2/call_control_applications` — routes inbound call events to your webhook. NOT a SIP connection ID. |
-| *(SIP trunking)* | `TELNYX_SIP_CONNECTION_ID` | SIP Connection ID from `POST /v2/credential_connections` or `POST /v2/ip_connections` — used for PBX/SBC trunking. |
+| *(voice/SIP/WebRTC)* | `TELNYX_CONNECTION_ID` | The connection or application ID used for outbound calls. The value depends on your voice approach — see disambiguation below. |
+
+> **`TELNYX_CONNECTION_ID` disambiguation** — all three are different Telnyx resources:
+> - **TeXML**: This is a **TeXML Application ID** from `POST /v2/texml_applications`. It owns your webhook URLs and outbound calling config.
+> - **Call Control**: This is a **Call Control Application ID** from `POST /v2/call_control_applications`. It routes inbound call events to your webhook.
+> - **SIP trunking**: This is a **SIP Connection ID** from `POST /v2/credential_connections` or `POST /v2/ip_connections`. It's used for PBX/SBC trunking.
+>
+> Use a single `TELNYX_CONNECTION_ID` env var — its value is whichever ID matches your voice approach. If the app uses multiple approaches (e.g., TeXML for inbound + SIP for trunking), use separate env vars with descriptive names like `TELNYX_TEXML_APP_ID` and `TELNYX_SIP_CONNECTION_ID`.
 
 Update `.env`, `.env.example`, secrets manager, CI/CD variables, and deployment configs. **Ensure every env var used in the migrated code is present in `.env.example`** — missing env vars are a top cause of runtime failures.
 
@@ -263,7 +270,7 @@ Process each product area in priority order: **messaging → voice → verify �
 
 **After ALL product areas are migrated:**
 
-11. **Env var audit**: Grep all migrated source files for `process.env.TELNYX_` / `os.environ["TELNYX_"]` / `ENV["TELNYX_"]` references. Verify EVERY referenced env var exists in `.env.example` (or equivalent config template). Missing env vars are the #1 cause of "works in dev, fails in prod" bugs.
+13. **Env var audit**: Grep all migrated source files for `process.env.TELNYX_` / `os.environ["TELNYX_"]` / `ENV["TELNYX_"]` references. Verify EVERY referenced env var exists in `.env.example` (or equivalent config template). Missing env vars are the #1 cause of "works in dev, fails in prod" bugs.
 
 ### Post-Migration Documentation Update (MANDATORY)
 
@@ -296,7 +303,7 @@ If validation fails and you cannot fix the issue, document it and continue to th
 - Recording: Set `channels="single"` if expecting mono
 - **`speechModel` does NOT exist in TeXML** — remove it or replace with `transcriptionEngine` (e.g., `transcriptionEngine="Google"`). Using `speechModel` will be silently ignored.
 - **Polly voices**: TeXML supports `voice="Polly.{VoiceId}"` and `voice="Polly.{VoiceId}-Neural"`. Always prefer Neural variants (e.g., `Polly.Amy-Neural` instead of `Polly.Amy`) — non-Neural voices may silently fall back to the default voice. If a specific Polly voice is unavailable, use `voice="woman"` with the appropriate `language` attribute.
-- **Outbound calls**: Use the Telnyx SDK — do NOT use raw `fetch()` to the TeXML API. The SDK handles auth, retries, and response parsing. Pass the **TeXML Application ID** (from `TELNYX_TEXML_APP_ID`, NOT a SIP connection ID) as the `connection_id` parameter. See `{baseDir}/sdk-reference/{language}/texml.md` for the exact method signature.
+- **Outbound calls**: Use the Telnyx SDK — do NOT use raw `fetch()` to the TeXML API. The SDK handles auth, retries, and response parsing. Pass the **TeXML Application ID** (from `TELNYX_CONNECTION_ID`, NOT a SIP connection ID) as the `connection_id` parameter. See `{baseDir}/sdk-reference/{language}/texml.md` for the exact method signature.
 
 **Voice (Call Control path):**
 - Replace TwiML response generation with Call Control API commands
@@ -325,7 +332,7 @@ If validation fails and you cannot fix the issue, document it and continue to th
 - Verify Service SID → Verify Profile ID
 - `channel` → `type` parameter
 - `to` → `phone_number`
-- Check response: `approved` → `accepted`, `pending` → `rejected`
+- Check response status mapping: Twilio `approved` → Telnyx `accepted` (code is correct), Twilio `pending` → Telnyx `pending` (no change needed). For failed/expired: Twilio `denied`/`expired` → Telnyx `rejected`/`expired`
 
 **Webhook Receivers (all products):**
 - **You MUST migrate webhook handlers** — this is half the migration for most apps. See `{baseDir}/references/webhook-migration.md` for complete receive + parse + verify examples in Python (Flask, Django), JavaScript (Express), Ruby (Sinatra, **Rails**), and Go (net/http).
@@ -399,7 +406,7 @@ bash {baseDir}/scripts/lint-telnyx-correctness.sh <project-root>
 
 ### Step 5.2: Integration Tests
 
-Real API calls with small charges (~$0.064 total, already approved in Phase 0). The phone number was collected in Phase 0.
+Real API calls with small charges (~$0.144 total, already approved in Phase 0). The phone number was collected in Phase 0.
 
 ```bash
 # TELNYX_TO_NUMBER was set in Phase 0 — do not ask again
@@ -431,6 +438,8 @@ git add <changed-files> && git commit -m "fix: resolve migration validation issu
 bash {baseDir}/scripts/run-validation.sh <project-root>
 bash {baseDir}/scripts/lint-telnyx-correctness.sh <project-root>
 ```
+
+**Phase 5 exit**: `bash {baseDir}/scripts/migration-state.sh set-phase <project-root> 5 && bash {baseDir}/scripts/migration-state.sh set-commit <project-root> 5`
 
 ---
 
@@ -486,6 +495,8 @@ Fill in: summary metrics, changes by product, validation results, environment ch
 - [ ] If hybrid: maintain both API keys, monitor both platforms, revisit kept products
 - [ ] Cancel Twilio account after validation period (skip if hybrid)
 
+**Phase 6 exit**: `bash {baseDir}/scripts/migration-state.sh set-phase <project-root> 6 && bash {baseDir}/scripts/migration-state.sh set-commit <project-root> 6`
+
 ---
 
 ## Scripts Reference
@@ -495,7 +506,7 @@ All scripts are in `{baseDir}/scripts/`. Run them — do not substitute your own
 **State tracking**: `migration-state.sh init|status|show|set-phase|set|add-product|add-file|set-commit <root> [args]`
 **Phase wrappers**: `run-discovery.sh <root>` (Phase 1), `run-validation.sh <root>` (Phase 5)
 **Scanners (free)**: `preflight-check.sh [--quick]`, `scan-twilio-usage.sh <root>`, `scan-twilio-deep.py <root>`
-**Validators (free)**: `validate-migration.sh <root> [--product X] [--json] [--exclude-dir D] [--scan-json F]`, `validate-texml.sh <file>`, `lint-telnyx-correctness.sh <root> [--product X] [--json]`
+**Validators (free)**: `validate-migration.sh <root> [--product X] [--json] [--exclude-dir D] [--scan-json F] [--state-file <path>]`, `validate-texml.sh <file>`, `lint-telnyx-correctness.sh <root> [--product X] [--json]`
 **Tests (free)**: `test-migration/smoke-test.sh`, `test-migration/webhook-receiver.py`, `test-migration/test-webhooks-local.py`
 **Tests (paid, --confirm)**: `test-migration/test-voice.sh` (~$0.01), `test-migration/test-messaging.sh` (~$0.004), `test-migration/test-verify.sh` (~$0.05), `test-migration/test-lookup.sh` (~$0.01), `test-migration/test-fax.sh` (~$0.07)
 **Tests (free, --confirm)**: `test-migration/test-sip.sh` (SIP trunking setup), `test-migration/test-webrtc.sh` (WebRTC credentials/tokens)
