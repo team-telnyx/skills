@@ -168,14 +168,28 @@ A comprehensive migration guide for moving from Twilio to Telnyx across all prod
 
 | Area | Description |
 |------|-------------|
-| Voice (TwiML → TeXML) | Near drop-in XML compatibility with complete verb reference (15 verbs, 8 nouns) |
+| Voice (TwiML → TeXML + Call Control) | Near drop-in XML compatibility (15 verbs, 8 nouns) plus Call Control API for real-time call manipulation |
 | Messaging (SMS/MMS) | Parameter mapping, messaging profiles, 10DLC registration |
-| WebRTC / Client SDKs | Architecture differences, endpoint migration decision trees |
+| WebRTC / Client SDKs | Architecture differences, endpoint migration, mobile SDK guides (iOS, Android, Flutter, React Native) |
 | Number Porting | FastPort API for same-day US/Canada activation |
 | Verify (2FA) | SMS, voice, flash calling, and PSD2 verification |
-| Universal Changes | Auth (Basic → Bearer), webhook signatures (HMAC-SHA1 → Ed25519), payload structure |
+| SIP Trunking | Connection setup, credential auth, FQDN migration |
+| Fax / IoT / Video | Product-specific migration guides with API mapping |
+| Lookup | Number lookup and carrier data migration |
+| Universal Changes | Auth (Basic → Bearer), webhook signatures (HMAC-SHA1 → Ed25519), `client.webhooks.unwrap()` verification |
 
-Includes utility scripts for environment validation (`preflight-check.sh`) and TwiML/TeXML compatibility checking (`validate-texml.sh`), plus parameter-by-parameter mapping tables and multi-language code examples.
+**6-phase orchestrated workflow** — Discovery → Planning → Core Migration → Webhook/Auth → Testing → Validation → Cleanup — with automated scripts:
+
+| Script | Purpose |
+|--------|---------|
+| `preflight-check.sh` | Pre-migration environment and dependency validation |
+| `scan-twilio-usage.sh` | Detect all Twilio usage across the codebase |
+| `lint-telnyx-correctness.sh` | Static analysis for common Telnyx SDK mistakes |
+| `validate-migration.sh` | Post-migration validation (webhooks, env vars, API patterns) |
+| `smoke-test.sh` | Runtime smoke tests against the live Telnyx API |
+| `test-*.sh` | Product-specific integration tests (messaging, voice, verify, SIP, WebRTC, fax, lookup) |
+
+Includes parameter-by-parameter mapping tables, multi-language code examples (Python, Node, Go, Java, Ruby, curl), error code mapping, and migration plan/report templates.
 
 > **Note:** After migrating, install a language plugin (e.g. `telnyx-python`) for deeper SDK examples, and `telnyx-webrtc-client` if building a calling app.
 
