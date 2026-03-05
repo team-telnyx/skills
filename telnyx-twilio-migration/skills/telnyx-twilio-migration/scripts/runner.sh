@@ -105,103 +105,105 @@ set_runner_value() {
 
 # Build the full step list (static + dynamic), stored in runner state
 build_step_list() {
-  local steps=()
-  local step_types=()
-  local step_phases=()
-  local step_prereqs=()
+  # Build steps in correct execution order:
+  # 1. Static steps phases 0-3 + phase4_gate
+  # 2. Dynamic phase4 steps (migrate/lint/validate/commit per product)
+  # 3. phase4_env_audit
+  # 4. phase5_gate, phase5_run_validation, phase5_run_lint
+  # 5. Dynamic phase5 test steps
+  # 6. Static steps phase6_*
 
-  # Parse static steps
+  local ordered_ids=()
+  local ordered_types=()
+  local ordered_phases=()
+  local ordered_prereqs=()
+
+  # Helper to append a step
+  _append_step() {
+    ordered_ids+=("$1"); ordered_types+=("$2"); ordered_phases+=("$3"); ordered_prereqs+=("$4")
+  }
+
+  # Parse static steps into associative-like parallel arrays
+  local static_ids=() static_types=() static_phases=() static_prereqs=()
   while IFS='|' read -r id type phase prereqs; do
     [[ -n "$id" ]] || continue
-    steps+=("$id")
-    step_types+=("$type")
-    step_phases+=("$phase")
-    step_prereqs+=("$prereqs")
+    static_ids+=("$id")
+    static_types+=("$type")
+    static_phases+=("$phase")
+    static_prereqs+=("$prereqs")
   done <<< "$(get_static_steps)"
 
-  # Check if scan file exists for dynamic step generation
-  local scan_file="${PROJECT_ROOT}/twilio-scan.json"
+  # Parse dynamic steps if scan file exists
+  local dyn_ids=() dyn_types=() dyn_phases=() dyn_prereqs=()
   local dynamic_env_audit_prereq=""
   local dynamic_phase6_gate_prereq=""
+  local scan_file="${PROJECT_ROOT}/twilio-scan.json"
 
   if [[ -f "$scan_file" ]]; then
     while IFS='|' read -r id rest; do
       [[ -n "$id" ]] || continue
       if [[ "$id" == "__SET_ENV_AUDIT_PREREQ__" ]]; then
-        dynamic_env_audit_prereq="$rest"
-        continue
+        dynamic_env_audit_prereq="$rest"; continue
       fi
       if [[ "$id" == "__SET_PHASE6_GATE_PREREQ__" ]]; then
-        dynamic_phase6_gate_prereq="$rest"
-        continue
+        dynamic_phase6_gate_prereq="$rest"; continue
       fi
       IFS='|' read -r type phase prereqs <<< "$rest"
-      steps+=("$id")
-      step_types+=("$type")
-      step_phases+=("$phase")
-      step_prereqs+=("$prereqs")
+      dyn_ids+=("$id")
+      dyn_types+=("$type")
+      dyn_phases+=("$phase")
+      dyn_prereqs+=("$prereqs")
     done <<< "$(get_dynamic_steps "$scan_file")"
   fi
 
-  # Now build the ordered list:
-  # 1. Static steps through phase4_gate
-  # 2. Dynamic phase4 steps (migrate/lint/validate/commit per product)
-  # 3. phase4_env_audit
-  # 4. Static steps phase5_gate, phase5_run_validation, phase5_run_lint
-  # 5. Dynamic phase5 test steps
-  # 6. Static steps phase6_*
+  # Add static steps in order, injecting dynamic steps at the right points
+  for i in "${!static_ids[@]}"; do
+    local sid="${static_ids[$i]}"
+    local sprereqs="${static_prereqs[$i]}"
 
-  # Build JSON array of steps with metadata
+    # Before phase4_env_audit, insert all dynamic phase4 steps
+    if [[ "$sid" == "phase4_env_audit" ]]; then
+      for j in "${!dyn_ids[@]}"; do
+        [[ "${dyn_phases[$j]}" == "4" ]] && _append_step "${dyn_ids[$j]}" "${dyn_types[$j]}" "${dyn_phases[$j]}" "${dyn_prereqs[$j]}"
+      done
+      # Fix env_audit prereqs
+      [[ -n "$dynamic_env_audit_prereq" ]] && sprereqs="$dynamic_env_audit_prereq"
+      _append_step "$sid" "${static_types[$i]}" "${static_phases[$i]}" "$sprereqs"
+      continue
+    fi
+
+    # After phase5_run_lint, insert all dynamic phase5 test steps
+    if [[ "$sid" == "phase6_gate" ]]; then
+      for j in "${!dyn_ids[@]}"; do
+        [[ "${dyn_phases[$j]}" == "5" ]] && _append_step "${dyn_ids[$j]}" "${dyn_types[$j]}" "${dyn_phases[$j]}" "${dyn_prereqs[$j]}"
+      done
+      # Fix phase6_gate prereqs
+      [[ -n "$dynamic_phase6_gate_prereq" ]] && sprereqs="$dynamic_phase6_gate_prereq"
+      _append_step "$sid" "${static_types[$i]}" "${static_phases[$i]}" "$sprereqs"
+      continue
+    fi
+
+    _append_step "$sid" "${static_types[$i]}" "${static_phases[$i]}" "$sprereqs"
+  done
+
+  # Build JSON array
   local json_steps="["
   local first=true
-  local step_index=0
-
-  for i in "${!steps[@]}"; do
-    local sid="${steps[$i]}"
-    local stype="${step_types[$i]}"
-    local sphase="${step_phases[$i]}"
-    local sprereqs="${step_prereqs[$i]}"
-
-    # Fix dynamic prereqs
-    if [[ "$sid" == "phase4_env_audit" ]] && [[ -n "$dynamic_env_audit_prereq" ]]; then
-      sprereqs="$dynamic_env_audit_prereq"
-    fi
-    if [[ "$sid" == "phase6_gate" ]] && [[ -n "$dynamic_phase6_gate_prereq" ]]; then
-      sprereqs="$dynamic_phase6_gate_prereq"
-    fi
-
+  for i in "${!ordered_ids[@]}"; do
     $first || json_steps+=","
     first=false
-    step_index=$((step_index + 1))
-
+    local idx=$((i + 1))
     json_steps+=$(jq -n \
-      --arg id "$sid" \
-      --arg type "$stype" \
-      --argjson phase "$sphase" \
-      --arg prereqs "$sprereqs" \
-      --argjson idx "$step_index" \
+      --arg id "${ordered_ids[$i]}" \
+      --arg type "${ordered_types[$i]}" \
+      --argjson phase "${ordered_phases[$i]}" \
+      --arg prereqs "${ordered_prereqs[$i]}" \
+      --argjson idx "$idx" \
       '{id: $id, type: $type, phase: $phase, prereqs: $prereqs, index: $idx}')
   done
   json_steps+="]"
 
-  # Sort by: phase, then by index within phase (preserving insertion order)
-  # Static phase steps should come before dynamic ones within same phase
-  local sorted
-  sorted=$(echo "$json_steps" | jq 'sort_by(.phase, .index)')
-
-  # Re-index after sort
-  sorted=$(echo "$sorted" | jq '[to_entries[] | .value.index = (.key + 1) | .value]')
-
-  echo "$sorted"
-}
-
-# Order steps correctly: static phases 0-3, dynamic phase 4, env_audit, static phase 5, dynamic tests, static phase 6
-reorder_steps() {
-  local json_steps="$1"
-  # The steps are already in correct order from build_step_list since we process
-  # static steps first (which include phase markers) then inject dynamic steps
-  # We just need to sort by phase then preserve order within phase
-  echo "$json_steps" | jq 'sort_by(.phase, .index) | [to_entries[] | .value.index = (.key + 1) | .value]'
+  echo "$json_steps"
 }
 
 # Get step from ordered list by ID
