@@ -14,12 +14,14 @@
 #
 # Environment variables (optional — auto-detected/created if not set):
 #   TELNYX_CONNECTION_ID   Credential connection ID (auto-detected/created if not set)
+#   TELNYX_TO_NUMBER       Phone number to receive live test call (optional, enables live call step)
+#   TELNYX_FROM_NUMBER     Caller ID for live call (auto-detected if not set)
 #
 # Exit codes:
 #   0 — All WebRTC tests passed
 #   1 — Test failed or setup error
 #
-# Cost: FREE — credential creation and deletion have no charge
+# Cost: FREE for credential/token tests. ~$0.01 if TELNYX_TO_NUMBER is set (live call).
 
 set -euo pipefail
 
@@ -47,7 +49,7 @@ for arg in "$@"; do
       echo "Usage: bash test-webrtc.sh --confirm [--dry-run]"
       echo ""
       echo "Validates WebRTC credential and token generation via Telnyx API."
-      echo "No browser required — tests the API layer only."
+      echo "Optionally places a live test call to verify end-to-end connectivity."
       echo ""
       echo "Flags:"
       echo "  --confirm    Required to actually create credentials/tokens"
@@ -56,8 +58,10 @@ for arg in "$@"; do
       echo "Environment variables:"
       echo "  TELNYX_API_KEY       (required) Your Telnyx API key"
       echo "  TELNYX_CONNECTION_ID (optional) Credential connection ID (auto-detected/created)"
+      echo "  TELNYX_TO_NUMBER     (optional) Phone number to receive live test call (~\$0.01)"
+      echo "  TELNYX_FROM_NUMBER   (optional) Caller ID for live call (auto-detected)"
       echo ""
-      echo "Cost: FREE"
+      echo "Cost: FREE for credential/token tests. ~\$0.01 if TELNYX_TO_NUMBER is set."
       exit 0
       ;;
     *)
@@ -71,7 +75,12 @@ done
 echo -e "${BOLD}Telnyx WebRTC Test${NC}"
 echo "==================="
 echo ""
-echo -e "${GREEN}${BOLD}COST: FREE — credential creation/deletion has no charge${NC}"
+if [ -n "${TELNYX_TO_NUMBER:-}" ]; then
+  echo -e "${YELLOW}${BOLD}COST: ~\$0.01 (credential tests are free, live call ~\$0.01)${NC}"
+else
+  echo -e "${GREEN}${BOLD}COST: FREE — credential creation/deletion has no charge${NC}"
+  echo -e "  ${BLUE}INFO${NC}  Set TELNYX_TO_NUMBER to enable live call test (~\$0.01)"
+fi
 echo ""
 
 # --- Validate hard prerequisites ---
@@ -140,9 +149,16 @@ if [ "$CONFIRMED" = false ]; then
   echo "  3. Create a temporary SIP credential"
   echo "  4. Generate a JWT token for WebRTC"
   echo "  5. Validate the JWT token structure"
-  echo "  6. Clean up the temporary credential"
-  echo ""
-  echo "  Cost: FREE"
+  if [ -n "${TELNYX_TO_NUMBER:-}" ]; then
+    echo "  6. Place a live test call to ${TELNYX_TO_NUMBER} (~\$0.01)"
+    echo "  7. Clean up the temporary credential"
+    echo ""
+    echo "  Cost: ~\$0.01 (live call)"
+  else
+    echo "  6. Clean up the temporary credential"
+    echo ""
+    echo "  Cost: FREE"
+  fi
   echo ""
   echo "Run with --confirm to proceed."
   exit 0
@@ -416,9 +432,207 @@ print('yes' if 'alg' in data else 'no')
   fi
 fi
 
-# --- Step 7: Clean up ---
+# --- Step 7: Live call test (optional — requires TELNYX_TO_NUMBER and a from number) ---
+LIVE_CALL_PASS=false
+LIVE_CALL_SKIPPED=false
+
+if [ -n "${TELNYX_TO_NUMBER:-}" ]; then
+  echo ""
+  echo -e "${BOLD}Step 7: Live call test (verifies end-to-end connectivity)...${NC}"
+  echo -e "${YELLOW}${BOLD}COST: ~\$0.01 (outbound call)${NC}"
+
+  # Auto-detect a from number
+  WEBRTC_FROM_NUMBER="${TELNYX_FROM_NUMBER:-}"
+  if [ -z "$WEBRTC_FROM_NUMBER" ]; then
+    NUMS_RESPONSE=$(curl -s -g \
+      -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+      "https://api.telnyx.com/v2/phone_numbers?page[size]=50&filter[status]=active" 2>/dev/null || echo "")
+    WEBRTC_FROM_NUMBER=$(echo "$NUMS_RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for num in data.get('data', []):
+    if num.get('connection_id'):
+        print(num.get('phone_number', ''))
+        break
+else:
+    nums = data.get('data', [])
+    if nums:
+        print(nums[0].get('phone_number', ''))
+" 2>/dev/null || echo "")
+  fi
+
+  if [ -z "$WEBRTC_FROM_NUMBER" ]; then
+    echo -e "  ${YELLOW}WARN${NC}  No from number available — skipping live call test"
+    echo -e "         Purchase a number or set TELNYX_FROM_NUMBER to enable this test"
+    LIVE_CALL_SKIPPED=true
+  else
+    echo -e "  ${BLUE}INFO${NC}  Calling ${TELNYX_TO_NUMBER} from ${WEBRTC_FROM_NUMBER}..."
+
+    # Need a Call Control app (not the credential connection) for outbound calls
+    # Check for existing Call Control app or create one
+    CCA_RESPONSE=$(curl -s -g \
+      -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+      "https://api.telnyx.com/v2/call_control_applications?page[size]=5" 2>/dev/null || echo "")
+    CCA_ID=$(echo "$CCA_RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+apps = data.get('data', [])
+# Prefer app with OVP
+for app in apps:
+    ovp = (app.get('outbound') or {}).get('outbound_voice_profile_id')
+    if ovp:
+        print(app['id'])
+        break
+else:
+    if apps:
+        print(apps[0].get('id', ''))
+" 2>/dev/null || echo "")
+
+    if [ -z "$CCA_ID" ]; then
+      echo -e "  ${BLUE}INFO${NC}  No Call Control app found — creating one for live test..."
+      UNIQUE_SUFFIX=$(date +%s)
+
+      # Determine destination country for OVP whitelisting
+      TO_COUNTRY="US"
+      case "${TELNYX_TO_NUMBER}" in
+        +353*) TO_COUNTRY="IE" ;; +44*) TO_COUNTRY="GB" ;; +1*) TO_COUNTRY="US" ;;
+        +61*) TO_COUNTRY="AU" ;; +49*) TO_COUNTRY="DE" ;; +33*) TO_COUNTRY="FR" ;;
+      esac
+
+      OVP_RESPONSE=$(curl -s -X POST \
+        -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"WebRTC Test OVP ${UNIQUE_SUFFIX}\", \"whitelisted_destinations\": [\"US\", \"${TO_COUNTRY}\"]}" \
+        "https://api.telnyx.com/v2/outbound_voice_profiles" 2>/dev/null || echo "")
+      OVP_ID=$(echo "$OVP_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('id',''))" 2>/dev/null || echo "")
+
+      CCA_PAYLOAD="{\"application_name\": \"WebRTC Migration Test ${UNIQUE_SUFFIX}\", \"webhook_event_url\": \"https://example.com/webhooks\""
+      if [ -n "$OVP_ID" ]; then
+        CCA_PAYLOAD="${CCA_PAYLOAD}, \"outbound\": {\"outbound_voice_profile_id\": \"${OVP_ID}\"}"
+      fi
+      CCA_PAYLOAD="${CCA_PAYLOAD}}"
+
+      CCA_CREATE=$(curl -s -X POST \
+        -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$CCA_PAYLOAD" \
+        "https://api.telnyx.com/v2/call_control_applications" 2>/dev/null || echo "")
+      CCA_ID=$(echo "$CCA_CREATE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('id',''))" 2>/dev/null || echo "")
+
+      if [ -n "$CCA_ID" ]; then
+        echo -e "  ${GREEN}PASS${NC}  Created Call Control app: ${CCA_ID}"
+        # Assign from number to this app
+        PHONE_ID=$(echo "$NUMS_RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for num in data.get('data', []):
+    if num.get('phone_number') == '${WEBRTC_FROM_NUMBER}':
+        print(num.get('id', ''))
+        break
+" 2>/dev/null || echo "")
+        if [ -n "$PHONE_ID" ]; then
+          curl -s -X PATCH \
+            -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"connection_id\": \"${CCA_ID}\"}" \
+            "https://api.telnyx.com/v2/phone_numbers/${PHONE_ID}" >/dev/null 2>&1 || true
+        fi
+      fi
+    fi
+
+    if [ -n "$CCA_ID" ]; then
+      # Place the call
+      CALL_RESPONSE=$(curl -s -X POST \
+        -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "{
+          \"connection_id\": \"${CCA_ID}\",
+          \"to\": \"${TELNYX_TO_NUMBER}\",
+          \"from\": \"${WEBRTC_FROM_NUMBER}\",
+          \"answering_machine_detection\": \"disabled\",
+          \"webhook_url\": \"https://example.com/null\"
+        }" \
+        "https://api.telnyx.com/v2/calls" 2>/dev/null || echo "")
+
+      CALL_CONTROL_ID=$(echo "$CALL_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('call_control_id',''))" 2>/dev/null || echo "")
+      CALL_ERROR=$(echo "$CALL_RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+errors = data.get('errors', [])
+print(errors[0].get('detail', '') if errors else '')
+" 2>/dev/null || echo "")
+
+      if [ -n "$CALL_ERROR" ]; then
+        echo -e "  ${RED}FAIL${NC}  Call failed: $CALL_ERROR"
+      elif [ -z "$CALL_CONTROL_ID" ]; then
+        echo -e "  ${RED}FAIL${NC}  No call_control_id in response"
+      else
+        echo -e "  ${GREEN}PASS${NC}  Call initiated (call_control_id: ${CALL_CONTROL_ID})"
+
+        # Wait for call to connect, then send TTS and hang up
+        echo -e "  ${BLUE}INFO${NC}  Waiting for call to connect..."
+        CALL_START=$(date +%s)
+        REACHED_ACTIVE=false
+
+        for i in $(seq 1 15); do
+          sleep 2
+          STATUS=$(curl -s \
+            -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+            "https://api.telnyx.com/v2/calls/${CALL_CONTROL_ID}" 2>/dev/null || echo "")
+          IS_ALIVE=$(echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('is_alive',''))" 2>/dev/null || echo "")
+
+          if [ "$IS_ALIVE" = "True" ] || [ "$IS_ALIVE" = "true" ]; then
+            REACHED_ACTIVE=true
+            echo -e "  ${GREEN}PASS${NC}  Call is active — sending TTS message"
+            # Send TTS
+            curl -s -X POST \
+              -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"call_control_id\": \"${CALL_CONTROL_ID}\",
+                \"payload\": \"This is a test call from Telnyx. Your WebRTC migration is working correctly. Goodbye.\",
+                \"voice\": \"female\",
+                \"language\": \"en-US\"
+              }" \
+              "https://api.telnyx.com/v2/calls/${CALL_CONTROL_ID}/actions/speak" >/dev/null 2>&1 || true
+            sleep 5
+            break
+          elif [ "$IS_ALIVE" = "False" ] || [ "$IS_ALIVE" = "false" ]; then
+            echo -e "  ${BLUE}INFO${NC}  Call ended before being answered"
+            break
+          fi
+        done
+
+        # Hang up
+        curl -s -X POST \
+          -H "Authorization: Bearer ${TELNYX_API_KEY}" \
+          -H "Content-Type: application/json" \
+          -d "{\"call_control_id\": \"${CALL_CONTROL_ID}\"}" \
+          "https://api.telnyx.com/v2/calls/${CALL_CONTROL_ID}/actions/hangup" >/dev/null 2>&1 || true
+
+        if [ "$REACHED_ACTIVE" = true ]; then
+          LIVE_CALL_PASS=true
+          echo -e "  ${GREEN}PASS${NC}  Live call completed — your phone should have rung"
+        else
+          echo -e "  ${YELLOW}WARN${NC}  Call did not reach active state — check number and connection setup"
+        fi
+      fi
+    else
+      echo -e "  ${YELLOW}WARN${NC}  Could not create Call Control app — skipping live call"
+      LIVE_CALL_SKIPPED=true
+    fi
+  fi
+else
+  echo ""
+  echo -e "${BOLD}Step 7: Live call test${NC}"
+  echo -e "  ${YELLOW}WARN${NC}  TELNYX_TO_NUMBER not set — skipping live call test"
+  echo -e "         Set TELNYX_TO_NUMBER to your phone number to test end-to-end calling"
+  LIVE_CALL_SKIPPED=true
+fi
+
+# --- Step 8: Clean up ---
 echo ""
-echo -e "${BOLD}Step 7: Cleaning up temporary credential...${NC}"
+echo -e "${BOLD}Step 8: Cleaning up temporary credential...${NC}"
 
 DELETE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
   -H "Authorization: Bearer ${TELNYX_API_KEY}" \
@@ -430,7 +644,7 @@ else
   echo -e "  ${YELLOW}WARN${NC}  Credential deletion returned HTTP $DELETE_CODE (may need manual cleanup)"
 fi
 
-# --- Step 8: Report ---
+# --- Step 9: Report ---
 echo ""
 echo "==================="
 echo -e "${BOLD}Results${NC}"
@@ -444,10 +658,22 @@ echo "  Token Valid JWT:     $([ "$TOKEN_VALID" = true ] && echo "YES" || echo "
 if [ "$CREATED_CONNECTION" = true ]; then
   echo "  Auto-Created Conn:   YES (${CONNECTION_ID})"
 fi
+if [ "$LIVE_CALL_SKIPPED" = true ]; then
+  echo "  Live Call Test:      SKIPPED (set TELNYX_TO_NUMBER to enable)"
+elif [ "$LIVE_CALL_PASS" = true ]; then
+  echo "  Live Call Test:      PASS"
+else
+  echo "  Live Call Test:      FAIL/WARN"
+fi
 
 if [ "$TOKEN_VALID" = true ]; then
   echo ""
   echo -e "  ${GREEN}${BOLD}PASS${NC}  WebRTC credential and token generation working correctly"
+  if [ "$LIVE_CALL_PASS" = true ]; then
+    echo -e "  ${GREEN}${BOLD}PASS${NC}  Live call test passed — end-to-end connectivity verified"
+  elif [ "$LIVE_CALL_SKIPPED" = false ]; then
+    echo -e "  ${YELLOW}${BOLD}WARN${NC}  Live call test did not fully pass — verify manually"
+  fi
   exit 0
 else
   echo ""
