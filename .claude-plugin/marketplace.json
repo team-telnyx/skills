@@ -295,6 +295,30 @@
       "skills": [
         "./telnyx-cli/skills/telnyx-cli"
       ]
+    },
+    {
+      "name": "telnyx-import-vapi",
+      "description": "Import Vapi voice assistants into Telnyx \u2014 preserves instructions, greeting, voice settings, tools, and call analysis. Multi-language SDK examples.",
+      "source": "./telnyx-import-vapi",
+      "skills": [
+        "./telnyx-import-vapi/skills/telnyx-import-vapi"
+      ]
+    },
+    {
+      "name": "telnyx-import-retell",
+      "description": "Import Retell AI agents into Telnyx \u2014 supports single-prompt and multi-prompt agents. Preserves instructions, voice settings, tools, and call analysis.",
+      "source": "./telnyx-import-retell",
+      "skills": [
+        "./telnyx-import-retell/skills/telnyx-import-retell"
+      ]
+    },
+    {
+      "name": "telnyx-import-elevenlabs",
+      "description": "Import ElevenLabs conversational AI agents into Telnyx \u2014 preserves instructions, voice settings, tools, and call analysis. Multi-language SDK examples.",
+      "source": "./telnyx-import-elevenlabs",
+      "skills": [
+        "./telnyx-import-elevenlabs/skills/telnyx-import-elevenlabs"
+      ]
     }
   ]
 }

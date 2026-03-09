@@ -31,6 +31,9 @@ Replace `telnyx-python` with the plugin for your stack:
 | `telnyx-ruby` | Ruby |
 | `telnyx-webrtc-client` | WebRTC client SDKs (JS, iOS, Android, Flutter, React Native) |
 | `telnyx-twilio-migration` | Migrate from Twilio to Telnyx |
+| `telnyx-import-vapi` | Import Vapi voice assistants into Telnyx |
+| `telnyx-import-retell` | Import Retell AI agents into Telnyx |
+| `telnyx-import-elevenlabs` | Import ElevenLabs conversational AI agents into Telnyx |
 | `telnyx-cli` | Telnyx CLI |
 <!-- END GENERATED PLUGIN_TABLE -->
 
@@ -192,6 +195,26 @@ A comprehensive migration guide for moving from Twilio to Telnyx across all prod
 Includes parameter-by-parameter mapping tables, multi-language code examples (Python, Node, Go, Java, Ruby, curl), error code mapping, and migration plan/report templates.
 
 > **Note:** After migrating, install a language plugin (e.g. `telnyx-python`) for deeper SDK examples, and `telnyx-webrtc-client` if building a calling app.
+
+## Import from Vapi, Retell, or ElevenLabs
+
+Already running voice AI agents on another platform? Import them directly into Telnyx with a single API call. Each import skill walks through storing your provider API key, running the import, and verifying the result — with examples in all supported languages.
+
+```bash
+/plugin install telnyx-import-vapi@telnyx-skills
+/plugin install telnyx-import-retell@telnyx-skills
+/plugin install telnyx-import-elevenlabs@telnyx-skills
+```
+
+| Plugin | What it imports |
+|--------|----------------|
+| `telnyx-import-vapi` | Vapi voice assistants — instructions, greeting, voice config, tools, MCP servers, call analysis |
+| `telnyx-import-retell` | Retell AI agents (single-prompt and multi-prompt) — instructions, voice config, tools, call analysis |
+| `telnyx-import-elevenlabs` | ElevenLabs conversational AI agents — instructions, voice config, tools, call analysis |
+
+All three use the same underlying API (`POST /ai/assistants/import`) with provider-specific guidance. Knowledge bases and tool secrets require manual setup after import — each skill includes a post-import checklist.
+
+> **Note:** For a full codebase migration from Twilio (not just agent import), use `telnyx-twilio-migration` instead.
 
 ## Installation for Other Agents
 
