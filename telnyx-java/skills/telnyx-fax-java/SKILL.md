@@ -39,6 +39,36 @@ TelnyxClient client = TelnyxOkHttpClient.fromEnv();
 
 All examples below assume `client` is already initialized as shown above.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```java
+import com.telnyx.sdk.errors.TelnyxServiceException;
+
+try {
+    var result = client.messages().send(params);
+} catch (TelnyxServiceException e) {
+    System.err.println("API error " + e.statusCode() + ": " + e.getMessage());
+    if (e.statusCode() == 422) {
+        System.err.println("Validation error — check required fields and formats");
+    } else if (e.statusCode() == 429) {
+        // Rate limited — wait and retry with exponential backoff
+        Thread.sleep(1000);
+    }
+}
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Phone numbers** must be in E.164 format (e.g., `+13125550001`). Include the `+` prefix and country code. No spaces, dashes, or parentheses.
+- **Pagination:** List methods return a page. Use `.autoPager()` for automatic iteration: `for (var item : page.autoPager()) { ... }`. For manual control, use `.hasNextPage()` and `.nextPage()`.
+
 ## List all Fax Applications
 
 This endpoint returns a list of your Fax Applications inside the 'data' attribute of the response. You can adjust which applications are listed by using filters. Fax Applications are used to configure how you send and receive faxes using the Programmable Fax API with Telnyx.
@@ -219,8 +249,42 @@ Returns: `result` (string)
 
 ## Webhooks
 
+### Webhook Verification
+
+Telnyx signs webhooks with Ed25519. Each request includes `telnyx-signature-ed25519`
+and `telnyx-timestamp` headers. Always verify signatures in production:
+
+```java
+import com.telnyx.sdk.core.UnwrapWebhookParams;
+import com.telnyx.sdk.core.http.Headers;
+
+// In your webhook handler (e.g., Spring — use raw body):
+@PostMapping("/webhooks")
+public ResponseEntity<String> handleWebhook(
+    @RequestBody String payload,
+    HttpServletRequest request) {
+  try {
+    Headers headers = Headers.builder()
+        .put("telnyx-signature-ed25519", request.getHeader("telnyx-signature-ed25519"))
+        .put("telnyx-timestamp", request.getHeader("telnyx-timestamp"))
+        .build();
+    var event = client.webhooks().unwrap(
+        UnwrapWebhookParams.builder()
+            .body(payload)
+            .headers(headers)
+            .build());
+    // Signature valid — process the event
+    System.out.println("Received webhook event");
+    return ResponseEntity.ok("OK");
+  } catch (Exception e) {
+    System.err.println("Webhook verification failed: " + e.getMessage());
+    return ResponseEntity.badRequest().body("Invalid signature");
+  }
+}
+```
+
 The following webhook events are sent to your configured webhook URL.
-All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for verification (Standard Webhooks compatible).
+All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for Ed25519 signature verification. Use `client.webhooks.unwrap()` to verify.
 
 | Event | Description |
 |-------|-------------|

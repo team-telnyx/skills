@@ -16,6 +16,39 @@ export TELNYX_API_KEY="YOUR_API_KEY_HERE"
 
 All examples below use `$TELNYX_API_KEY` for authentication.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```bash
+# Check HTTP status code in response
+response=$(curl -s -w "\n%{http_code}" \
+  -X POST "https://api.telnyx.com/v2/messages" \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"to": "+13125550001", "from": "+13125550002", "text": "Hello"}')
+
+http_code=$(echo "$response" | tail -1)
+body=$(echo "$response" | sed '$d')
+
+case $http_code in
+  2*) echo "Success: $body" ;;
+  422) echo "Validation error — check required fields and formats" ;;
+  429) echo "Rate limited — retry after delay"; sleep 1 ;;
+  401) echo "Authentication failed — check TELNYX_API_KEY" ;;
+  *)   echo "Error $http_code: $body" ;;
+esac
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Pagination:** List endpoints return paginated results. Use `page[number]` and `page[size]` query parameters to navigate pages. Check `meta.total_pages` in the response.
+
 ## List Brands
 
 This endpoint is used to list all brands associated with your organization.
@@ -664,8 +697,25 @@ Returns: `assignmentStatus` (enum: FAILED_ASSIGNMENT, PENDING_ASSIGNMENT, ASSIGN
 
 ## Webhooks
 
+### Webhook Verification
+
+Telnyx signs webhooks with Ed25519. Each request includes `telnyx-signature-ed25519`
+and `telnyx-timestamp` headers. Always verify signatures in production:
+
+```bash
+# Telnyx signs webhooks with Ed25519 (asymmetric — NOT HMAC/Standard Webhooks).
+# Headers sent with each webhook:
+#   telnyx-signature-ed25519: base64-encoded Ed25519 signature
+#   telnyx-timestamp: Unix timestamp (reject if >5 minutes old for replay protection)
+#
+# Get your public key from: Telnyx Portal > Account Settings > Keys & Credentials
+# Use the Telnyx SDK in your language for verification (client.webhooks.unwrap).
+# Your endpoint MUST return 2xx within 2 seconds or Telnyx will retry (up to 3 attempts).
+# Configure a failover URL in Telnyx Portal for additional reliability.
+```
+
 The following webhook events are sent to your configured webhook URL.
-All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for verification (Standard Webhooks compatible).
+All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for Ed25519 signature verification. Use `client.webhooks.unwrap()` to verify.
 
 | Event | Description |
 |-------|-------------|

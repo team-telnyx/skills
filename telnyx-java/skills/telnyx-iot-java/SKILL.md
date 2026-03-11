@@ -39,6 +39,35 @@ TelnyxClient client = TelnyxOkHttpClient.fromEnv();
 
 All examples below assume `client` is already initialized as shown above.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```java
+import com.telnyx.sdk.errors.TelnyxServiceException;
+
+try {
+    var result = client.messages().send(params);
+} catch (TelnyxServiceException e) {
+    System.err.println("API error " + e.statusCode() + ": " + e.getMessage());
+    if (e.statusCode() == 422) {
+        System.err.println("Validation error — check required fields and formats");
+    } else if (e.statusCode() == 429) {
+        // Rate limited — wait and retry with exponential backoff
+        Thread.sleep(1000);
+    }
+}
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Pagination:** List methods return a page. Use `.autoPager()` for automatic iteration: `for (var item : page.autoPager()) { ... }`. For manual control, use `.hasNextPage()` and `.nextPage()`.
+
 ## Purchase eSIMs
 
 Purchases and registers the specified amount of eSIMs to the current user's account.  
@@ -58,7 +87,7 @@ PurchaseCreateParams params = PurchaseCreateParams.builder()
 PurchaseCreateResponse purchase = client.actions().purchase().create(params);
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## Register SIM cards
 
@@ -84,7 +113,7 @@ RegisterCreateParams params = RegisterCreateParams.builder()
 RegisterCreateResponse register = client.actions().register().create(params);
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## List bulk SIM card actions
 
@@ -99,7 +128,7 @@ import com.telnyx.sdk.models.bulksimcardactions.BulkSimCardActionListParams;
 BulkSimCardActionListPage page = client.bulkSimCardActions().list();
 ```
 
-Returns: `action_type` (enum: bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `sim_card_actions_summary` (array[object]), `updated_at` (string)
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `sim_card_actions_summary` (array[object]), `updated_at` (string)
 
 ## Get bulk SIM card action details
 
@@ -114,7 +143,7 @@ import com.telnyx.sdk.models.bulksimcardactions.BulkSimCardActionRetrieveRespons
 BulkSimCardActionRetrieveResponse bulkSimCardAction = client.bulkSimCardActions().retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58");
 ```
 
-Returns: `action_type` (enum: bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `sim_card_actions_summary` (array[object]), `updated_at` (string)
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `sim_card_actions_summary` (array[object]), `updated_at` (string)
 
 ## List OTA updates
 
@@ -521,7 +550,45 @@ import com.telnyx.sdk.models.simcards.SimCardListParams;
 SimCardListPage page = client.simCards().list();
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
+
+## Request bulk disabling voice on SIM cards.
+
+This API triggers an asynchronous operation to disable voice on SIM cards belonging to a specified SIM Card Group. 
+For each SIM Card a SIM Card Action will be generated. The status of the SIM Card Actions can be followed through the [List SIM Card Action](https://developers.telnyx.com/api-reference/sim-card-actions/list-sim-card-actions) API.
+
+`POST /sim_cards/actions/bulk_disable_voice` — Required: `sim_card_group_id`
+
+```java
+import com.telnyx.sdk.models.simcards.actions.ActionBulkDisableVoiceParams;
+import com.telnyx.sdk.models.simcards.actions.ActionBulkDisableVoiceResponse;
+
+ActionBulkDisableVoiceParams params = ActionBulkDisableVoiceParams.builder()
+    .simCardGroupId("6b14e151-8493-4fa1-8664-1cc4e6d14158")
+    .build();
+ActionBulkDisableVoiceResponse response = client.simCards().actions().bulkDisableVoice(params);
+```
+
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `updated_at` (string)
+
+## Request bulk enabling voice on SIM cards.
+
+This API triggers an asynchronous operation to enable voice on SIM cards belonging to a specified SIM Card Group. 
+For each SIM Card a SIM Card Action will be generated. The status of the SIM Card Actions can be followed through the [List SIM Card Action](https://developers.telnyx.com/api-reference/sim-card-actions/list-sim-card-actions) API.
+
+`POST /sim_cards/actions/bulk_enable_voice` — Required: `sim_card_group_id`
+
+```java
+import com.telnyx.sdk.models.simcards.actions.ActionBulkEnableVoiceParams;
+import com.telnyx.sdk.models.simcards.actions.ActionBulkEnableVoiceResponse;
+
+ActionBulkEnableVoiceParams params = ActionBulkEnableVoiceParams.builder()
+    .simCardGroupId("6b14e151-8493-4fa1-8664-1cc4e6d14158")
+    .build();
+ActionBulkEnableVoiceResponse response = client.simCards().actions().bulkEnableVoice(params);
+```
+
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `updated_at` (string)
 
 ## Request bulk setting SIM card public IPs.
 
@@ -540,7 +607,7 @@ ActionBulkSetPublicIpsParams params = ActionBulkSetPublicIpsParams.builder()
 ActionBulkSetPublicIpsResponse response = client.simCards().actions().bulkSetPublicIps(params);
 ```
 
-Returns: `action_type` (enum: bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `updated_at` (string)
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `updated_at` (string)
 
 ## Validate SIM cards registration codes
 
@@ -572,7 +639,7 @@ import com.telnyx.sdk.models.simcards.SimCardRetrieveResponse;
 SimCardRetrieveResponse simCard = client.simCards().retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58");
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## Update a SIM card
 
@@ -580,7 +647,7 @@ Updates SIM card data
 
 `PATCH /sim_cards/{id}`
 
-Optional: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Optional: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ```java
 import com.telnyx.sdk.models.simcards.SimCard;
@@ -594,7 +661,7 @@ SimCardUpdateParams params = SimCardUpdateParams.builder()
 SimCardUpdateResponse simCard = client.simCards().update(params);
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## Deletes a SIM card
 
@@ -610,7 +677,7 @@ import com.telnyx.sdk.models.simcards.SimCardDeleteResponse;
 SimCardDeleteResponse simCard = client.simCards().delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58");
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## Request a SIM card disable
 

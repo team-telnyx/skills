@@ -27,6 +27,41 @@ client := telnyx.NewClient(
 
 All examples below assume `client` is already initialized as shown above.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```go
+import "errors"
+
+result, err := client.Messages.Send(ctx, params)
+if err != nil {
+  var apiErr *telnyx.Error
+  if errors.As(err, &apiErr) {
+    switch apiErr.StatusCode {
+    case 422:
+      fmt.Println("Validation error — check required fields and formats")
+    case 429:
+      // Rate limited — wait and retry with exponential backoff
+      fmt.Println("Rate limited, retrying...")
+    default:
+      fmt.Printf("API error %d: %s\n", apiErr.StatusCode, apiErr.Error())
+    }
+  } else {
+    fmt.Println("Network error — check connectivity and retry")
+  }
+}
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Pagination:** Use `ListAutoPaging()` for automatic iteration: `iter := client.Resource.ListAutoPaging(ctx, params); for iter.Next() { item := iter.Current() }`.
+
 ## List Brands
 
 This endpoint is used to list all brands associated with your organization.
@@ -771,8 +806,28 @@ Returns: `assignmentStatus` (enum: FAILED_ASSIGNMENT, PENDING_ASSIGNMENT, ASSIGN
 
 ## Webhooks
 
+### Webhook Verification
+
+Telnyx signs webhooks with Ed25519. Each request includes `telnyx-signature-ed25519`
+and `telnyx-timestamp` headers. Always verify signatures in production:
+
+```go
+// In your webhook handler:
+func handleWebhook(w http.ResponseWriter, r *http.Request) {
+  body, _ := io.ReadAll(r.Body)
+  event, err := client.Webhooks.Unwrap(body, r.Header)
+  if err != nil {
+    http.Error(w, "Invalid signature", http.StatusBadRequest)
+    return
+  }
+  // Signature valid — event is the parsed webhook payload
+  fmt.Println("Received event:", event.Data.EventType)
+  w.WriteHeader(http.StatusOK)
+}
+```
+
 The following webhook events are sent to your configured webhook URL.
-All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for verification (Standard Webhooks compatible).
+All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for Ed25519 signature verification. Use `client.webhooks.unwrap()` to verify.
 
 | Event | Description |
 |-------|-------------|

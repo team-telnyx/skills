@@ -32,6 +32,39 @@ const client = new Telnyx({
 
 All examples below assume `client` is already initialized as shown above.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```javascript
+try {
+  const result = await client.messages.send({ to: '+13125550001', from: '+13125550002', text: 'Hello' });
+} catch (err) {
+  if (err instanceof Telnyx.APIConnectionError) {
+    console.error('Network error — check connectivity and retry');
+  } else if (err instanceof Telnyx.RateLimitError) {
+    // 429: rate limited — wait and retry with exponential backoff
+    const retryAfter = err.headers?.['retry-after'] || 1;
+    await new Promise(r => setTimeout(r, retryAfter * 1000));
+  } else if (err instanceof Telnyx.APIError) {
+    console.error(`API error ${err.status}: ${err.message}`);
+    if (err.status === 422) {
+      console.error('Validation error — check required fields and formats');
+    }
+  }
+}
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Phone numbers** must be in E.164 format (e.g., `+13125550001`). Include the `+` prefix and country code. No spaces, dashes, or parentheses.
+- **Pagination:** List methods return an auto-paginating iterator. Use `for await (const item of result) { ... }` to iterate through all pages automatically.
+
 ## Retrieve Bundles
 
 Get all allowed bundles.

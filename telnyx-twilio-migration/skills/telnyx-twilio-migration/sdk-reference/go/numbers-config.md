@@ -27,6 +27,42 @@ client := telnyx.NewClient(
 
 All examples below assume `client` is already initialized as shown above.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```go
+import "errors"
+
+result, err := client.Messages.Send(ctx, params)
+if err != nil {
+  var apiErr *telnyx.Error
+  if errors.As(err, &apiErr) {
+    switch apiErr.StatusCode {
+    case 422:
+      fmt.Println("Validation error — check required fields and formats")
+    case 429:
+      // Rate limited — wait and retry with exponential backoff
+      fmt.Println("Rate limited, retrying...")
+    default:
+      fmt.Printf("API error %d: %s\n", apiErr.StatusCode, apiErr.Error())
+    }
+  } else {
+    fmt.Println("Network error — check connectivity and retry")
+  }
+}
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Phone numbers** must be in E.164 format (e.g., `+13125550001`). Include the `+` prefix and country code. No spaces, dashes, or parentheses.
+- **Pagination:** Use `ListAutoPaging()` for automatic iteration: `iter := client.Resource.ListAutoPaging(ctx, params); for iter.Next() { item := iter.Current() }`.
+
 ## Bulk update phone number profiles
 
 `POST /messaging_numbers_bulk_updates` — Required: `messaging_profile_id`, `numbers`

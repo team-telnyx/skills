@@ -39,6 +39,35 @@ TelnyxClient client = TelnyxOkHttpClient.fromEnv();
 
 All examples below assume `client` is already initialized as shown above.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```java
+import com.telnyx.sdk.errors.TelnyxServiceException;
+
+try {
+    var result = client.messages().send(params);
+} catch (TelnyxServiceException e) {
+    System.err.println("API error " + e.statusCode() + ": " + e.getMessage());
+    if (e.statusCode() == 422) {
+        System.err.println("Validation error — check required fields and formats");
+    } else if (e.statusCode() == 429) {
+        // Rate limited — wait and retry with exponential backoff
+        Thread.sleep(1000);
+    }
+}
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Pagination:** List methods return a page. Use `.autoPager()` for automatic iteration: `for (var item : page.autoPager()) { ... }`. For manual control, use `.hasNextPage()` and `.nextPage()`.
+
 ## List your voice channels for non-US zones
 
 Returns the non-US voice channels for your account. voice channels allow you to use Channel Billing for calls to your Telnyx phone numbers. Please check the Telnyx Support Articles section for full information and examples of how to utilize Channel Billing.

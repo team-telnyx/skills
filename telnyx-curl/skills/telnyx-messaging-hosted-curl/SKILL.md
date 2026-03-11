@@ -29,6 +29,40 @@ export TELNYX_API_KEY="YOUR_API_KEY_HERE"
 
 All examples below use `$TELNYX_API_KEY` for authentication.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```bash
+# Check HTTP status code in response
+response=$(curl -s -w "\n%{http_code}" \
+  -X POST "https://api.telnyx.com/v2/messages" \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"to": "+13125550001", "from": "+13125550002", "text": "Hello"}')
+
+http_code=$(echo "$response" | tail -1)
+body=$(echo "$response" | sed '$d')
+
+case $http_code in
+  2*) echo "Success: $body" ;;
+  422) echo "Validation error — check required fields and formats" ;;
+  429) echo "Rate limited — retry after delay"; sleep 1 ;;
+  401) echo "Authentication failed — check TELNYX_API_KEY" ;;
+  *)   echo "Error $http_code: $body" ;;
+esac
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Phone numbers** must be in E.164 format (e.g., `+13125550001`). Include the `+` prefix and country code. No spaces, dashes, or parentheses.
+- **Pagination:** List endpoints return paginated results. Use `page[number]` and `page[size]` query parameters to navigate pages. Check `meta.total_pages` in the response.
+
 ## Send an RCS message
 
 `POST /messages/rcs` — Required: `agent_id`, `to`, `messaging_profile_id`, `agent_message`

@@ -16,6 +16,39 @@ export TELNYX_API_KEY="YOUR_API_KEY_HERE"
 
 All examples below use `$TELNYX_API_KEY` for authentication.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```bash
+# Check HTTP status code in response
+response=$(curl -s -w "\n%{http_code}" \
+  -X POST "https://api.telnyx.com/v2/messages" \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"to": "+13125550001", "from": "+13125550002", "text": "Hello"}')
+
+http_code=$(echo "$response" | tail -1)
+body=$(echo "$response" | sed '$d')
+
+case $http_code in
+  2*) echo "Success: $body" ;;
+  422) echo "Validation error — check required fields and formats" ;;
+  429) echo "Rate limited — retry after delay"; sleep 1 ;;
+  401) echo "Authentication failed — check TELNYX_API_KEY" ;;
+  *)   echo "Error $http_code: $body" ;;
+esac
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Pagination:** List endpoints return paginated results. Use `page[number]` and `page[size]` query parameters to navigate pages. Check `meta.total_pages` in the response.
+
 ## Purchase eSIMs
 
 Purchases and registers the specified amount of eSIMs to the current user's account.  
@@ -45,7 +78,7 @@ curl \
   "https://api.telnyx.com/v2/actions/purchase/esims"
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## Register SIM cards
 
@@ -78,7 +111,7 @@ curl \
   "https://api.telnyx.com/v2/actions/register/sim_cards"
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## List bulk SIM card actions
 
@@ -90,7 +123,7 @@ This API lists a paginated collection of bulk SIM card actions. A bulk SIM card 
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/bulk_sim_card_actions?filter[action_type]=bulk_set_public_ips"
 ```
 
-Returns: `action_type` (enum: bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `sim_card_actions_summary` (array[object]), `updated_at` (string)
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `sim_card_actions_summary` (array[object]), `updated_at` (string)
 
 ## Get bulk SIM card action details
 
@@ -102,7 +135,7 @@ This API fetches information about a bulk SIM card action. A bulk SIM card actio
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/bulk_sim_card_actions/6a09cdc3-8948-47f0-aa62-74ac943d6c58"
 ```
 
-Returns: `action_type` (enum: bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `sim_card_actions_summary` (array[object]), `updated_at` (string)
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `sim_card_actions_summary` (array[object]), `updated_at` (string)
 
 ## List OTA updates
 
@@ -483,7 +516,47 @@ Get all SIM cards belonging to the user that match the given filters.
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/sim_cards?include_sim_card_group=True&filter[sim_card_group_id]=47a1c2b0-cc7b-4ab1-bb98-b33fb0fc61b9&sort=-current_billing_period_consumed_data.amount"
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `msisdn` (string), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
+
+## Request bulk disabling voice on SIM cards.
+
+This API triggers an asynchronous operation to disable voice on SIM cards belonging to a specified SIM Card Group. 
+For each SIM Card a SIM Card Action will be generated. The status of the SIM Card Actions can be followed through the [List SIM Card Action](https://developers.telnyx.com/api-reference/sim-card-actions/list-sim-card-actions) API.
+
+`POST /sim_cards/actions/bulk_disable_voice` — Required: `sim_card_group_id`
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "sim_card_group_id": "6b14e151-8493-4fa1-8664-1cc4e6d14158"
+}' \
+  "https://api.telnyx.com/v2/sim_cards/actions/bulk_disable_voice"
+```
+
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `updated_at` (string)
+
+## Request bulk enabling voice on SIM cards.
+
+This API triggers an asynchronous operation to enable voice on SIM cards belonging to a specified SIM Card Group. 
+For each SIM Card a SIM Card Action will be generated. The status of the SIM Card Actions can be followed through the [List SIM Card Action](https://developers.telnyx.com/api-reference/sim-card-actions/list-sim-card-actions) API.
+
+`POST /sim_cards/actions/bulk_enable_voice` — Required: `sim_card_group_id`
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "sim_card_group_id": "6b14e151-8493-4fa1-8664-1cc4e6d14158"
+}' \
+  "https://api.telnyx.com/v2/sim_cards/actions/bulk_enable_voice"
+```
+
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `updated_at` (string)
 
 ## Request bulk setting SIM card public IPs.
 
@@ -505,7 +578,7 @@ curl \
   "https://api.telnyx.com/v2/sim_cards/actions/bulk_set_public_ips"
 ```
 
-Returns: `action_type` (enum: bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `updated_at` (string)
+Returns: `action_type` (enum: bulk_disable_voice, bulk_enable_voice, bulk_set_public_ips), `created_at` (string), `id` (uuid), `record_type` (string), `settings` (object), `updated_at` (string)
 
 ## Validate SIM cards registration codes
 
@@ -535,7 +608,7 @@ Returns the details regarding a specific SIM card.
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/sim_cards/6a09cdc3-8948-47f0-aa62-74ac943d6c58?include_sim_card_group=True"
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## Update a SIM card
 
@@ -543,7 +616,7 @@ Updates SIM card data
 
 `PATCH /sim_cards/{id}`
 
-Optional: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Optional: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ```bash
 curl \
@@ -580,12 +653,13 @@ curl \
   "esim_installation_status": "released",
   "version": "4.3",
   "resources_with_in_progress_actions": [],
-  "eid": null
+  "eid": null,
+  "voice_enabled": false
 }' \
   "https://api.telnyx.com/v2/sim_cards/6a09cdc3-8948-47f0-aa62-74ac943d6c58"
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## Deletes a SIM card
 
@@ -601,7 +675,7 @@ curl \
   "https://api.telnyx.com/v2/sim_cards/6a09cdc3-8948-47f0-aa62-74ac943d6c58"
 ```
 
-Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string)
+Returns: `actions_in_progress` (boolean), `authorized_imeis` (array | null), `created_at` (string), `current_billing_period_consumed_data` (object), `current_device_location` (object), `current_imei` (string), `current_mcc` (string), `current_mnc` (string), `data_limit` (object), `eid` (string | null), `esim_installation_status` (enum: released, disabled), `iccid` (string), `id` (uuid), `imsi` (string), `ipv4` (string), `ipv6` (string), `live_data_session` (enum: connected, disconnected, unknown), `msisdn` (string), `pin_puk_codes` (object), `record_type` (string), `resources_with_in_progress_actions` (array[object]), `sim_card_group_id` (uuid), `status` (object), `tags` (array[string]), `type` (enum: physical, esim), `updated_at` (string), `version` (string), `voice_enabled` (boolean)
 
 ## Request a SIM card disable
 

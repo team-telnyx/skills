@@ -32,6 +32,35 @@ client = Telnyx::Client.new(
 
 All examples below assume `client` is already initialized as shown above.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```ruby
+begin
+  result = client.messages.send_(to: "+13125550001", from: "+13125550002", text: "Hello")
+rescue Telnyx::Errors::APIConnectionError
+  puts "Network error — check connectivity and retry"
+rescue Telnyx::Errors::RateLimitError
+  # 429: rate limited — wait and retry with exponential backoff
+  sleep(1) # Check Retry-After header for actual delay
+rescue Telnyx::Errors::APIStatusError => e
+  puts "API error #{e.status}: #{e.message}"
+  if e.status == 422
+    puts "Validation error — check required fields and formats"
+  end
+end
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Pagination:** Use `.auto_paging_each` for automatic iteration: `page.auto_paging_each { |item| puts item.id }`.
+
 ## List your voice channels for non-US zones
 
 Returns the non-US voice channels for your account. voice channels allow you to use Channel Billing for calls to your Telnyx phone numbers. Please check the Telnyx Support Articles section for full information and examples of how to utilize Channel Billing.

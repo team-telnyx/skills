@@ -33,6 +33,36 @@ client = Telnyx(
 
 All examples below assume `client` is already initialized as shown above.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```python
+import telnyx
+
+try:
+    result = client.messages.send(to="+13125550001", from_="+13125550002", text="Hello")
+except telnyx.APIConnectionError:
+    print("Network error — check connectivity and retry")
+except telnyx.RateLimitError:
+    # 429: rate limited — wait and retry with exponential backoff
+    import time
+    time.sleep(1)  # Check Retry-After header for actual delay
+except telnyx.APIStatusError as e:
+    print(f"API error {e.status_code}: {e.message}")
+    if e.status_code == 422:
+        print("Validation error — check required fields and formats")
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
+## Important Notes
+
+- **Pagination:** List methods return an auto-paginating iterator. Use `for item in page_result:` to iterate through all pages automatically.
+
 ## List call events
 
 Filters call events by given filter parameters. Events are ordered by `occurred_at`. If filter for `leg_id` or `application_session_id` is not present, it only filters events from the last 24 hours.

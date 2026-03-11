@@ -21,6 +21,32 @@ client = Telnyx(
 
 All examples below assume `client` is already initialized as shown above.
 
+## Error Handling
+
+All API calls can fail with network errors, rate limits (429), validation errors (422),
+or authentication errors (401). Always handle errors in production code:
+
+```python
+import telnyx
+
+try:
+    result = client.messages.send(to="+13125550001", from_="+13125550002", text="Hello")
+except telnyx.APIConnectionError:
+    print("Network error — check connectivity and retry")
+except telnyx.RateLimitError:
+    # 429: rate limited — wait and retry with exponential backoff
+    import time
+    time.sleep(1)  # Check Retry-After header for actual delay
+except telnyx.APIStatusError as e:
+    print(f"API error {e.status_code}: {e.message}")
+    if e.status_code == 422:
+        print("Validation error — check required fields and formats")
+```
+
+Common error codes: `401` invalid API key, `403` insufficient permissions,
+`404` resource not found, `422` validation error (check field formats),
+`429` rate limited (retry with exponential backoff).
+
 ## Play audio URL
 
 Play an audio file on the call. If multiple play audio commands are issued consecutively,
@@ -166,8 +192,29 @@ Returns: `result` (string)
 
 ## Webhooks
 
+### Webhook Verification
+
+Telnyx signs webhooks with Ed25519. Each request includes `telnyx-signature-ed25519`
+and `telnyx-timestamp` headers. Always verify signatures in production:
+
+```python
+# In your webhook handler (e.g., Flask — use raw body, not parsed JSON):
+@app.route("/webhooks", methods=["POST"])
+def handle_webhook():
+    payload = request.get_data(as_text=True)  # raw body as string
+    headers = dict(request.headers)
+    try:
+        event = client.webhooks.unwrap(payload, headers=headers)
+    except Exception as e:
+        print(f"Webhook verification failed: {e}")
+        return "Invalid signature", 400
+    # Signature valid — event is the parsed webhook payload
+    print(f"Received event: {event.data.event_type}")
+    return "OK", 200
+```
+
 The following webhook events are sent to your configured webhook URL.
-All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for verification (Standard Webhooks compatible).
+All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for Ed25519 signature verification. Use `client.webhooks.unwrap()` to verify.
 
 | Event | Description |
 |-------|-------------|
