@@ -1,9 +1,8 @@
 ---
 name: telnyx-account-access-javascript
 description: >-
-  Configure account addresses, authentication providers, IP access controls,
-  billing groups, and integration secrets. This skill provides JavaScript SDK
-  examples.
+  Account addresses, auth providers, IP access controls, billing groups,
+  integration secrets.
 metadata:
   author: telnyx
   product: account-access
@@ -14,6 +13,20 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx Account Access - JavaScript
+
+## Core Workflow
+
+### Steps
+
+1. **Manage addresses**: `client.addresses.create({...: ...})`
+2. **Configure IP access**: `client.ipAddresses.create({...: ...})`
+3. **Manage billing groups**: `client.billingGroups.create({name: ...})`
+
+### Common mistakes
+
+- IP access restrictions apply to API and portal — ensure you don't lock yourself out
+
+**Related skills**: telnyx-account-javascript
 
 ## Installation
 
@@ -40,7 +53,7 @@ or authentication errors (401). Always handle errors in production code:
 
 ```javascript
 try {
-  const result = await client.messages.send({ to: '+13125550001', from: '+13125550002', text: 'Hello' });
+  const result = await client.addresses.list(params);
 } catch (err) {
   if (err instanceof Telnyx.APIConnectionError) {
     console.error('Network error — check connectivity and retry');
@@ -65,9 +78,11 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 
 - **Pagination:** List methods return an auto-paginating iterator. Use `for await (const item of result) { ... }` to iterate through all pages automatically.
 
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
+
 ## List all Access IP Addresses
 
-`GET /access_ip_address`
+`client.accessIPAddress.list()` — `GET /access_ip_address`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -76,13 +91,16 @@ for await (const accessIPAddressResponse of client.accessIPAddress.list()) {
 }
 ```
 
-Returns: `created_at` (date-time), `description` (string), `id` (string), `ip_address` (string), `source` (string), `status` (enum: pending, added), `updated_at` (date-time), `user_id` (string)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Create new Access IP Address
 
-`POST /access_ip_address` — Required: `ip_address`
+`client.accessIPAddress.create()` — `POST /access_ip_address`
 
-Optional: `description` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `ipAddress` | string (IPv4/IPv6) | Yes |  |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```javascript
 const accessIPAddressResponse = await client.accessIPAddress.create({ ip_address: 'ip_address' });
@@ -90,11 +108,15 @@ const accessIPAddressResponse = await client.accessIPAddress.create({ ip_address
 console.log(accessIPAddressResponse.id);
 ```
 
-Returns: `created_at` (date-time), `description` (string), `id` (string), `ip_address` (string), `source` (string), `status` (enum: pending, added), `updated_at` (date-time), `user_id` (string)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Retrieve an access IP address
 
-`GET /access_ip_address/{access_ip_address_id}`
+`client.accessIPAddress.retrieve()` — `GET /access_ip_address/{access_ip_address_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `accessIpAddressId` | string (UUID) | Yes |  |
 
 ```javascript
 const accessIPAddressResponse = await client.accessIPAddress.retrieve('access_ip_address_id');
@@ -102,11 +124,15 @@ const accessIPAddressResponse = await client.accessIPAddress.retrieve('access_ip
 console.log(accessIPAddressResponse.id);
 ```
 
-Returns: `created_at` (date-time), `description` (string), `id` (string), `ip_address` (string), `source` (string), `status` (enum: pending, added), `updated_at` (date-time), `user_id` (string)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Delete access IP address
 
-`DELETE /access_ip_address/{access_ip_address_id}`
+`client.accessIPAddress.delete()` — `DELETE /access_ip_address/{access_ip_address_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `accessIpAddressId` | string (UUID) | Yes |  |
 
 ```javascript
 const accessIPAddressResponse = await client.accessIPAddress.delete('access_ip_address_id');
@@ -114,13 +140,13 @@ const accessIPAddressResponse = await client.accessIPAddress.delete('access_ip_a
 console.log(accessIPAddressResponse.id);
 ```
 
-Returns: `created_at` (date-time), `description` (string), `id` (string), `ip_address` (string), `source` (string), `status` (enum: pending, added), `updated_at` (date-time), `user_id` (string)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## List all addresses
 
 Returns a list of your addresses.
 
-`GET /addresses`
+`client.addresses.list()` — `GET /addresses`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -129,15 +155,23 @@ for await (const address of client.addresses.list()) {
 }
 ```
 
-Returns: `address_book` (boolean), `administrative_area` (string), `borough` (string), `business_name` (string), `country_code` (string), `created_at` (string), `customer_reference` (string), `extended_address` (string), `first_name` (string), `id` (string), `last_name` (string), `locality` (string), `neighborhood` (string), `phone_number` (string), `postal_code` (string), `record_type` (string), `street_address` (string), `updated_at` (string), `validate_address` (boolean)
+Key response fields: `response.data.id, response.data.phone_number, response.data.created_at`
 
 ## Creates an address
 
 Creates an address.
 
-`POST /addresses` — Required: `first_name`, `last_name`, `business_name`, `street_address`, `locality`, `country_code`
+`client.addresses.create()` — `POST /addresses`
 
-Optional: `address_book` (boolean), `administrative_area` (string), `borough` (string), `customer_reference` (string), `extended_address` (string), `neighborhood` (string), `phone_number` (string), `postal_code` (string), `validate_address` (boolean)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `firstName` | string | Yes | The first name associated with the address. |
+| `lastName` | string | Yes | The last name associated with the address. |
+| `businessName` | string | Yes | The business name associated with the address. |
+| `streetAddress` | string | Yes | The primary street address information about the address. |
+| `locality` | string | Yes | The locality of the address. |
+| `countryCode` | string (ISO 3166-1 alpha-2) | Yes | The two-character (ISO 3166-1 alpha-2) country code of the a... |
+| ... | | | +9 optional params in [references/api-details.md](references/api-details.md) |
 
 ```javascript
 const address = await client.addresses.create({
@@ -152,15 +186,20 @@ const address = await client.addresses.create({
 console.log(address.data);
 ```
 
-Returns: `address_book` (boolean), `administrative_area` (string), `borough` (string), `business_name` (string), `country_code` (string), `created_at` (string), `customer_reference` (string), `extended_address` (string), `first_name` (string), `id` (string), `last_name` (string), `locality` (string), `neighborhood` (string), `phone_number` (string), `postal_code` (string), `record_type` (string), `street_address` (string), `updated_at` (string), `validate_address` (boolean)
+Key response fields: `response.data.id, response.data.phone_number, response.data.created_at`
 
 ## Validate an address
 
 Validates an address for emergency services.
 
-`POST /addresses/actions/validate` — Required: `country_code`, `street_address`, `postal_code`
+`client.addresses.actions.validate()` — `POST /addresses/actions/validate`
 
-Optional: `administrative_area` (string), `extended_address` (string), `locality` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `streetAddress` | string | Yes | The primary street address information about the address. |
+| `postalCode` | string | Yes | The postal code of the address. |
+| `countryCode` | string (ISO 3166-1 alpha-2) | Yes | The two-character (ISO 3166-1 alpha-2) country code of the a... |
+| ... | | | +3 optional params in [references/api-details.md](references/api-details.md) |
 
 ```javascript
 const response = await client.addresses.actions.validate({
@@ -172,41 +211,52 @@ const response = await client.addresses.actions.validate({
 console.log(response.data);
 ```
 
-Returns: `errors` (array[object]), `record_type` (string), `result` (enum: valid, invalid), `suggested` (object)
+Key response fields: `response.data.errors, response.data.record_type, response.data.result`
 
 ## Retrieve an address
 
 Retrieves the details of an existing address.
 
-`GET /addresses/{id}`
+`client.addresses.retrieve()` — `GET /addresses/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | address ID |
 
 ```javascript
-const address = await client.addresses.retrieve('id');
+const address = await client.addresses.retrieve('550e8400-e29b-41d4-a716-446655440000');
 
 console.log(address.data);
 ```
 
-Returns: `address_book` (boolean), `administrative_area` (string), `borough` (string), `business_name` (string), `country_code` (string), `created_at` (string), `customer_reference` (string), `extended_address` (string), `first_name` (string), `id` (string), `last_name` (string), `locality` (string), `neighborhood` (string), `phone_number` (string), `postal_code` (string), `record_type` (string), `street_address` (string), `updated_at` (string), `validate_address` (boolean)
+Key response fields: `response.data.id, response.data.phone_number, response.data.created_at`
 
 ## Deletes an address
 
 Deletes an existing address.
 
-`DELETE /addresses/{id}`
+`client.addresses.delete()` — `DELETE /addresses/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | address ID |
 
 ```javascript
-const address = await client.addresses.delete('id');
+const address = await client.addresses.delete('550e8400-e29b-41d4-a716-446655440000');
 
 console.log(address.data);
 ```
 
-Returns: `address_book` (boolean), `administrative_area` (string), `borough` (string), `business_name` (string), `country_code` (string), `created_at` (string), `customer_reference` (string), `extended_address` (string), `first_name` (string), `id` (string), `last_name` (string), `locality` (string), `neighborhood` (string), `phone_number` (string), `postal_code` (string), `record_type` (string), `street_address` (string), `updated_at` (string), `validate_address` (boolean)
+Key response fields: `response.data.id, response.data.phone_number, response.data.created_at`
 
 ## Accepts this address suggestion as a new emergency address for Operator Connect and finishes the uploads of the numbers associated with it to Microsoft.
 
-`POST /addresses/{id}/actions/accept_suggestions`
+`client.addresses.actions.acceptSuggestions()` — `POST /addresses/{id}/actions/accept_suggestions`
 
-Optional: `id` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The UUID of the address that should be accepted. |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```javascript
 const response = await client.addresses.actions.acceptSuggestions(
@@ -216,13 +266,13 @@ const response = await client.addresses.actions.acceptSuggestions(
 console.log(response.data);
 ```
 
-Returns: `accepted` (boolean), `id` (uuid), `record_type` (enum: address_suggestion)
+Key response fields: `response.data.id, response.data.accepted, response.data.record_type`
 
 ## List all SSO authentication providers
 
 Returns a list of your SSO authentication providers.
 
-`GET /authentication_providers`
+`client.authenticationProviders.list()` — `GET /authentication_providers`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -231,15 +281,20 @@ for await (const authenticationProvider of client.authenticationProviders.list()
 }
 ```
 
-Returns: `activated_at` (date-time), `active` (boolean), `created_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (string), `settings` (object), `short_name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Creates an authentication provider
 
 Creates an authentication provider.
 
-`POST /authentication_providers` — Required: `name`, `short_name`, `settings`
+`client.authenticationProviders.create()` — `POST /authentication_providers`
 
-Optional: `active` (boolean), `settings_url` (uri)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | The name associated with the authentication provider. |
+| `shortName` | string | Yes | The short name associated with the authentication provider. |
+| `settings` | object | Yes | The settings associated with the authentication provider. |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```javascript
 const authenticationProvider = await client.authenticationProviders.create({
@@ -255,29 +310,36 @@ const authenticationProvider = await client.authenticationProviders.create({
 console.log(authenticationProvider.data);
 ```
 
-Returns: `activated_at` (date-time), `active` (boolean), `created_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (string), `settings` (object), `short_name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Retrieve an authentication provider
 
 Retrieves the details of an existing authentication provider.
 
-`GET /authentication_providers/{id}`
+`client.authenticationProviders.retrieve()` — `GET /authentication_providers/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | authentication provider ID |
 
 ```javascript
-const authenticationProvider = await client.authenticationProviders.retrieve('id');
+const authenticationProvider = await client.authenticationProviders.retrieve('550e8400-e29b-41d4-a716-446655440000');
 
 console.log(authenticationProvider.data);
 ```
 
-Returns: `activated_at` (date-time), `active` (boolean), `created_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (string), `settings` (object), `short_name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Update an authentication provider
 
 Updates settings of an existing authentication provider.
 
-`PATCH /authentication_providers/{id}`
+`client.authenticationProviders.update()` — `PATCH /authentication_providers/{id}`
 
-Optional: `active` (boolean), `name` (string), `settings` (object), `settings_url` (uri), `short_name` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| ... | | | +5 optional params in [references/api-details.md](references/api-details.md) |
 
 ```javascript
 const authenticationProvider = await client.authenticationProviders.update('id', {
@@ -295,25 +357,29 @@ const authenticationProvider = await client.authenticationProviders.update('id',
 console.log(authenticationProvider.data);
 ```
 
-Returns: `activated_at` (date-time), `active` (boolean), `created_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (string), `settings` (object), `short_name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Deletes an authentication provider
 
 Deletes an existing authentication provider.
 
-`DELETE /authentication_providers/{id}`
+`client.authenticationProviders.delete()` — `DELETE /authentication_providers/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | authentication provider ID |
 
 ```javascript
-const authenticationProvider = await client.authenticationProviders.delete('id');
+const authenticationProvider = await client.authenticationProviders.delete('550e8400-e29b-41d4-a716-446655440000');
 
 console.log(authenticationProvider.data);
 ```
 
-Returns: `activated_at` (date-time), `active` (boolean), `created_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (string), `settings` (object), `short_name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List all billing groups
 
-`GET /billing_groups`
+`client.billingGroups.list()` — `GET /billing_groups`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -322,25 +388,27 @@ for await (const billingGroup of client.billingGroups.list()) {
 }
 ```
 
-Returns: `created_at` (date-time), `deleted_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (enum: billing_group), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Create a billing group
 
-`POST /billing_groups`
-
-Optional: `name` (string)
+`client.billingGroups.create()` — `POST /billing_groups`
 
 ```javascript
-const billingGroup = await client.billingGroups.create({ name: 'string' });
+const billingGroup = await client.billingGroups.create({ name: 'my-resource' });
 
 console.log(billingGroup.data);
 ```
 
-Returns: `created_at` (date-time), `deleted_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (enum: billing_group), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Get a billing group
 
-`GET /billing_groups/{id}`
+`client.billingGroups.retrieve()` — `GET /billing_groups/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the billing group |
 
 ```javascript
 const billingGroup = await client.billingGroups.retrieve('f5586561-8ff0-4291-a0ac-84fe544797bd');
@@ -348,27 +416,34 @@ const billingGroup = await client.billingGroups.retrieve('f5586561-8ff0-4291-a0a
 console.log(billingGroup.data);
 ```
 
-Returns: `created_at` (date-time), `deleted_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (enum: billing_group), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Update a billing group
 
-`PATCH /billing_groups/{id}`
+`client.billingGroups.update()` — `PATCH /billing_groups/{id}`
 
-Optional: `name` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the billing group |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```javascript
 const billingGroup = await client.billingGroups.update('f5586561-8ff0-4291-a0ac-84fe544797bd', {
-  name: 'string',
+  name: 'my-resource',
 });
 
 console.log(billingGroup.data);
 ```
 
-Returns: `created_at` (date-time), `deleted_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (enum: billing_group), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Delete a billing group
 
-`DELETE /billing_groups/{id}`
+`client.billingGroups.delete()` — `DELETE /billing_groups/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the billing group |
 
 ```javascript
 const billingGroup = await client.billingGroups.delete('f5586561-8ff0-4291-a0ac-84fe544797bd');
@@ -376,13 +451,13 @@ const billingGroup = await client.billingGroups.delete('f5586561-8ff0-4291-a0ac-
 console.log(billingGroup.data);
 ```
 
-Returns: `created_at` (date-time), `deleted_at` (date-time), `id` (uuid), `name` (string), `organization_id` (uuid), `record_type` (enum: billing_group), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List integration secrets
 
 Retrieve a list of all integration secrets configured by the user.
 
-`GET /integration_secrets`
+`client.integrationSecrets.list()` — `GET /integration_secrets`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -391,15 +466,19 @@ for await (const integrationSecret of client.integrationSecrets.list()) {
 }
 ```
 
-Returns: `created_at` (date-time), `id` (string), `identifier` (string), `record_type` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Create a secret
 
 Create a new secret with an associated identifier that can be used to securely integrate with other services.
 
-`POST /integration_secrets` — Required: `identifier`, `type`
+`client.integrationSecrets.create()` — `POST /integration_secrets`
 
-Optional: `password` (string), `token` (string), `username` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `identifier` | string | Yes | The unique identifier of the secret. |
+| `type` | enum (bearer, basic) | Yes | The type of secret. |
+| ... | | | +3 optional params in [references/api-details.md](references/api-details.md) |
 
 ```javascript
 const integrationSecret = await client.integrationSecrets.create({
@@ -411,26 +490,38 @@ const integrationSecret = await client.integrationSecrets.create({
 console.log(integrationSecret.data);
 ```
 
-Returns: `created_at` (date-time), `id` (string), `identifier` (string), `record_type` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Delete an integration secret
 
 Delete an integration secret given its ID.
 
-`DELETE /integration_secrets/{id}`
+`client.integrationSecrets.delete()` — `DELETE /integration_secrets/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes |  |
 
 ```javascript
-await client.integrationSecrets.delete('id');
+await client.integrationSecrets.delete('550e8400-e29b-41d4-a716-446655440000');
 ```
 
 ## Create an Access Token.
 
 Create an Access Token (JWT) for the credential.
 
-`POST /telephony_credentials/{id}/token`
+`client.telephonyCredentials.createToken()` — `POST /telephony_credentials/{id}/token`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```javascript
-const response = await client.telephonyCredentials.createToken('id');
+const response = await client.telephonyCredentials.createToken('550e8400-e29b-41d4-a716-446655440000');
 
 console.log(response);
 ```
+
+---
+
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**

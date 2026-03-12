@@ -1,9 +1,8 @@
 ---
 name: telnyx-10dlc-curl
 description: >-
-  Register brands and campaigns for 10DLC (10-digit long code) A2P messaging
-  compliance in the US. Manage campaign assignments to phone numbers. This skill
-  provides REST API (curl) examples.
+  10DLC brand and campaign registration for US A2P messaging compliance. Assign
+  phone numbers to campaigns.
 metadata:
   author: telnyx
   product: 10dlc
@@ -14,6 +13,31 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx 10Dlc - curl
+
+## Core Workflow
+
+### Prerequisites
+
+1. Create a messaging profile (see telnyx-messaging-profiles-curl)
+2. Buy US 10DLC phone number(s) and assign to the messaging profile (see telnyx-numbers-curl)
+
+### Steps
+
+1. **Register brand**
+2. **(Optional) Vet brand**
+3. **Create campaign**
+4. **Assign number to campaign**
+5. **Wait for MNO_PROVISIONED status**
+
+### Common mistakes
+
+- NEVER send messages before the campaign reaches MNO_PROVISIONED status — messages will be filtered/blocked
+- NEVER use a P.O. box or missing website in brand registration — causes rejection
+- NEVER omit opt-out language in sample messages — campaign will be rejected
+- NEVER mismatch content with registered campaign use case — causes carrier filtering even after registration
+- Sole Proprietor brands: max 1 campaign, max 1 phone number per campaign
+
+**Related skills**: telnyx-messaging-curl, telnyx-messaging-profiles-curl, telnyx-numbers-curl
 
 ## Installation
 
@@ -37,10 +61,10 @@ or authentication errors (401). Always handle errors in production code:
 ```bash
 # Check HTTP status code in response
 response=$(curl -s -w "\n%{http_code}" \
-  -X POST "https://api.telnyx.com/v2/messages" \
+  -X POST "https://api.telnyx.com/v2/{endpoint}" \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"to": "+13125550001", "from": "+13125550002", "text": "Hello"}')
+  -d '{"key": "value"}')
 
 http_code=$(echo "$response" | tail -1)
 body=$(echo "$response" | sed '$d')
@@ -62,6 +86,143 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 
 - **Pagination:** List endpoints return paginated results. Use `page[number]` and `page[size]` query parameters to navigate pages. Check `meta.total_pages` in the response.
 
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
+
+## Create Brand
+
+This endpoint is used to create a new brand. A brand is an entity created by The Campaign Registry (TCR) that represents an organization or a company. It is this entity that TCR created campaigns will be associated with.
+
+`POST /10dlc/brand`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `entityType` | object | Yes | Entity type behind the brand. |
+| `displayName` | string | Yes | Display name, marketing name, or DBA name of the brand. |
+| `country` | string | Yes | ISO2 2 characters country code. |
+| `email` | string | Yes | Valid email address of brand support contact. |
+| `vertical` | object | Yes | Vertical or industry segment of the brand. |
+| ... | | | +19 optional params in [references/api-details.md](references/api-details.md) |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "entityType": "PRIVATE_PROFIT",
+  "displayName": "ABC Mobile",
+  "country": "US",
+  "email": "support@example.com",
+  "vertical": "TECHNOLOGY"
+}' \
+  "https://api.telnyx.com/v2/10dlc/brand"
+```
+
+Key response fields: `.data.status, .data.state, .data.altBusinessId`
+
+## Get Brand
+
+Retrieve a brand by `brandId`.
+
+`GET /10dlc/brand/{brandId}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `brandId` | string (UUID) | Yes |  |
+
+```bash
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/brand/BXXX001"
+```
+
+Key response fields: `.data.status, .data.state, .data.altBusinessId`
+
+## Qualify By Usecase
+
+This endpoint allows you to see whether or not the supplied brand is suitable for your desired campaign use case.
+
+`GET /10dlc/campaignBuilder/brand/{brandId}/usecase/{usecase}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `usecase` | string | Yes |  |
+| `brandId` | string (UUID) | Yes |  |
+
+```bash
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaignBuilder/brand/BXXX001/usecase/{usecase}"
+```
+
+Key response fields: `.data.annualFee, .data.maxSubUsecases, .data.minSubUsecases`
+
+## Submit Campaign
+
+Before creating a campaign, use the [Qualify By Usecase endpoint](https://developers.telnyx.com/api-reference/campaign/qualify-by-usecase) to ensure that the brand you want to assign a new campaign to is qualified for the desired use case of that campaign. **Please note:** After campaign creation, you'll only be able to edit the campaign's sample messages.
+
+`POST /10dlc/campaignBuilder`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `brandId` | string (UUID) | Yes | Alphanumeric identifier of the brand associated with this ca... |
+| `description` | string | Yes | Summary description of this campaign. |
+| `usecase` | string | Yes | Campaign usecase. |
+| ... | | | +32 optional params in [references/api-details.md](references/api-details.md) |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+      "brandId": "BXXX001",
+      "description": "Two-factor authentication messages",
+      "usecase": "2FA",
+      "sample_messages": [
+          "Your verification code is {{code}}"
+      ]
+  }' \
+  "https://api.telnyx.com/v2/10dlc/campaignBuilder"
+```
+
+Key response fields: `.data.status, .data.ageGated, .data.autoRenewal`
+
+## Create New Phone Number Campaign
+
+`POST /10dlc/phone_number_campaigns`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phoneNumber` | string (E.164) | Yes | The phone number you want to link to a specified campaign. |
+| `campaignId` | string (UUID) | Yes | The ID of the campaign you want to link to the specified pho... |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "phoneNumber": "+18005550199",
+  "campaignId": "4b300178-131c-d902-d54e-72d90ba1620j"
+}' \
+  "https://api.telnyx.com/v2/10dlc/phone_number_campaigns"
+```
+
+Key response fields: `.data.assignmentStatus, .data.brandId, .data.campaignId`
+
+## Get campaign
+
+Retrieve campaign details by `campaignId`.
+
+`GET /10dlc/campaign/{campaignId}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes |  |
+
+```bash
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/CXXX001"
+```
+
+Key response fields: `.data.status, .data.ageGated, .data.autoRenewal`
+
 ## List Brands
 
 This endpoint is used to list all brands associated with your organization.
@@ -72,63 +233,27 @@ This endpoint is used to list all brands associated with your organization.
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/brand?sort=-identityStatus&brandId=826ef77a-348c-445b-81a5-a9b13c68fbfe&tcrBrandId=BBAND1"
 ```
 
-Returns: `page` (integer), `records` (array[object]), `totalRecords` (integer)
-
-## Create Brand
-
-This endpoint is used to create a new brand. A brand is an entity created by The Campaign Registry (TCR) that represents an organization or a company. It is this entity that TCR created campaigns will be associated with.
-
-`POST /10dlc/brand` — Required: `entityType`, `displayName`, `country`, `email`, `vertical`
-
-Optional: `businessContactEmail` (string), `city` (string), `companyName` (string), `ein` (string), `firstName` (string), `ipAddress` (string), `isReseller` (boolean), `lastName` (string), `mobilePhone` (string), `mock` (boolean), `phone` (string), `postalCode` (string), `state` (string), `stockExchange` (object), `stockSymbol` (string), `street` (string), `webhookFailoverURL` (string), `webhookURL` (string), `website` (string)
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "entityType": "string",
-  "displayName": "ABC Mobile",
-  "companyName": "ABC Inc.",
-  "firstName": "John",
-  "lastName": "Smith",
-  "ein": "111111111",
-  "phone": "+12024567890",
-  "street": "123",
-  "city": "New York",
-  "state": "NY",
-  "postalCode": "10001",
-  "country": "US",
-  "email": "string",
-  "stockSymbol": "ABC",
-  "stockExchange": "NASDAQ",
-  "website": "http://www.abcmobile.com",
-  "vertical": "string",
-  "mobilePhone": "+12024567890",
-  "businessContactEmail": "name@example.com",
-  "webhookURL": "https://webhook.com/67ea78a8-9f32-4d04-b62d-f9502e8e5f93",
-  "webhookFailoverURL": "https://webhook.com/9010a453-4df8-4be6-a551-1070892888d6"
-}' \
-  "https://api.telnyx.com/v2/10dlc/brand"
-```
-
-Returns: `altBusinessId` (string), `altBusinessIdType` (enum: NONE, DUNS, GIIN, LEI), `brandId` (string), `brandRelationship` (object), `businessContactEmail` (string), `city` (string), `companyName` (string), `country` (string), `createdAt` (string), `cspId` (string), `displayName` (string), `ein` (string), `email` (string), `entityType` (object), `failureReasons` (string), `firstName` (string), `identityStatus` (enum: VERIFIED, UNVERIFIED, SELF_DECLARED, VETTED_VERIFIED), `ipAddress` (string), `isReseller` (boolean), `lastName` (string), `mobilePhone` (string), `mock` (boolean), `optionalAttributes` (object), `phone` (string), `postalCode` (string), `referenceId` (string), `state` (string), `status` (enum: OK, REGISTRATION_PENDING, REGISTRATION_FAILED), `stockExchange` (object), `stockSymbol` (string), `street` (string), `tcrBrandId` (string), `universalEin` (string), `updatedAt` (string), `vertical` (string), `webhookFailoverURL` (string), `webhookURL` (string), `website` (string)
+Key response fields: `.data.page, .data.records, .data.totalRecords`
 
 ## Get Brand Feedback By Id
 
 Get feedback about a brand by ID. This endpoint can be used after creating or revetting
 a brand. Possible values for `.category[].id`:
 
-* `TAX_ID` - Data mismatch related to tax id and its associated properties.
+* `TAX_ID` - Data mismatch related to tax id and its associated properties. * `STOCK_SYMBOL` - Non public entity registered as a public for profit entity or
+  the stock information mismatch.
 
 `GET /10dlc/brand/feedback/{brandId}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `brandId` | string (UUID) | Yes |  |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/brand/feedback/{brandId}"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/brand/feedback/BXXX001"
 ```
 
-Returns: `brandId` (string), `category` (array[object])
+Key response fields: `.data.brandId, .data.category`
 
 ## Get Brand SMS OTP Status
 
@@ -136,29 +261,33 @@ Query the status of an SMS OTP (One-Time Password) for Sole Proprietor brand ver
 
 `GET /10dlc/brand/smsOtp/{referenceId}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `referenceId` | string (UUID) | Yes | The reference ID returned when the OTP was initially trigger... |
+
 ```bash
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/brand/smsOtp/OTP4B2001?brandId=B123ABC"
 ```
 
-Returns: `brandId` (string), `deliveryStatus` (string), `deliveryStatusDate` (date-time), `deliveryStatusDetails` (string), `mobilePhone` (string), `referenceId` (string), `requestDate` (date-time), `verifyDate` (date-time)
-
-## Get Brand
-
-Retrieve a brand by `brandId`.
-
-`GET /10dlc/brand/{brandId}`
-
-```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/brand/{brandId}"
-```
+Key response fields: `.data.brandId, .data.deliveryStatus, .data.deliveryStatusDate`
 
 ## Update Brand
 
 Update a brand's attributes by `brandId`.
 
-`PUT /10dlc/brand/{brandId}` — Required: `entityType`, `displayName`, `country`, `email`, `vertical`
+`PUT /10dlc/brand/{brandId}`
 
-Optional: `altBusinessId` (string), `altBusinessIdType` (enum: NONE, DUNS, GIIN, LEI), `businessContactEmail` (string), `city` (string), `companyName` (string), `ein` (string), `firstName` (string), `identityStatus` (enum: VERIFIED, UNVERIFIED, SELF_DECLARED, VETTED_VERIFIED), `ipAddress` (string), `isReseller` (boolean), `lastName` (string), `phone` (string), `postalCode` (string), `state` (string), `stockExchange` (object), `stockSymbol` (string), `street` (string), `webhookFailoverURL` (string), `webhookURL` (string), `website` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `entityType` | object | Yes | Entity type behind the brand. |
+| `displayName` | string | Yes | Display or marketing name of the brand. |
+| `country` | string | Yes | ISO2 2 characters country code. |
+| `email` | string | Yes | Valid email address of brand support contact. |
+| `vertical` | object | Yes | Vertical or industry segment of the brand. |
+| `brandId` | string (UUID) | Yes |  |
+| `altBusinessIdType` | enum (NONE, DUNS, GIIN, LEI) | No | An enumeration. |
+| `identityStatus` | enum (VERIFIED, UNVERIFIED, SELF_DECLARED, VETTED_VERIFIED) | No | The verification status of an active brand |
+| ... | | | +18 optional params in [references/api-details.md](references/api-details.md) |
 
 ```bash
 curl \
@@ -166,31 +295,16 @@ curl \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-  "entityType": "string",
+  "entityType": "PRIVATE_PROFIT",
   "displayName": "ABC Mobile",
-  "companyName": "ABC Inc.",
-  "firstName": "John",
-  "lastName": "Smith",
-  "ein": "111111111",
-  "phone": "+12024567890",
-  "street": "123",
-  "city": "New York",
-  "state": "NY",
-  "postalCode": "10001",
   "country": "US",
-  "email": "string",
-  "stockSymbol": "ABC",
-  "stockExchange": "NASDAQ",
-  "website": "http://www.abcmobile.com",
-  "vertical": "string",
-  "businessContactEmail": "name@example.com",
-  "webhookURL": "https://webhook.com/67ea78a8-9f32-4d04-b62d-f9502e8e5f93",
-  "webhookFailoverURL": "https://webhook.com/9010a453-4df8-4be6-a551-1070892888d6"
+  "email": "support@example.com",
+  "vertical": "TECHNOLOGY"
 }' \
-  "https://api.telnyx.com/v2/10dlc/brand/{brandId}"
+  "https://api.telnyx.com/v2/10dlc/brand/BXXX001"
 ```
 
-Returns: `altBusinessId` (string), `altBusinessIdType` (enum: NONE, DUNS, GIIN, LEI), `brandId` (string), `brandRelationship` (object), `businessContactEmail` (string), `city` (string), `companyName` (string), `country` (string), `createdAt` (string), `cspId` (string), `displayName` (string), `ein` (string), `email` (string), `entityType` (object), `failureReasons` (string), `firstName` (string), `identityStatus` (enum: VERIFIED, UNVERIFIED, SELF_DECLARED, VETTED_VERIFIED), `ipAddress` (string), `isReseller` (boolean), `lastName` (string), `mobilePhone` (string), `mock` (boolean), `optionalAttributes` (object), `phone` (string), `postalCode` (string), `referenceId` (string), `state` (string), `status` (enum: OK, REGISTRATION_PENDING, REGISTRATION_FAILED), `stockExchange` (object), `stockSymbol` (string), `street` (string), `tcrBrandId` (string), `universalEin` (string), `updatedAt` (string), `vertical` (string), `webhookFailoverURL` (string), `webhookURL` (string), `website` (string)
+Key response fields: `.data.status, .data.state, .data.altBusinessId`
 
 ## Delete Brand
 
@@ -198,23 +312,31 @@ Delete Brand. This endpoint is used to delete a brand. Note the brand cannot be 
 
 `DELETE /10dlc/brand/{brandId}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `brandId` | string (UUID) | Yes |  |
+
 ```bash
 curl \
   -X DELETE \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
-  "https://api.telnyx.com/v2/10dlc/brand/{brandId}"
+  "https://api.telnyx.com/v2/10dlc/brand/BXXX001"
 ```
 
 ## Resend brand 2FA email
 
 `POST /10dlc/brand/{brandId}/2faEmail`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `brandId` | string (UUID) | Yes |  |
+
 ```bash
 curl \
   -X POST \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
-  "https://api.telnyx.com/v2/10dlc/brand/{brandId}/2faEmail"
+  "https://api.telnyx.com/v2/10dlc/brand/BXXX001/2faEmail"
 ```
 
 ## List External Vettings
@@ -223,15 +345,25 @@ Get list of valid external vetting record for a given brand
 
 `GET /10dlc/brand/{brandId}/externalVetting`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `brandId` | string (UUID) | Yes |  |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/brand/{brandId}/externalVetting"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/brand/BXXX001/externalVetting"
 ```
 
 ## Order Brand External Vetting
 
 Order new external vetting for a brand
 
-`POST /10dlc/brand/{brandId}/externalVetting` — Required: `evpId`, `vettingClass`
+`POST /10dlc/brand/{brandId}/externalVetting`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `evpId` | string (UUID) | Yes | External vetting provider ID for the brand. |
+| `vettingClass` | string | Yes | Identifies the vetting classification. |
+| `brandId` | string (UUID) | Yes |  |
 
 ```bash
 curl \
@@ -239,13 +371,13 @@ curl \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-  "evpId": "string",
-  "vettingClass": "string"
+  "evpId": "550e8400-e29b-41d4-a716-446655440000",
+  "vettingClass": "STANDARD"
 }' \
-  "https://api.telnyx.com/v2/10dlc/brand/{brandId}/externalVetting"
+  "https://api.telnyx.com/v2/10dlc/brand/BXXX001/externalVetting"
 ```
 
-Returns: `createDate` (string), `evpId` (string), `vettedDate` (string), `vettingClass` (string), `vettingId` (string), `vettingScore` (integer), `vettingToken` (string)
+Key response fields: `.data.createDate, .data.evpId, .data.vettedDate`
 
 ## Import External Vetting Record
 
@@ -253,9 +385,14 @@ This operation can be used to import an external vetting record from a TCR-appro
 vetting provider. If the vetting provider confirms validity of the record, it will be
 saved with the brand and will be considered for future campaign qualification.
 
-`PUT /10dlc/brand/{brandId}/externalVetting` — Required: `evpId`, `vettingId`
+`PUT /10dlc/brand/{brandId}/externalVetting`
 
-Optional: `vettingToken` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `evpId` | string (UUID) | Yes | External vetting provider ID for the brand. |
+| `vettingId` | string (UUID) | Yes | Unique ID that identifies a vetting transaction performed by... |
+| `brandId` | string (UUID) | Yes |  |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```bash
 curl \
@@ -263,13 +400,13 @@ curl \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-  "evpId": "string",
-  "vettingId": "string"
+  "evpId": "550e8400-e29b-41d4-a716-446655440000",
+  "vettingId": "550e8400-e29b-41d4-a716-446655440000"
 }' \
-  "https://api.telnyx.com/v2/10dlc/brand/{brandId}/externalVetting"
+  "https://api.telnyx.com/v2/10dlc/brand/BXXX001/externalVetting"
 ```
 
-Returns: `createDate` (string), `evpId` (string), `vettedDate` (string), `vettingClass` (string), `vettingId` (string), `vettingScore` (integer), `vettingToken` (string)
+Key response fields: `.data.createDate, .data.evpId, .data.vettedDate`
 
 ## Revet Brand
 
@@ -277,33 +414,51 @@ This operation allows you to revet the brand. However, revetting is allowed once
 
 `PUT /10dlc/brand/{brandId}/revet`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `brandId` | string (UUID) | Yes |  |
+
 ```bash
 curl \
   -X PUT \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
-  "https://api.telnyx.com/v2/10dlc/brand/{brandId}/revet"
+  "https://api.telnyx.com/v2/10dlc/brand/BXXX001/revet"
 ```
 
-Returns: `altBusinessId` (string), `altBusinessIdType` (enum: NONE, DUNS, GIIN, LEI), `brandId` (string), `brandRelationship` (object), `businessContactEmail` (string), `city` (string), `companyName` (string), `country` (string), `createdAt` (string), `cspId` (string), `displayName` (string), `ein` (string), `email` (string), `entityType` (object), `failureReasons` (string), `firstName` (string), `identityStatus` (enum: VERIFIED, UNVERIFIED, SELF_DECLARED, VETTED_VERIFIED), `ipAddress` (string), `isReseller` (boolean), `lastName` (string), `mobilePhone` (string), `mock` (boolean), `optionalAttributes` (object), `phone` (string), `postalCode` (string), `referenceId` (string), `state` (string), `status` (enum: OK, REGISTRATION_PENDING, REGISTRATION_FAILED), `stockExchange` (object), `stockSymbol` (string), `street` (string), `tcrBrandId` (string), `universalEin` (string), `updatedAt` (string), `vertical` (string), `webhookFailoverURL` (string), `webhookURL` (string), `website` (string)
+Key response fields: `.data.status, .data.state, .data.altBusinessId`
 
 ## Get Brand SMS OTP Status by Brand ID
 
-Query the status of an SMS OTP (One-Time Password) for Sole Proprietor brand verification using the Brand ID. This endpoint allows you to check the delivery and verification status of an OTP sent during the Sole Proprietor brand verification process by looking it up with the brand ID. The response includes delivery status, verification dates, and detailed delivery information.
+Query the status of an SMS OTP (One-Time Password) for Sole Proprietor brand verification using the Brand ID.
+
+This endpoint allows you to check the delivery and verification status of an OTP sent during the Sole Proprietor brand verification process by looking it up with the brand ID.
+
+The response includes delivery status, verification dates, and detailed delivery information.
 
 `GET /10dlc/brand/{brandId}/smsOtp`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `brandId` | string (UUID) | Yes | The Brand ID for which to query OTP status |
 
 ```bash
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/brand/4b20019b-043a-78f8-0657-b3be3f4b4002/smsOtp"
 ```
 
-Returns: `brandId` (string), `deliveryStatus` (string), `deliveryStatusDate` (date-time), `deliveryStatusDetails` (string), `mobilePhone` (string), `referenceId` (string), `requestDate` (date-time), `verifyDate` (date-time)
+Key response fields: `.data.brandId, .data.deliveryStatus, .data.deliveryStatusDate`
 
 ## Trigger Brand SMS OTP
 
 Trigger or re-trigger an SMS OTP (One-Time Password) for Sole Proprietor brand verification.
 
-`POST /10dlc/brand/{brandId}/smsOtp` — Required: `pinSms`, `successSms`
+`POST /10dlc/brand/{brandId}/smsOtp`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `pinSms` | string | Yes | SMS message template to send the OTP. |
+| `successSms` | string | Yes | SMS message to send upon successful OTP verification |
+| `brandId` | string (UUID) | Yes | The Brand ID for which to trigger the OTP |
 
 ```bash
 curl \
@@ -317,7 +472,7 @@ curl \
   "https://api.telnyx.com/v2/10dlc/brand/4b20019b-043a-78f8-0657-b3be3f4b4002/smsOtp"
 ```
 
-Returns: `brandId` (string), `referenceId` (string)
+Key response fields: `.data.brandId, .data.referenceId`
 
 ## Verify Brand SMS OTP
 
@@ -326,7 +481,12 @@ Verify the SMS OTP (One-Time Password) for Sole Proprietor brand verification. *
 1. User receives OTP via SMS after triggering
 2.
 
-`PUT /10dlc/brand/{brandId}/smsOtp` — Required: `otpPin`
+`PUT /10dlc/brand/{brandId}/smsOtp`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `otpPin` | string | Yes | The OTP PIN received via SMS |
+| `brandId` | string (UUID) | Yes | The Brand ID for which to verify the OTP |
 
 ```bash
 curl \
@@ -349,7 +509,7 @@ Retrieve a list of campaigns associated with a supplied `brandId`.
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign?sort=-assignedPhoneNumbersCount"
 ```
 
-Returns: `page` (integer), `records` (array[object]), `totalRecords` (integer)
+Key response fields: `.data.page, .data.records, .data.totalRecords`
 
 ## Accept Shared Campaign
 
@@ -357,12 +517,16 @@ Manually accept a campaign shared with Telnyx
 
 `POST /10dlc/campaign/acceptSharing/{campaignId}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes | TCR's ID for the campaign to import |
+
 ```bash
 curl \
   -X POST \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
-  "https://api.telnyx.com/v2/10dlc/campaign/acceptSharing/{campaignId}"
+  "https://api.telnyx.com/v2/10dlc/campaign/acceptSharing/CXXX001"
 ```
 
 ## Get Campaign Cost
@@ -373,19 +537,7 @@ curl \
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/usecase/cost"
 ```
 
-Returns: `campaignUsecase` (string), `description` (string), `monthlyCost` (string), `upFrontCost` (string)
-
-## Get campaign
-
-Retrieve campaign details by `campaignId`.
-
-`GET /10dlc/campaign/{campaignId}`
-
-```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/{campaignId}"
-```
-
-Returns: `ageGated` (boolean), `autoRenewal` (boolean), `billedDate` (string), `brandDisplayName` (string), `brandId` (string), `campaignId` (string), `campaignStatus` (enum: TCR_PENDING, TCR_SUSPENDED, TCR_EXPIRED, TCR_ACCEPTED, TCR_FAILED, TELNYX_ACCEPTED, TELNYX_FAILED, MNO_PENDING, MNO_ACCEPTED, MNO_REJECTED, MNO_PROVISIONED, MNO_PROVISIONING_FAILED), `createDate` (string), `cspId` (string), `description` (string), `directLending` (boolean), `embeddedLink` (boolean), `embeddedLinkSample` (string), `embeddedPhone` (boolean), `failureReasons` (string), `helpKeywords` (string), `helpMessage` (string), `isTMobileNumberPoolingEnabled` (boolean), `isTMobileRegistered` (boolean), `isTMobileSuspended` (boolean), `messageFlow` (string), `mock` (boolean), `nextRenewalOrExpirationDate` (string), `numberPool` (boolean), `optinKeywords` (string), `optinMessage` (string), `optoutKeywords` (string), `optoutMessage` (string), `privacyPolicyLink` (string), `referenceId` (string), `resellerId` (string), `sample1` (string), `sample2` (string), `sample3` (string), `sample4` (string), `sample5` (string), `status` (string), `subUsecases` (array[string]), `submissionStatus` (enum: CREATED, FAILED, PENDING), `subscriberHelp` (boolean), `subscriberOptin` (boolean), `subscriberOptout` (boolean), `tcrBrandId` (string), `tcrCampaignId` (string), `termsAndConditions` (boolean), `termsAndConditionsLink` (string), `usecase` (string), `vertical` (string), `webhookFailoverURL` (string), `webhookURL` (string)
+Key response fields: `.data.campaignUsecase, .data.description, .data.monthlyCost`
 
 ## Update campaign
 
@@ -393,17 +545,20 @@ Update a campaign's properties by `campaignId`. **Please note:** only sample mes
 
 `PUT /10dlc/campaign/{campaignId}`
 
-Optional: `autoRenewal` (boolean), `helpMessage` (string), `messageFlow` (string), `resellerId` (string), `sample1` (string), `sample2` (string), `sample3` (string), `sample4` (string), `sample5` (string), `webhookFailoverURL` (string), `webhookURL` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes |  |
+| ... | | | +11 optional params in [references/api-details.md](references/api-details.md) |
 
 ```bash
 curl \
   -X PUT \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
-  "https://api.telnyx.com/v2/10dlc/campaign/{campaignId}"
+  "https://api.telnyx.com/v2/10dlc/campaign/CXXX001"
 ```
 
-Returns: `ageGated` (boolean), `autoRenewal` (boolean), `billedDate` (string), `brandDisplayName` (string), `brandId` (string), `campaignId` (string), `campaignStatus` (enum: TCR_PENDING, TCR_SUSPENDED, TCR_EXPIRED, TCR_ACCEPTED, TCR_FAILED, TELNYX_ACCEPTED, TELNYX_FAILED, MNO_PENDING, MNO_ACCEPTED, MNO_REJECTED, MNO_PROVISIONED, MNO_PROVISIONING_FAILED), `createDate` (string), `cspId` (string), `description` (string), `directLending` (boolean), `embeddedLink` (boolean), `embeddedLinkSample` (string), `embeddedPhone` (boolean), `failureReasons` (string), `helpKeywords` (string), `helpMessage` (string), `isTMobileNumberPoolingEnabled` (boolean), `isTMobileRegistered` (boolean), `isTMobileSuspended` (boolean), `messageFlow` (string), `mock` (boolean), `nextRenewalOrExpirationDate` (string), `numberPool` (boolean), `optinKeywords` (string), `optinMessage` (string), `optoutKeywords` (string), `optoutMessage` (string), `privacyPolicyLink` (string), `referenceId` (string), `resellerId` (string), `sample1` (string), `sample2` (string), `sample3` (string), `sample4` (string), `sample5` (string), `status` (string), `subUsecases` (array[string]), `submissionStatus` (enum: CREATED, FAILED, PENDING), `subscriberHelp` (boolean), `subscriberOptin` (boolean), `subscriberOptout` (boolean), `tcrBrandId` (string), `tcrCampaignId` (string), `termsAndConditions` (boolean), `termsAndConditionsLink` (string), `usecase` (string), `vertical` (string), `webhookFailoverURL` (string), `webhookURL` (string)
+Key response fields: `.data.status, .data.ageGated, .data.autoRenewal`
 
 ## Deactivate campaign
 
@@ -411,20 +566,29 @@ Terminate a campaign. Note that once deactivated, a campaign cannot be restored.
 
 `DELETE /10dlc/campaign/{campaignId}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes |  |
+
 ```bash
 curl \
   -X DELETE \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
-  "https://api.telnyx.com/v2/10dlc/campaign/{campaignId}"
+  "https://api.telnyx.com/v2/10dlc/campaign/CXXX001"
 ```
 
-Returns: `message` (string), `record_type` (string), `time` (number)
+Key response fields: `.data.message, .data.record_type, .data.time`
 
 ## Submit campaign appeal for manual review
 
 Submits an appeal for rejected native campaigns in TELNYX_FAILED or MNO_REJECTED status. The appeal is recorded for manual compliance team review and the campaign status is reset to TCR_ACCEPTED. Note: Appeal forwarding is handled manually to allow proper review before incurring upstream charges.
 
-`POST /10dlc/campaign/{campaignId}/appeal` — Required: `appeal_reason`
+`POST /10dlc/campaign/{campaignId}/appeal`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `appeal_reason` | string | Yes | Detailed explanation of why the campaign should be reconside... |
+| `campaignId` | string (UUID) | Yes | The Telnyx campaign identifier |
 
 ```bash
 curl \
@@ -437,7 +601,7 @@ curl \
   "https://api.telnyx.com/v2/10dlc/campaign/5eb13888-32b7-4cab-95e6-d834dde21d64/appeal"
 ```
 
-Returns: `appealed_at` (date-time)
+Key response fields: `.data.appealed_at`
 
 ## Get Campaign Mno Metadata
 
@@ -445,11 +609,13 @@ Get the campaign metadata for each MNO it was submitted to.
 
 `GET /10dlc/campaign/{campaignId}/mnoMetadata`
 
-```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/{campaignId}/mnoMetadata"
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes | ID of the campaign in question |
 
-Returns: `10999` (object)
+```bash
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/CXXX001/mnoMetadata"
+```
 
 ## Get campaign operation status
 
@@ -457,64 +623,39 @@ Retrieve campaign's operation status at MNO level.
 
 `GET /10dlc/campaign/{campaignId}/operationStatus`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes |  |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/{campaignId}/operationStatus"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/CXXX001/operationStatus"
 ```
 
 ## Get OSR campaign attributes
 
 `GET /10dlc/campaign/{campaignId}/osr/attributes`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes |  |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/{campaignId}/osr/attributes"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/CXXX001/osr/attributes"
 ```
 
 ## Get Sharing Status
 
 `GET /10dlc/campaign/{campaignId}/sharing`
 
-```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/{campaignId}/sharing"
-```
-
-Returns: `sharedByMe` (object), `sharedWithMe` (object)
-
-## Submit Campaign
-
-Before creating a campaign, use the [Qualify By Usecase endpoint](https://developers.telnyx.com/api-reference/campaign/qualify-by-usecase) to ensure that the brand you want to assign a new campaign to is qualified for the desired use case of that campaign. **Please note:** After campaign creation, you'll only be able to edit the campaign's sample messages.
-
-`POST /10dlc/campaignBuilder` — Required: `brandId`, `description`, `usecase`
-
-Optional: `ageGated` (boolean), `autoRenewal` (boolean), `directLending` (boolean), `embeddedLink` (boolean), `embeddedLinkSample` (string), `embeddedPhone` (boolean), `helpKeywords` (string), `helpMessage` (string), `messageFlow` (string), `mnoIds` (array[integer]), `numberPool` (boolean), `optinKeywords` (string), `optinMessage` (string), `optoutKeywords` (string), `optoutMessage` (string), `privacyPolicyLink` (string), `referenceId` (string), `resellerId` (string), `sample1` (string), `sample2` (string), `sample3` (string), `sample4` (string), `sample5` (string), `subUsecases` (array[string]), `subscriberHelp` (boolean), `subscriberOptin` (boolean), `subscriberOptout` (boolean), `tag` (array[string]), `termsAndConditions` (boolean), `termsAndConditionsLink` (string), `webhookFailoverURL` (string), `webhookURL` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes | ID of the campaign in question |
 
 ```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "brandId": "string",
-  "description": "string",
-  "usecase": "string",
-  "webhookURL": "https://webhook.com/67ea78a8-9f32-4d04-b62d-f9502e8e5f93",
-  "webhookFailoverURL": "https://webhook.com/93711262-23e5-4048-a966-c0b2a16d5963"
-}' \
-  "https://api.telnyx.com/v2/10dlc/campaignBuilder"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaign/CXXX001/sharing"
 ```
 
-Returns: `ageGated` (boolean), `autoRenewal` (boolean), `billedDate` (string), `brandDisplayName` (string), `brandId` (string), `campaignId` (string), `campaignStatus` (enum: TCR_PENDING, TCR_SUSPENDED, TCR_EXPIRED, TCR_ACCEPTED, TCR_FAILED, TELNYX_ACCEPTED, TELNYX_FAILED, MNO_PENDING, MNO_ACCEPTED, MNO_REJECTED, MNO_PROVISIONED, MNO_PROVISIONING_FAILED), `createDate` (string), `cspId` (string), `description` (string), `directLending` (boolean), `embeddedLink` (boolean), `embeddedLinkSample` (string), `embeddedPhone` (boolean), `failureReasons` (string), `helpKeywords` (string), `helpMessage` (string), `isTMobileNumberPoolingEnabled` (boolean), `isTMobileRegistered` (boolean), `isTMobileSuspended` (boolean), `messageFlow` (string), `mock` (boolean), `nextRenewalOrExpirationDate` (string), `numberPool` (boolean), `optinKeywords` (string), `optinMessage` (string), `optoutKeywords` (string), `optoutMessage` (string), `privacyPolicyLink` (string), `referenceId` (string), `resellerId` (string), `sample1` (string), `sample2` (string), `sample3` (string), `sample4` (string), `sample5` (string), `status` (string), `subUsecases` (array[string]), `submissionStatus` (enum: CREATED, FAILED, PENDING), `subscriberHelp` (boolean), `subscriberOptin` (boolean), `subscriberOptout` (boolean), `tcrBrandId` (string), `tcrCampaignId` (string), `termsAndConditions` (boolean), `termsAndConditionsLink` (string), `usecase` (string), `vertical` (string), `webhookFailoverURL` (string), `webhookURL` (string)
-
-## Qualify By Usecase
-
-This endpoint allows you to see whether or not the supplied brand is suitable for your desired campaign use case.
-
-`GET /10dlc/campaignBuilder/brand/{brandId}/usecase/{usecase}`
-
-```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/campaignBuilder/brand/{brandId}/usecase/{usecase}"
-```
-
-Returns: `annualFee` (number), `maxSubUsecases` (integer), `minSubUsecases` (integer), `mnoMetadata` (object), `monthlyFee` (number), `quarterlyFee` (number), `usecase` (string)
+Key response fields: `.data.sharedByMe, .data.sharedWithMe`
 
 ## List shared partner campaigns
 
@@ -530,14 +671,18 @@ from the response from this endpoint.
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/partnerCampaign/sharedByMe"
 ```
 
-Returns: `page` (integer), `records` (array[object]), `totalRecords` (integer)
+Key response fields: `.data.page, .data.records, .data.totalRecords`
 
 ## Get Sharing Status
 
 `GET /10dlc/partnerCampaign/{campaignId}/sharing`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes | ID of the campaign in question |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/partnerCampaign/{campaignId}/sharing"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/partnerCampaign/CXXX001/sharing"
 ```
 
 ## List Shared Campaigns
@@ -550,7 +695,7 @@ Retrieve all partner campaigns you have shared to Telnyx in a paginated fashion.
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/partner_campaigns?sort=-assignedPhoneNumbersCount"
 ```
 
-Returns: `page` (integer), `records` (array[object]), `totalRecords` (integer)
+Key response fields: `.data.page, .data.records, .data.totalRecords`
 
 ## Get Single Shared Campaign
 
@@ -558,11 +703,15 @@ Retrieve campaign details by `campaignId`.
 
 `GET /10dlc/partner_campaigns/{campaignId}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes |  |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/partner_campaigns/{campaignId}"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/partner_campaigns/CXXX001"
 ```
 
-Returns: `ageGated` (boolean), `assignedPhoneNumbersCount` (number), `brandDisplayName` (string), `campaignStatus` (enum: TCR_PENDING, TCR_SUSPENDED, TCR_EXPIRED, TCR_ACCEPTED, TCR_FAILED, TELNYX_ACCEPTED, TELNYX_FAILED, MNO_PENDING, MNO_ACCEPTED, MNO_REJECTED, MNO_PROVISIONED, MNO_PROVISIONING_FAILED), `createdAt` (string), `description` (string), `directLending` (boolean), `embeddedLink` (boolean), `embeddedLinkSample` (string), `embeddedPhone` (boolean), `failureReasons` (string), `helpKeywords` (string), `helpMessage` (string), `isNumberPoolingEnabled` (boolean), `messageFlow` (string), `numberPool` (boolean), `optinKeywords` (string), `optinMessage` (string), `optoutKeywords` (string), `optoutMessage` (string), `privacyPolicyLink` (string), `sample1` (string), `sample2` (string), `sample3` (string), `sample4` (string), `sample5` (string), `subUsecases` (array[string]), `subscriberOptin` (boolean), `subscriberOptout` (boolean), `tcrBrandId` (string), `tcrCampaignId` (string), `termsAndConditions` (boolean), `termsAndConditionsLink` (string), `updatedAt` (string), `usecase` (string), `webhookFailoverURL` (string), `webhookURL` (string)
+Key response fields: `.data.ageGated, .data.assignedPhoneNumbersCount, .data.brandDisplayName`
 
 ## Update Single Shared Campaign
 
@@ -570,29 +719,31 @@ Update campaign details by `campaignId`. **Please note:** Only webhook urls are 
 
 `PATCH /10dlc/partner_campaigns/{campaignId}`
 
-Optional: `webhookFailoverURL` (string), `webhookURL` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `campaignId` | string (UUID) | Yes |  |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```bash
 curl \
   -X PATCH \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-  "webhookURL": "https://webhook.com/67ea78a8-9f32-4d04-b62d-f9502e8e5f93",
-  "webhookFailoverURL": "https://webhook.com/9010a453-4df8-4be6-a551-1070892888d6"
-}' \
-  "https://api.telnyx.com/v2/10dlc/partner_campaigns/{campaignId}"
+  "https://api.telnyx.com/v2/10dlc/partner_campaigns/CXXX001"
 ```
 
-Returns: `ageGated` (boolean), `assignedPhoneNumbersCount` (number), `brandDisplayName` (string), `campaignStatus` (enum: TCR_PENDING, TCR_SUSPENDED, TCR_EXPIRED, TCR_ACCEPTED, TCR_FAILED, TELNYX_ACCEPTED, TELNYX_FAILED, MNO_PENDING, MNO_ACCEPTED, MNO_REJECTED, MNO_PROVISIONED, MNO_PROVISIONING_FAILED), `createdAt` (string), `description` (string), `directLending` (boolean), `embeddedLink` (boolean), `embeddedLinkSample` (string), `embeddedPhone` (boolean), `failureReasons` (string), `helpKeywords` (string), `helpMessage` (string), `isNumberPoolingEnabled` (boolean), `messageFlow` (string), `numberPool` (boolean), `optinKeywords` (string), `optinMessage` (string), `optoutKeywords` (string), `optoutMessage` (string), `privacyPolicyLink` (string), `sample1` (string), `sample2` (string), `sample3` (string), `sample4` (string), `sample5` (string), `subUsecases` (array[string]), `subscriberOptin` (boolean), `subscriberOptout` (boolean), `tcrBrandId` (string), `tcrCampaignId` (string), `termsAndConditions` (boolean), `termsAndConditionsLink` (string), `updatedAt` (string), `usecase` (string), `webhookFailoverURL` (string), `webhookURL` (string)
+Key response fields: `.data.ageGated, .data.assignedPhoneNumbersCount, .data.brandDisplayName`
 
 ## Assign Messaging Profile To Campaign
 
 This endpoint allows you to link all phone numbers associated with a Messaging Profile to a campaign. **Please note:** if you want to assign phone numbers to a campaign that you did not create with Telnyx 10DLC services, this endpoint allows that provided that you've shared the campaign with Telnyx. In this case, only provide the parameter, `tcrCampaignId`, and not `campaignId`.
 
-`POST /10dlc/phoneNumberAssignmentByProfile` — Required: `messagingProfileId`
+`POST /10dlc/phoneNumberAssignmentByProfile`
 
-Optional: `campaignId` (string), `tcrCampaignId` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `messagingProfileId` | string (UUID) | Yes | The ID of the messaging profile that you want to link to the... |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```bash
 curl \
@@ -600,14 +751,12 @@ curl \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-  "messagingProfileId": "4001767e-ce0f-4cae-9d5f-0d5e636e7809",
-  "tcrCampaignId": "CWZTFH1",
-  "campaignId": "4b300178-131c-d902-d54e-72d90ba1620j"
+  "messagingProfileId": "4001767e-ce0f-4cae-9d5f-0d5e636e7809"
 }' \
   "https://api.telnyx.com/v2/10dlc/phoneNumberAssignmentByProfile"
 ```
 
-Returns: `campaignId` (string), `messagingProfileId` (string), `taskId` (string), `tcrCampaignId` (string)
+Key response fields: `.data.campaignId, .data.messagingProfileId, .data.taskId`
 
 ## Get Assignment Task Status
 
@@ -615,11 +764,15 @@ Check the status of the task associated with assigning all phone numbers on a me
 
 `GET /10dlc/phoneNumberAssignmentByProfile/{taskId}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `taskId` | string (UUID) | Yes |  |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/phoneNumberAssignmentByProfile/{taskId}"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/phoneNumberAssignmentByProfile/550e8400-e29b-41d4-a716-446655440000"
 ```
 
-Returns: `createdAt` (date-time), `status` (string), `taskId` (string), `updatedAt` (date-time)
+Key response fields: `.data.status, .data.createdAt, .data.taskId`
 
 ## Get Phone Number Status
 
@@ -627,11 +780,15 @@ Check the status of the individual phone number/campaign assignments associated 
 
 `GET /10dlc/phoneNumberAssignmentByProfile/{taskId}/phoneNumbers`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `taskId` | string (UUID) | Yes |  |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/phoneNumberAssignmentByProfile/{taskId}/phoneNumbers"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/phoneNumberAssignmentByProfile/550e8400-e29b-41d4-a716-446655440000/phoneNumbers"
 ```
 
-Returns: `records` (array[object])
+Key response fields: `.data.records`
 
 ## List phone number campaigns
 
@@ -641,25 +798,7 @@ Returns: `records` (array[object])
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/phone_number_campaigns?sort=-phoneNumber"
 ```
 
-Returns: `page` (integer), `records` (array[object]), `totalRecords` (integer)
-
-## Create New Phone Number Campaign
-
-`POST /10dlc/phone_number_campaigns` — Required: `phoneNumber`, `campaignId`
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "phoneNumber": "+18005550199",
-  "campaignId": "4b300178-131c-d902-d54e-72d90ba1620j"
-}' \
-  "https://api.telnyx.com/v2/10dlc/phone_number_campaigns"
-```
-
-Returns: `assignmentStatus` (enum: FAILED_ASSIGNMENT, PENDING_ASSIGNMENT, ASSIGNED, PENDING_UNASSIGNMENT, FAILED_UNASSIGNMENT), `brandId` (string), `campaignId` (string), `createdAt` (string), `failureReasons` (string), `phoneNumber` (string), `tcrBrandId` (string), `tcrCampaignId` (string), `telnyxCampaignId` (string), `updatedAt` (string)
+Key response fields: `.data.page, .data.records, .data.totalRecords`
 
 ## Get Single Phone Number Campaign
 
@@ -667,15 +806,25 @@ Retrieve an individual phone number/campaign assignment by `phoneNumber`.
 
 `GET /10dlc/phone_number_campaigns/{phoneNumber}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phoneNumber` | string (E.164) | Yes |  |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/phone_number_campaigns/{phoneNumber}"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/10dlc/phone_number_campaigns/+13125550001"
 ```
 
-Returns: `assignmentStatus` (enum: FAILED_ASSIGNMENT, PENDING_ASSIGNMENT, ASSIGNED, PENDING_UNASSIGNMENT, FAILED_UNASSIGNMENT), `brandId` (string), `campaignId` (string), `createdAt` (string), `failureReasons` (string), `phoneNumber` (string), `tcrBrandId` (string), `tcrCampaignId` (string), `telnyxCampaignId` (string), `updatedAt` (string)
+Key response fields: `.data.assignmentStatus, .data.brandId, .data.campaignId`
 
 ## Create New Phone Number Campaign
 
-`PUT /10dlc/phone_number_campaigns/{phoneNumber}` — Required: `phoneNumber`, `campaignId`
+`PUT /10dlc/phone_number_campaigns/{phoneNumber}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phoneNumber` | string (E.164) | Yes | The phone number you want to link to a specified campaign. |
+| `campaignId` | string (UUID) | Yes | The ID of the campaign you want to link to the specified pho... |
+| `phoneNumber` | string (E.164) | Yes |  |
 
 ```bash
 curl \
@@ -686,10 +835,10 @@ curl \
   "phoneNumber": "+18005550199",
   "campaignId": "4b300178-131c-d902-d54e-72d90ba1620j"
 }' \
-  "https://api.telnyx.com/v2/10dlc/phone_number_campaigns/{phoneNumber}"
+  "https://api.telnyx.com/v2/10dlc/phone_number_campaigns/+13125550001"
 ```
 
-Returns: `assignmentStatus` (enum: FAILED_ASSIGNMENT, PENDING_ASSIGNMENT, ASSIGNED, PENDING_UNASSIGNMENT, FAILED_UNASSIGNMENT), `brandId` (string), `campaignId` (string), `createdAt` (string), `failureReasons` (string), `phoneNumber` (string), `tcrBrandId` (string), `tcrCampaignId` (string), `telnyxCampaignId` (string), `updatedAt` (string)
+Key response fields: `.data.assignmentStatus, .data.brandId, .data.campaignId`
 
 ## Delete Phone Number Campaign
 
@@ -697,14 +846,18 @@ This endpoint allows you to remove a campaign assignment from the supplied `phon
 
 `DELETE /10dlc/phone_number_campaigns/{phoneNumber}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phoneNumber` | string (E.164) | Yes |  |
+
 ```bash
 curl \
   -X DELETE \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
-  "https://api.telnyx.com/v2/10dlc/phone_number_campaigns/{phoneNumber}"
+  "https://api.telnyx.com/v2/10dlc/phone_number_campaigns/+13125550001"
 ```
 
-Returns: `assignmentStatus` (enum: FAILED_ASSIGNMENT, PENDING_ASSIGNMENT, ASSIGNED, PENDING_UNASSIGNMENT, FAILED_UNASSIGNMENT), `brandId` (string), `campaignId` (string), `createdAt` (string), `failureReasons` (string), `phoneNumber` (string), `tcrBrandId` (string), `tcrCampaignId` (string), `telnyxCampaignId` (string), `updatedAt` (string)
+Key response fields: `.data.assignmentStatus, .data.brandId, .data.campaignId`
 
 ---
 
@@ -730,21 +883,12 @@ and `telnyx-timestamp` headers. Always verify signatures in production:
 The following webhook events are sent to your configured webhook URL.
 All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for Ed25519 signature verification. Use `client.webhooks.unwrap()` to verify.
 
-| Event | Description |
-|-------|-------------|
-| `campaignStatusUpdate` | Campaign Status Update |
+| Event | `data.event_type` | Description |
+|-------|-------------------|-------------|
+| `campaignStatusUpdate` | `10dlc.campaign.status_update` | Campaign Status Update |
 
-### Webhook payload fields
+Webhook payload field definitions are in [references/api-details.md](references/api-details.md).
 
-**`campaignStatusUpdate`**
+---
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `brandId` | string | Brand ID associated with the campaign. |
-| `campaignId` | string | The ID of the campaign. |
-| `createDate` | string | Unix timestamp when campaign was created. |
-| `cspId` | string | Alphanumeric identifier of the CSP associated with this campaign. |
-| `isTMobileRegistered` | boolean | Indicates whether the campaign is registered with T-Mobile. |
-| `type` | enum: TELNYX_EVENT, REGISTRATION, MNO_REVIEW, TELNYX_REVIEW, NUMBER_POOL_PROVISIONED, NUMBER_POOL_DEPROVISIONED, TCR_EVENT, VERIFIED |  |
-| `description` | string | Description of the event. |
-| `status` | enum: ACCEPTED, REJECTED, DORMANT, success, failed | The status of the campaign. |
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**

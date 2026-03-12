@@ -1,8 +1,7 @@
 ---
 name: telnyx-video-python
 description: >-
-  Create and manage video rooms for real-time video communication and
-  conferencing. This skill provides Python SDK examples.
+  Video rooms for real-time communication and conferencing.
 metadata:
   author: telnyx
   product: video
@@ -13,6 +12,26 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx Video - Python
+
+## Core Workflow
+
+### Prerequisites
+
+1. No phone number needed — video rooms are standalone
+
+### Steps
+
+1. **Create room**: `client.rooms.create(unique_name=..., max_participants=...)`
+2. **Generate client token**: `client.rooms.client_tokens.create(room_id=..., token_ttl_secs=...)`
+3. **Join from client**: `Use the client token in a WebRTC client SDK`
+4. **List recordings**: `client.room_recordings.list()`
+
+### Common mistakes
+
+- Client tokens are short-lived — generate a new one for each participant session
+- Room unique_name must be globally unique — use UUIDs or prefixed names
+
+**Related skills**: telnyx-webrtc-python
 
 ## Installation
 
@@ -42,7 +61,7 @@ or authentication errors (401). Always handle errors in production code:
 import telnyx
 
 try:
-    result = client.messages.send(to="+13125550001", from_="+13125550002", text="Hello")
+    result = client.rooms.create(params)
 except telnyx.APIConnectionError:
     print("Network error — check connectivity and retry")
 except telnyx.RateLimitError:
@@ -59,9 +78,94 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 `404` resource not found, `422` validation error (check field formats),
 `429` rate limited (retry with exponential backoff).
 
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
+
+## Create a room.
+
+Synchronously create a Room.
+
+`client.rooms.create()` — `POST /rooms`
+
+```python
+room = client.rooms.create(
+    unique_name="my-meeting-room",
+    max_participants=10,
+)
+print(room.data)
+```
+
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
+
+## Create Client Token to join a room.
+
+Synchronously create an Client Token to join a Room. Client Token is necessary to join a Telnyx Room. Client Token will expire after `token_ttl_secs`, a Refresh Token is also provided to refresh a Client Token, the Refresh Token expires after `refresh_token_ttl_secs`.
+
+`client.rooms.actions.generate_join_client_token()` — `POST /rooms/{room_id}/actions/generate_join_client_token`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_id` | string (UUID) | Yes | The unique identifier of a room. |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
+
+```python
+response = client.rooms.actions.generate_join_client_token(
+    room_id="0ccc7b54-4df3-4bca-a65a-3da1ecc777f0",
+)
+print(response.data)
+```
+
+Key response fields: `response.data.refresh_token, response.data.refresh_token_expires_at, response.data.token`
+
+## View a list of rooms.
+
+`client.rooms.list()` — `GET /rooms`
+
+```python
+page = client.rooms.list()
+page = page.data[0]
+print(page.id)
+```
+
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
+
+## View a room.
+
+`client.rooms.retrieve()` — `GET /rooms/{room_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_id` | string (UUID) | Yes | The unique identifier of a room. |
+
+```python
+room = client.rooms.retrieve(
+    room_id="0ccc7b54-4df3-4bca-a65a-3da1ecc777f0",
+)
+print(room.data)
+```
+
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
+
+## Create a room composition.
+
+Asynchronously create a room composition.
+
+`client.room_compositions.create()` — `POST /room_compositions`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `session_id` | string (UUID) | No | id of the room session associated with the room composition. |
+| ... | | | +6 optional params in [references/api-details.md](references/api-details.md) |
+
+```python
+room_composition = client.room_compositions.create()
+print(room_composition.data)
+```
+
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
+
 ## View a list of room compositions.
 
-`GET /room_compositions`
+`client.room_compositions.list()` — `GET /room_compositions`
 
 ```python
 page = client.room_compositions.list()
@@ -69,26 +173,15 @@ page = page.data[0]
 print(page.id)
 ```
 
-Returns: `completed_at` (date-time), `created_at` (date-time), `download_url` (string), `duration_secs` (integer), `ended_at` (date-time), `format` (enum: mp4), `id` (uuid), `record_type` (string), `resolution` (string), `room_id` (uuid), `session_id` (uuid), `size_mb` (float), `started_at` (date-time), `status` (enum: completed, enqueued, processing), `updated_at` (date-time), `user_id` (uuid), `video_layout` (object), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
-
-## Create a room composition.
-
-Asynchronously create a room composition.
-
-`POST /room_compositions`
-
-Optional: `format` (string), `resolution` (string), `session_id` (uuid), `video_layout` (object), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
-
-```python
-room_composition = client.room_compositions.create()
-print(room_composition.data)
-```
-
-Returns: `completed_at` (date-time), `created_at` (date-time), `download_url` (string), `duration_secs` (integer), `ended_at` (date-time), `format` (enum: mp4), `id` (uuid), `record_type` (string), `resolution` (string), `room_id` (uuid), `session_id` (uuid), `size_mb` (float), `started_at` (date-time), `status` (enum: completed, enqueued, processing), `updated_at` (date-time), `user_id` (uuid), `video_layout` (object), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## View a room composition.
 
-`GET /room_compositions/{room_composition_id}`
+`client.room_compositions.retrieve()` — `GET /room_compositions/{room_composition_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_composition_id` | string (UUID) | Yes | The unique identifier of a room composition. |
 
 ```python
 room_composition = client.room_compositions.retrieve(
@@ -97,13 +190,17 @@ room_composition = client.room_compositions.retrieve(
 print(room_composition.data)
 ```
 
-Returns: `completed_at` (date-time), `created_at` (date-time), `download_url` (string), `duration_secs` (integer), `ended_at` (date-time), `format` (enum: mp4), `id` (uuid), `record_type` (string), `resolution` (string), `room_id` (uuid), `session_id` (uuid), `size_mb` (float), `started_at` (date-time), `status` (enum: completed, enqueued, processing), `updated_at` (date-time), `user_id` (uuid), `video_layout` (object), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Delete a room composition.
 
 Synchronously delete a room composition.
 
-`DELETE /room_compositions/{room_composition_id}`
+`client.room_compositions.delete()` — `DELETE /room_compositions/{room_composition_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_composition_id` | string (UUID) | Yes | The unique identifier of a room composition. |
 
 ```python
 client.room_compositions.delete(
@@ -113,7 +210,7 @@ client.room_compositions.delete(
 
 ## View a list of room participants.
 
-`GET /room_participants`
+`client.room_participants.list()` — `GET /room_participants`
 
 ```python
 page = client.room_participants.list()
@@ -121,11 +218,15 @@ page = page.data[0]
 print(page.id)
 ```
 
-Returns: `context` (string), `id` (uuid), `joined_at` (date-time), `left_at` (date-time), `record_type` (string), `session_id` (uuid), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.updated_at, response.data.context`
 
 ## View a room participant.
 
-`GET /room_participants/{room_participant_id}`
+`client.room_participants.retrieve()` — `GET /room_participants/{room_participant_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_participant_id` | string (UUID) | Yes | The unique identifier of a room participant. |
 
 ```python
 room_participant = client.room_participants.retrieve(
@@ -134,11 +235,11 @@ room_participant = client.room_participants.retrieve(
 print(room_participant.data)
 ```
 
-Returns: `context` (string), `id` (uuid), `joined_at` (date-time), `left_at` (date-time), `record_type` (string), `session_id` (uuid), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.updated_at, response.data.context`
 
 ## View a list of room recordings.
 
-`GET /room_recordings`
+`client.room_recordings.list()` — `GET /room_recordings`
 
 ```python
 page = client.room_recordings.list()
@@ -146,22 +247,26 @@ page = page.data[0]
 print(page.id)
 ```
 
-Returns: `codec` (string), `completed_at` (date-time), `created_at` (date-time), `download_url` (string), `duration_secs` (integer), `ended_at` (date-time), `id` (uuid), `participant_id` (uuid), `record_type` (string), `room_id` (uuid), `session_id` (uuid), `size_mb` (float), `started_at` (date-time), `status` (enum: completed, processing), `type` (enum: audio, video), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.status, response.data.type`
 
 ## Delete several room recordings in a bulk.
 
-`DELETE /room_recordings`
+`client.room_recordings.delete_bulk()` — `DELETE /room_recordings`
 
 ```python
 response = client.room_recordings.delete_bulk()
 print(response.data)
 ```
 
-Returns: `room_recordings` (integer)
+Key response fields: `response.data.room_recordings`
 
 ## View a room recording.
 
-`GET /room_recordings/{room_recording_id}`
+`client.room_recordings.retrieve()` — `GET /room_recordings/{room_recording_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_recording_id` | string (UUID) | Yes | The unique identifier of a room recording. |
 
 ```python
 room_recording = client.room_recordings.retrieve(
@@ -170,13 +275,17 @@ room_recording = client.room_recordings.retrieve(
 print(room_recording.data)
 ```
 
-Returns: `codec` (string), `completed_at` (date-time), `created_at` (date-time), `download_url` (string), `duration_secs` (integer), `ended_at` (date-time), `id` (uuid), `participant_id` (uuid), `record_type` (string), `room_id` (uuid), `session_id` (uuid), `size_mb` (float), `started_at` (date-time), `status` (enum: completed, processing), `type` (enum: audio, video), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.status, response.data.type`
 
 ## Delete a room recording.
 
 Synchronously delete a Room Recording.
 
-`DELETE /room_recordings/{room_recording_id}`
+`client.room_recordings.delete()` — `DELETE /room_recordings/{room_recording_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_recording_id` | string (UUID) | Yes | The unique identifier of a room recording. |
 
 ```python
 client.room_recordings.delete(
@@ -186,7 +295,7 @@ client.room_recordings.delete(
 
 ## View a list of room sessions.
 
-`GET /room_sessions`
+`client.rooms.sessions.list_0()` — `GET /room_sessions`
 
 ```python
 page = client.rooms.sessions.list_0()
@@ -194,11 +303,15 @@ page = page.data[0]
 print(page.id)
 ```
 
-Returns: `active` (boolean), `created_at` (date-time), `ended_at` (date-time), `id` (uuid), `participants` (array[object]), `record_type` (string), `room_id` (uuid), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## View a room session.
 
-`GET /room_sessions/{room_session_id}`
+`client.rooms.sessions.retrieve()` — `GET /room_sessions/{room_session_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_session_id` | string (UUID) | Yes | The unique identifier of a room session. |
 
 ```python
 session = client.rooms.sessions.retrieve(
@@ -207,13 +320,17 @@ session = client.rooms.sessions.retrieve(
 print(session.data)
 ```
 
-Returns: `active` (boolean), `created_at` (date-time), `ended_at` (date-time), `id` (uuid), `participants` (array[object]), `record_type` (string), `room_id` (uuid), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## End a room session.
 
 Note: this will also kick all participants currently present in the room
 
-`POST /room_sessions/{room_session_id}/actions/end`
+`client.rooms.sessions.actions.end()` — `POST /room_sessions/{room_session_id}/actions/end`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_session_id` | string (UUID) | Yes | The unique identifier of a room session. |
 
 ```python
 response = client.rooms.sessions.actions.end(
@@ -222,13 +339,16 @@ response = client.rooms.sessions.actions.end(
 print(response.data)
 ```
 
-Returns: `result` (string)
+Key response fields: `response.data.result`
 
 ## Kick participants from a room session.
 
-`POST /room_sessions/{room_session_id}/actions/kick`
+`client.rooms.sessions.actions.kick()` — `POST /room_sessions/{room_session_id}/actions/kick`
 
-Optional: `exclude` (array[string]), `participants` (object)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_session_id` | string (UUID) | Yes | The unique identifier of a room session. |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 response = client.rooms.sessions.actions.kick(
@@ -237,13 +357,16 @@ response = client.rooms.sessions.actions.kick(
 print(response.data)
 ```
 
-Returns: `result` (string)
+Key response fields: `response.data.result`
 
 ## Mute participants in room session.
 
-`POST /room_sessions/{room_session_id}/actions/mute`
+`client.rooms.sessions.actions.mute()` — `POST /room_sessions/{room_session_id}/actions/mute`
 
-Optional: `exclude` (array[string]), `participants` (object)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_session_id` | string (UUID) | Yes | The unique identifier of a room session. |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 response = client.rooms.sessions.actions.mute(
@@ -252,13 +375,16 @@ response = client.rooms.sessions.actions.mute(
 print(response.data)
 ```
 
-Returns: `result` (string)
+Key response fields: `response.data.result`
 
 ## Unmute participants in room session.
 
-`POST /room_sessions/{room_session_id}/actions/unmute`
+`client.rooms.sessions.actions.unmute()` — `POST /room_sessions/{room_session_id}/actions/unmute`
 
-Optional: `exclude` (array[string]), `participants` (object)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_session_id` | string (UUID) | Yes | The unique identifier of a room session. |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 response = client.rooms.sessions.actions.unmute(
@@ -267,11 +393,15 @@ response = client.rooms.sessions.actions.unmute(
 print(response.data)
 ```
 
-Returns: `result` (string)
+Key response fields: `response.data.result`
 
 ## View a list of room participants.
 
-`GET /room_sessions/{room_session_id}/participants`
+`client.rooms.sessions.retrieve_participants()` — `GET /room_sessions/{room_session_id}/participants`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_session_id` | string (UUID) | Yes | The unique identifier of a room session. |
 
 ```python
 page = client.rooms.sessions.retrieve_participants(
@@ -281,55 +411,18 @@ page = page.data[0]
 print(page.id)
 ```
 
-Returns: `context` (string), `id` (uuid), `joined_at` (date-time), `left_at` (date-time), `record_type` (string), `session_id` (uuid), `updated_at` (date-time)
-
-## View a list of rooms.
-
-`GET /rooms`
-
-```python
-page = client.rooms.list()
-page = page.data[0]
-print(page.id)
-```
-
-Returns: `active_session_id` (uuid), `created_at` (date-time), `enable_recording` (boolean), `id` (uuid), `max_participants` (integer), `record_type` (string), `sessions` (array[object]), `unique_name` (string), `updated_at` (date-time), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
-
-## Create a room.
-
-Synchronously create a Room.
-
-`POST /rooms`
-
-Optional: `enable_recording` (boolean), `max_participants` (integer), `unique_name` (string), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
-
-```python
-room = client.rooms.create()
-print(room.data)
-```
-
-Returns: `active_session_id` (uuid), `created_at` (date-time), `enable_recording` (boolean), `id` (uuid), `max_participants` (integer), `record_type` (string), `sessions` (array[object]), `unique_name` (string), `updated_at` (date-time), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
-
-## View a room.
-
-`GET /rooms/{room_id}`
-
-```python
-room = client.rooms.retrieve(
-    room_id="0ccc7b54-4df3-4bca-a65a-3da1ecc777f0",
-)
-print(room.data)
-```
-
-Returns: `active_session_id` (uuid), `created_at` (date-time), `enable_recording` (boolean), `id` (uuid), `max_participants` (integer), `record_type` (string), `sessions` (array[object]), `unique_name` (string), `updated_at` (date-time), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
+Key response fields: `response.data.id, response.data.updated_at, response.data.context`
 
 ## Update a room.
 
 Synchronously update a Room.
 
-`PATCH /rooms/{room_id}`
+`client.rooms.update()` — `PATCH /rooms/{room_id}`
 
-Optional: `enable_recording` (boolean), `max_participants` (integer), `unique_name` (string), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_id` | string (UUID) | Yes | The unique identifier of a room. |
+| ... | | | +6 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 room = client.rooms.update(
@@ -338,13 +431,17 @@ room = client.rooms.update(
 print(room.data)
 ```
 
-Returns: `active_session_id` (uuid), `created_at` (date-time), `enable_recording` (boolean), `id` (uuid), `max_participants` (integer), `record_type` (string), `sessions` (array[object]), `unique_name` (string), `updated_at` (date-time), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Delete a room.
 
 Synchronously delete a Room. Participants from that room will be kicked out, they won't be able to join that room anymore, and you won't be charged anymore for that room.
 
-`DELETE /rooms/{room_id}`
+`client.rooms.delete()` — `DELETE /rooms/{room_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_id` | string (UUID) | Yes | The unique identifier of a room. |
 
 ```python
 client.rooms.delete(
@@ -352,30 +449,17 @@ client.rooms.delete(
 )
 ```
 
-## Create Client Token to join a room.
-
-Synchronously create an Client Token to join a Room. Client Token is necessary to join a Telnyx Room. Client Token will expire after `token_ttl_secs`, a Refresh Token is also provided to refresh a Client Token, the Refresh Token expires after `refresh_token_ttl_secs`.
-
-`POST /rooms/{room_id}/actions/generate_join_client_token`
-
-Optional: `refresh_token_ttl_secs` (integer), `token_ttl_secs` (integer)
-
-```python
-response = client.rooms.actions.generate_join_client_token(
-    room_id="0ccc7b54-4df3-4bca-a65a-3da1ecc777f0",
-)
-print(response.data)
-```
-
-Returns: `refresh_token` (string), `refresh_token_expires_at` (date-time), `token` (string), `token_expires_at` (date-time)
-
 ## Refresh Client Token to join a room.
 
 Synchronously refresh an Client Token to join a Room. Client Token is necessary to join a Telnyx Room. Client Token will expire after `token_ttl_secs`.
 
-`POST /rooms/{room_id}/actions/refresh_client_token` — Required: `refresh_token`
+`client.rooms.actions.refresh_client_token()` — `POST /rooms/{room_id}/actions/refresh_client_token`
 
-Optional: `token_ttl_secs` (integer)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `refresh_token` | string | Yes |  |
+| `room_id` | string (UUID) | Yes | The unique identifier of a room. |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 response = client.rooms.actions.refresh_client_token(
@@ -385,11 +469,15 @@ response = client.rooms.actions.refresh_client_token(
 print(response.data)
 ```
 
-Returns: `token` (string), `token_expires_at` (date-time)
+Key response fields: `response.data.token, response.data.token_expires_at`
 
 ## View a list of room sessions.
 
-`GET /rooms/{room_id}/sessions`
+`client.rooms.sessions.list_1()` — `GET /rooms/{room_id}/sessions`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `room_id` | string (UUID) | Yes | The unique identifier of a room. |
 
 ```python
 page = client.rooms.sessions.list_1(
@@ -399,4 +487,8 @@ page = page.data[0]
 print(page.id)
 ```
 
-Returns: `active` (boolean), `created_at` (date-time), `ended_at` (date-time), `id` (uuid), `participants` (array[object]), `record_type` (string), `room_id` (uuid), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
+
+---
+
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**

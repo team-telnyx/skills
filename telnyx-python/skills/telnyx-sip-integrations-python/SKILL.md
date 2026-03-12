@@ -1,8 +1,8 @@
 ---
 name: telnyx-sip-integrations-python
 description: >-
-  Manage call recordings, media storage, Dialogflow integration, and external
-  connections for SIP trunking. This skill provides Python SDK examples.
+  Call recordings, media storage, Dialogflow integration, and external
+  connections for SIP trunking.
 metadata:
   author: telnyx
   product: sip-integrations
@@ -13,6 +13,25 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx Sip Integrations - Python
+
+## Core Workflow
+
+### Prerequisites
+
+1. SIP connection configured (see telnyx-sip-python)
+
+### Steps
+
+1. **List call recordings**: `client.call_recordings.list()`
+2. **Download recording**: `client.call_recordings.retrieve(id=...) — returns download URL`
+3. **Upload media**: `client.media_storage.create(media_url=...)`
+
+### Common mistakes
+
+- Call recordings require recording to be enabled on the connection or via call control commands
+- Recording files are temporary — download and store them in your own storage
+
+**Related skills**: telnyx-sip-python, telnyx-voice-python
 
 ## Installation
 
@@ -42,7 +61,7 @@ or authentication errors (401). Always handle errors in production code:
 import telnyx
 
 try:
-    result = client.messages.send(to="+13125550001", from_="+13125550002", text="Hello")
+    result = client.call_recordings.list(params)
 except telnyx.APIConnectionError:
     print("Network error — check connectivity and retry")
 except telnyx.RateLimitError:
@@ -63,11 +82,17 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 
 - **Pagination:** List methods return an auto-paginating iterator. Use `for item in page_result:` to iterate through all pages automatically.
 
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
+
 ## Retrieve a stored credential
 
 Returns the information about custom storage credentials.
 
-`GET /custom_storage_credentials/{connection_id}`
+`client.custom_storage_credentials.retrieve()` — `GET /custom_storage_credentials/{connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connection_id` | string (UUID) | Yes | Uniquely identifies a Telnyx application (Call Control, TeXM... |
 
 ```python
 custom_storage_credential = client.custom_storage_credentials.retrieve(
@@ -76,17 +101,21 @@ custom_storage_credential = client.custom_storage_credentials.retrieve(
 print(custom_storage_credential.connection_id)
 ```
 
-Returns: `backend` (enum: gcs, s3, azure), `configuration` (object)
+Key response fields: `response.data.backend, response.data.configuration`
 
 ## Create a custom storage credential
 
 Creates a custom storage credentials configuration.
 
-`POST /custom_storage_credentials/{connection_id}`
+`client.custom_storage_credentials.create()` — `POST /custom_storage_credentials/{connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connection_id` | string (UUID) | Yes | Uniquely identifies a Telnyx application (Call Control, TeXM... |
 
 ```python
 custom_storage_credential = client.custom_storage_credentials.create(
-    connection_id="connection_id",
+    connection_id="550e8400-e29b-41d4-a716-446655440000",
     backend="gcs",
     configuration={
         "backend": "gcs"
@@ -95,17 +124,21 @@ custom_storage_credential = client.custom_storage_credentials.create(
 print(custom_storage_credential.connection_id)
 ```
 
-Returns: `backend` (enum: gcs, s3, azure), `configuration` (object)
+Key response fields: `response.data.backend, response.data.configuration`
 
 ## Update a stored credential
 
 Updates a stored custom credentials configuration.
 
-`PUT /custom_storage_credentials/{connection_id}`
+`client.custom_storage_credentials.update()` — `PUT /custom_storage_credentials/{connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connection_id` | string (UUID) | Yes | Uniquely identifies a Telnyx application (Call Control, TeXM... |
 
 ```python
 custom_storage_credential = client.custom_storage_credentials.update(
-    connection_id="connection_id",
+    connection_id="550e8400-e29b-41d4-a716-446655440000",
     backend="gcs",
     configuration={
         "backend": "gcs"
@@ -114,13 +147,17 @@ custom_storage_credential = client.custom_storage_credentials.update(
 print(custom_storage_credential.connection_id)
 ```
 
-Returns: `backend` (enum: gcs, s3, azure), `configuration` (object)
+Key response fields: `response.data.backend, response.data.configuration`
 
 ## Delete a stored credential
 
 Deletes a stored custom credentials configuration.
 
-`DELETE /custom_storage_credentials/{connection_id}`
+`client.custom_storage_credentials.delete()` — `DELETE /custom_storage_credentials/{connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connection_id` | string (UUID) | Yes | Uniquely identifies a Telnyx application (Call Control, TeXM... |
 
 ```python
 client.custom_storage_credentials.delete(
@@ -132,7 +169,11 @@ client.custom_storage_credentials.delete(
 
 Return details of the Dialogflow connection associated with the given CallControl connection.
 
-`GET /dialogflow_connections/{connection_id}`
+`client.dialogflow_connections.retrieve()` — `GET /dialogflow_connections/{connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connection_id` | string (UUID) | Yes | Uniquely identifies a Telnyx application (Call Control). |
 
 ```python
 dialogflow_connection = client.dialogflow_connections.retrieve(
@@ -141,17 +182,21 @@ dialogflow_connection = client.dialogflow_connections.retrieve(
 print(dialogflow_connection.data)
 ```
 
-Returns: `connection_id` (string), `conversation_profile_id` (string), `environment` (string), `record_type` (string), `service_account` (string)
+Key response fields: `response.data.connection_id, response.data.conversation_profile_id, response.data.environment`
 
 ## Create a Dialogflow Connection
 
 Save Dialogflow Credentiails to Telnyx, so it can be used with other Telnyx services.
 
-`POST /dialogflow_connections/{connection_id}`
+`client.dialogflow_connections.create()` — `POST /dialogflow_connections/{connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connection_id` | string (UUID) | Yes | Uniquely identifies a Telnyx application (Call Control). |
 
 ```python
 dialogflow_connection = client.dialogflow_connections.create(
-    connection_id="connection_id",
+    connection_id="550e8400-e29b-41d4-a716-446655440000",
     service_account={
         "type": "bar",
         "project_id": "bar",
@@ -168,17 +213,21 @@ dialogflow_connection = client.dialogflow_connections.create(
 print(dialogflow_connection.data)
 ```
 
-Returns: `connection_id` (string), `conversation_profile_id` (string), `environment` (string), `record_type` (string), `service_account` (string)
+Key response fields: `response.data.connection_id, response.data.conversation_profile_id, response.data.environment`
 
 ## Update stored Dialogflow Connection
 
 Updates a stored Dialogflow Connection.
 
-`PUT /dialogflow_connections/{connection_id}`
+`client.dialogflow_connections.update()` — `PUT /dialogflow_connections/{connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connection_id` | string (UUID) | Yes | Uniquely identifies a Telnyx application (Call Control). |
 
 ```python
 dialogflow_connection = client.dialogflow_connections.update(
-    connection_id="connection_id",
+    connection_id="550e8400-e29b-41d4-a716-446655440000",
     service_account={
         "type": "bar",
         "project_id": "bar",
@@ -195,13 +244,17 @@ dialogflow_connection = client.dialogflow_connections.update(
 print(dialogflow_connection.data)
 ```
 
-Returns: `connection_id` (string), `conversation_profile_id` (string), `environment` (string), `record_type` (string), `service_account` (string)
+Key response fields: `response.data.connection_id, response.data.conversation_profile_id, response.data.environment`
 
 ## Delete stored Dialogflow Connection
 
 Deletes a stored Dialogflow Connection.
 
-`DELETE /dialogflow_connections/{connection_id}`
+`client.dialogflow_connections.delete()` — `DELETE /dialogflow_connections/{connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connection_id` | string (UUID) | Yes | Uniquely identifies a Telnyx application (Call Control). |
 
 ```python
 client.dialogflow_connections.delete(
@@ -213,7 +266,7 @@ client.dialogflow_connections.delete(
 
 This endpoint returns a list of your External Connections inside the 'data' attribute of the response. External Connections are used by Telnyx customers to seamless configure SIP trunking integrations with Telnyx Partners, through External Voice Integrations in Mission Control Portal.
 
-`GET /external_connections`
+`client.external_connections.list()` — `GET /external_connections`
 
 ```python
 page = client.external_connections.list()
@@ -221,15 +274,20 @@ page = page.data[0]
 print(page.id)
 ```
 
-Returns: `active` (boolean), `created_at` (string), `credential_active` (boolean), `external_sip_connection` (enum: zoom, operator_connect), `id` (string), `inbound` (object), `outbound` (object), `record_type` (string), `tags` (array[string]), `updated_at` (string), `webhook_api_version` (enum: 1, 2), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer | null)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Creates an External Connection
 
 Creates a new External Connection based on the parameters sent in the request. The external_sip_connection and outbound voice profile id are required. Once created, you can assign phone numbers to your application using the `/phone_numbers` endpoint.
 
-`POST /external_connections` — Required: `external_sip_connection`, `outbound`
+`client.external_connections.create()` — `POST /external_connections`
 
-Optional: `active` (boolean), `inbound` (object), `tags` (array[string]), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer | null)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `external_sip_connection` | enum (zoom) | Yes | The service that will be consuming this connection. |
+| `outbound` | object | Yes |  |
+| `tags` | array[string] | No | Tags associated with the connection. |
+| ... | | | +5 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 external_connection = client.external_connections.create(
@@ -239,13 +297,13 @@ external_connection = client.external_connections.create(
 print(external_connection.data)
 ```
 
-Returns: `active` (boolean), `created_at` (string), `credential_active` (boolean), `external_sip_connection` (enum: zoom, operator_connect), `id` (string), `inbound` (object), `outbound` (object), `record_type` (string), `tags` (array[string]), `updated_at` (string), `webhook_api_version` (enum: 1, 2), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer | null)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## List all log messages
 
 Retrieve a list of log messages for all external connections associated with your account.
 
-`GET /external_connections/log_messages`
+`client.external_connections.log_messages.list()` — `GET /external_connections/log_messages`
 
 ```python
 page = client.external_connections.log_messages.list()
@@ -253,13 +311,17 @@ page = page.log_messages[0]
 print(page.code)
 ```
 
-Returns: `log_messages` (array[object]), `meta` (object)
+Key response fields: `response.data.log_messages, response.data.meta`
 
 ## Retrieve a log message
 
 Retrieve a log message for an external connection associated with your account.
 
-`GET /external_connections/log_messages/{id}`
+`client.external_connections.log_messages.retrieve()` — `GET /external_connections/log_messages/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 log_message = client.external_connections.log_messages.retrieve(
@@ -268,13 +330,17 @@ log_message = client.external_connections.log_messages.retrieve(
 print(log_message.log_messages)
 ```
 
-Returns: `log_messages` (array[object])
+Key response fields: `response.data.log_messages`
 
 ## Dismiss a log message
 
 Dismiss a log message for an external connection associated with your account.
 
-`DELETE /external_connections/log_messages/{id}`
+`client.external_connections.log_messages.dismiss()` — `DELETE /external_connections/log_messages/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 response = client.external_connections.log_messages.dismiss(
@@ -283,13 +349,17 @@ response = client.external_connections.log_messages.dismiss(
 print(response.success)
 ```
 
-Returns: `success` (boolean)
+Key response fields: `response.data.success`
 
 ## Retrieve an External Connection
 
 Return the details of an existing External Connection inside the 'data' attribute of the response.
 
-`GET /external_connections/{id}`
+`client.external_connections.retrieve()` — `GET /external_connections/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 external_connection = client.external_connections.retrieve(
@@ -298,15 +368,20 @@ external_connection = client.external_connections.retrieve(
 print(external_connection.data)
 ```
 
-Returns: `active` (boolean), `created_at` (string), `credential_active` (boolean), `external_sip_connection` (enum: zoom, operator_connect), `id` (string), `inbound` (object), `outbound` (object), `record_type` (string), `tags` (array[string]), `updated_at` (string), `webhook_api_version` (enum: 1, 2), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer | null)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Update an External Connection
 
 Updates settings of an existing External Connection based on the parameters of the request.
 
-`PATCH /external_connections/{id}` — Required: `outbound`
+`client.external_connections.update()` — `PATCH /external_connections/{id}`
 
-Optional: `active` (boolean), `inbound` (object), `tags` (array[string]), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer | null)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `outbound` | object | Yes |  |
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `tags` | array[string] | No | Tags associated with the connection. |
+| ... | | | +5 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 external_connection = client.external_connections.update(
@@ -318,13 +393,17 @@ external_connection = client.external_connections.update(
 print(external_connection.data)
 ```
 
-Returns: `active` (boolean), `created_at` (string), `credential_active` (boolean), `external_sip_connection` (enum: zoom, operator_connect), `id` (string), `inbound` (object), `outbound` (object), `record_type` (string), `tags` (array[string]), `updated_at` (string), `webhook_api_version` (enum: 1, 2), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer | null)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Deletes an External Connection
 
 Permanently deletes an External Connection. Deletion may be prevented if the application is in use by phone numbers, is active, or if it is an Operator Connect connection. To remove an Operator Connect integration please contact Telnyx support.
 
-`DELETE /external_connections/{id}`
+`client.external_connections.delete()` — `DELETE /external_connections/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 external_connection = client.external_connections.delete(
@@ -333,13 +412,17 @@ external_connection = client.external_connections.delete(
 print(external_connection.data)
 ```
 
-Returns: `active` (boolean), `created_at` (string), `credential_active` (boolean), `external_sip_connection` (enum: zoom, operator_connect), `id` (string), `inbound` (object), `outbound` (object), `record_type` (string), `tags` (array[string]), `updated_at` (string), `webhook_api_version` (enum: 1, 2), `webhook_event_failover_url` (uri), `webhook_event_url` (uri), `webhook_timeout_secs` (integer | null)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## List all civic addresses and locations
 
 Returns the civic addresses and locations from Microsoft Teams.
 
-`GET /external_connections/{id}/civic_addresses`
+`client.external_connections.civic_addresses.list()` — `GET /external_connections/{id}/civic_addresses`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 civic_addresses = client.external_connections.civic_addresses.list(
@@ -348,13 +431,18 @@ civic_addresses = client.external_connections.civic_addresses.list(
 print(civic_addresses.data)
 ```
 
-Returns: `city_or_town` (string), `city_or_town_alias` (string), `company_name` (string), `country` (string), `country_or_district` (string), `default_location_id` (uuid), `description` (string), `house_number` (string), `house_number_suffix` (string), `id` (uuid), `locations` (array[object]), `postal_or_zip_code` (string), `record_type` (string), `state_or_province` (string), `street_name` (string), `street_suffix` (string)
+Key response fields: `response.data.id, response.data.city_or_town, response.data.city_or_town_alias`
 
 ## Retrieve a Civic Address
 
 Return the details of an existing Civic Address with its Locations inside the 'data' attribute of the response.
 
-`GET /external_connections/{id}/civic_addresses/{address_id}`
+`client.external_connections.civic_addresses.retrieve()` — `GET /external_connections/{id}/civic_addresses/{address_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `address_id` | string (UUID) | Yes | Identifies a civic address or a location. |
 
 ```python
 civic_address = client.external_connections.civic_addresses.retrieve(
@@ -364,11 +452,17 @@ civic_address = client.external_connections.civic_addresses.retrieve(
 print(civic_address.data)
 ```
 
-Returns: `city_or_town` (string), `city_or_town_alias` (string), `company_name` (string), `country` (string), `country_or_district` (string), `default_location_id` (uuid), `description` (string), `house_number` (string), `house_number_suffix` (string), `id` (uuid), `locations` (array[object]), `postal_or_zip_code` (string), `record_type` (string), `state_or_province` (string), `street_name` (string), `street_suffix` (string)
+Key response fields: `response.data.id, response.data.city_or_town, response.data.city_or_town_alias`
 
 ## Update a location's static emergency address
 
-`PATCH /external_connections/{id}/locations/{location_id}` — Required: `static_emergency_address_id`
+`client.external_connections.update_location()` — `PATCH /external_connections/{id}/locations/{location_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `static_emergency_address_id` | string (UUID) | Yes | A new static emergency address ID to update the location wit... |
+| `id` | string (UUID) | Yes | The ID of the external connection |
+| `location_id` | string (UUID) | Yes | The ID of the location to update |
 
 ```python
 response = client.external_connections.update_location(
@@ -379,13 +473,17 @@ response = client.external_connections.update_location(
 print(response.data)
 ```
 
-Returns: `accepted_address_suggestions` (boolean), `location_id` (uuid), `static_emergency_address_id` (uuid)
+Key response fields: `response.data.accepted_address_suggestions, response.data.location_id, response.data.static_emergency_address_id`
 
 ## List all phone numbers
 
 Returns a list of all active phone numbers associated with the given external connection.
 
-`GET /external_connections/{id}/phone_numbers`
+`client.external_connections.phone_numbers.list()` — `GET /external_connections/{id}/phone_numbers`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 page = client.external_connections.phone_numbers.list(
@@ -395,13 +493,18 @@ page = page.data[0]
 print(page.civic_address_id)
 ```
 
-Returns: `acquired_capabilities` (array[string]), `civic_address_id` (uuid), `displayed_country_code` (string), `location_id` (uuid), `number_id` (string), `telephone_number` (string), `ticket_id` (uuid)
+Key response fields: `response.data.acquired_capabilities, response.data.civic_address_id, response.data.displayed_country_code`
 
 ## Retrieve a phone number
 
 Return the details of a phone number associated with the given external connection.
 
-`GET /external_connections/{id}/phone_numbers/{phone_number_id}`
+`client.external_connections.phone_numbers.retrieve()` — `GET /external_connections/{id}/phone_numbers/{phone_number_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `phone_number_id` | string (UUID) | Yes | A phone number's ID via the Telnyx API |
 
 ```python
 phone_number = client.external_connections.phone_numbers.retrieve(
@@ -411,15 +514,19 @@ phone_number = client.external_connections.phone_numbers.retrieve(
 print(phone_number.data)
 ```
 
-Returns: `acquired_capabilities` (array[string]), `civic_address_id` (uuid), `displayed_country_code` (string), `location_id` (uuid), `number_id` (string), `telephone_number` (string), `ticket_id` (uuid)
+Key response fields: `response.data.acquired_capabilities, response.data.civic_address_id, response.data.displayed_country_code`
 
 ## Update a phone number
 
 Asynchronously update settings of the phone number associated with the given external connection.
 
-`PATCH /external_connections/{id}/phone_numbers/{phone_number_id}`
+`client.external_connections.phone_numbers.update()` — `PATCH /external_connections/{id}/phone_numbers/{phone_number_id}`
 
-Optional: `location_id` (uuid)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `phone_number_id` | string (UUID) | Yes | A phone number's ID via the Telnyx API |
+| `location_id` | string (UUID) | No | Identifies the location to assign the phone number to. |
 
 ```python
 phone_number = client.external_connections.phone_numbers.update(
@@ -429,13 +536,17 @@ phone_number = client.external_connections.phone_numbers.update(
 print(phone_number.data)
 ```
 
-Returns: `acquired_capabilities` (array[string]), `civic_address_id` (uuid), `displayed_country_code` (string), `location_id` (uuid), `number_id` (string), `telephone_number` (string), `ticket_id` (uuid)
+Key response fields: `response.data.acquired_capabilities, response.data.civic_address_id, response.data.displayed_country_code`
 
 ## List all Releases
 
 Returns a list of your Releases for the given external connection. These are automatically created when you change the `connection_id` of a phone number that is currently on Microsoft Teams.
 
-`GET /external_connections/{id}/releases`
+`client.external_connections.releases.list()` — `GET /external_connections/{id}/releases`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 page = client.external_connections.releases.list(
@@ -445,13 +556,18 @@ page = page.data[0]
 print(page.tenant_id)
 ```
 
-Returns: `created_at` (string), `error_message` (string), `status` (enum: pending_upload, pending, in_progress, complete, failed, expired, unknown), `telephone_numbers` (array[object]), `tenant_id` (uuid), `ticket_id` (uuid)
+Key response fields: `response.data.status, response.data.created_at, response.data.error_message`
 
 ## Retrieve a Release request
 
 Return the details of a Release request and its phone numbers.
 
-`GET /external_connections/{id}/releases/{release_id}`
+`client.external_connections.releases.retrieve()` — `GET /external_connections/{id}/releases/{release_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `release_id` | string (UUID) | Yes | Identifies a Release request |
 
 ```python
 release = client.external_connections.releases.retrieve(
@@ -461,13 +577,17 @@ release = client.external_connections.releases.retrieve(
 print(release.data)
 ```
 
-Returns: `created_at` (string), `error_message` (string), `status` (enum: pending_upload, pending, in_progress, complete, failed, expired, unknown), `telephone_numbers` (array[object]), `tenant_id` (uuid), `ticket_id` (uuid)
+Key response fields: `response.data.status, response.data.created_at, response.data.error_message`
 
 ## List all Upload requests
 
 Returns a list of your Upload requests for the given external connection.
 
-`GET /external_connections/{id}/uploads`
+`client.external_connections.uploads.list()` — `GET /external_connections/{id}/uploads`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 page = client.external_connections.uploads.list(
@@ -477,15 +597,22 @@ page = page.data[0]
 print(page.location_id)
 ```
 
-Returns: `available_usages` (array[string]), `error_code` (string), `error_message` (string), `location_id` (uuid), `status` (enum: pending_upload, pending, in_progress, partial_success, success, error), `tenant_id` (uuid), `ticket_id` (uuid), `tn_upload_entries` (array[object])
+Key response fields: `response.data.status, response.data.available_usages, response.data.error_code`
 
 ## Creates an Upload request
 
 Creates a new Upload request to Microsoft teams with the included phone numbers. Only one of civic_address_id or location_id must be provided, not both. The maximum allowed phone numbers for the numbers_ids array is 1000.
 
-`POST /external_connections/{id}/uploads` — Required: `number_ids`
+`client.external_connections.uploads.create()` — `POST /external_connections/{id}/uploads`
 
-Optional: `additional_usages` (array[string]), `civic_address_id` (uuid), `location_id` (uuid), `usage` (enum: calling_user_assignment, first_party_app_assignment)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `number_ids` | array[string] | Yes |  |
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `usage` | enum (calling_user_assignment, first_party_app_assignment) | No | The use case of the upload request. |
+| `location_id` | string (UUID) | No | Identifies the location to assign all phone numbers to. |
+| `civic_address_id` | string (UUID) | No | Identifies the civic address to assign all phone numbers to. |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 upload = client.external_connections.uploads.create(
@@ -495,13 +622,17 @@ upload = client.external_connections.uploads.create(
 print(upload.ticket_id)
 ```
 
-Returns: `success` (boolean), `ticket_id` (uuid)
+Key response fields: `response.data.success, response.data.ticket_id`
 
 ## Refresh the status of all Upload requests
 
 Forces a recheck of the status of all pending Upload requests for the given external connection in the background.
 
-`POST /external_connections/{id}/uploads/refresh`
+`client.external_connections.uploads.refresh_status()` — `POST /external_connections/{id}/uploads/refresh`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 response = client.external_connections.uploads.refresh_status(
@@ -510,13 +641,17 @@ response = client.external_connections.uploads.refresh_status(
 print(response.success)
 ```
 
-Returns: `success` (boolean)
+Key response fields: `response.data.success`
 
 ## Get the count of pending upload requests
 
 Returns the count of all pending upload requests for the given external connection.
 
-`GET /external_connections/{id}/uploads/status`
+`client.external_connections.uploads.pending_count()` — `GET /external_connections/{id}/uploads/status`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```python
 response = client.external_connections.uploads.pending_count(
@@ -525,13 +660,18 @@ response = client.external_connections.uploads.pending_count(
 print(response.data)
 ```
 
-Returns: `pending_numbers_count` (integer), `pending_orders_count` (integer)
+Key response fields: `response.data.pending_numbers_count, response.data.pending_orders_count`
 
 ## Retrieve an Upload request
 
 Return the details of an Upload request and its phone numbers.
 
-`GET /external_connections/{id}/uploads/{ticket_id}`
+`client.external_connections.uploads.retrieve()` — `GET /external_connections/{id}/uploads/{ticket_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `ticket_id` | string (UUID) | Yes | Identifies an Upload request |
 
 ```python
 upload = client.external_connections.uploads.retrieve(
@@ -541,13 +681,18 @@ upload = client.external_connections.uploads.retrieve(
 print(upload.data)
 ```
 
-Returns: `available_usages` (array[string]), `error_code` (string), `error_message` (string), `location_id` (uuid), `status` (enum: pending_upload, pending, in_progress, partial_success, success, error), `tenant_id` (uuid), `ticket_id` (uuid), `tn_upload_entries` (array[object])
+Key response fields: `response.data.status, response.data.available_usages, response.data.error_code`
 
 ## Retry an Upload request
 
 If there were any errors during the upload process, this endpoint will retry the upload request. In some cases this will reattempt the existing upload request, in other cases it may create a new upload request. Please check the ticket_id in the response to determine if a new upload request was created.
 
-`POST /external_connections/{id}/uploads/{ticket_id}/retry`
+`client.external_connections.uploads.retry()` — `POST /external_connections/{id}/uploads/{ticket_id}/retry`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `ticket_id` | string (UUID) | Yes | Identifies an Upload request |
 
 ```python
 response = client.external_connections.uploads.retry(
@@ -557,28 +702,31 @@ response = client.external_connections.uploads.retry(
 print(response.data)
 ```
 
-Returns: `available_usages` (array[string]), `error_code` (string), `error_message` (string), `location_id` (uuid), `status` (enum: pending_upload, pending, in_progress, partial_success, success, error), `tenant_id` (uuid), `ticket_id` (uuid), `tn_upload_entries` (array[object])
+Key response fields: `response.data.status, response.data.available_usages, response.data.error_code`
 
 ## List uploaded media
 
 Returns a list of stored media files.
 
-`GET /media`
+`client.media.list()` — `GET /media`
 
 ```python
 media = client.media.list()
 print(media.data)
 ```
 
-Returns: `content_type` (string), `created_at` (string), `expires_at` (string), `media_name` (string), `updated_at` (string)
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.content_type`
 
 ## Upload media
 
 Upload media file to Telnyx so it can be used with other Telnyx services
 
-`POST /media` — Required: `media_url`
+`client.media.upload()` — `POST /media`
 
-Optional: `media_name` (string), `ttl_secs` (integer)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `media_url` | string (URL) | Yes | The URL where the media to be stored in Telnyx network is cu... |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 response = client.media.upload(
@@ -587,13 +735,17 @@ response = client.media.upload(
 print(response.data)
 ```
 
-Returns: `content_type` (string), `created_at` (string), `expires_at` (string), `media_name` (string), `updated_at` (string)
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.content_type`
 
 ## Retrieve stored media
 
 Returns the information about a stored media file.
 
-`GET /media/{media_name}`
+`client.media.retrieve()` — `GET /media/{media_name}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `media_name` | string | Yes | Uniquely identifies a media resource. |
 
 ```python
 media = client.media.retrieve(
@@ -602,15 +754,18 @@ media = client.media.retrieve(
 print(media.data)
 ```
 
-Returns: `content_type` (string), `created_at` (string), `expires_at` (string), `media_name` (string), `updated_at` (string)
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.content_type`
 
 ## Update stored media
 
 Updates a stored media file.
 
-`PUT /media/{media_name}`
+`client.media.update()` — `PUT /media/{media_name}`
 
-Optional: `media_url` (string), `ttl_secs` (integer)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `media_name` | string | Yes | Uniquely identifies a media resource. |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 media = client.media.update(
@@ -619,13 +774,17 @@ media = client.media.update(
 print(media.data)
 ```
 
-Returns: `content_type` (string), `created_at` (string), `expires_at` (string), `media_name` (string), `updated_at` (string)
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.content_type`
 
 ## Deletes stored media
 
 Deletes a stored media file.
 
-`DELETE /media/{media_name}`
+`client.media.delete()` — `DELETE /media/{media_name}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `media_name` | string | Yes | Uniquely identifies a media resource. |
 
 ```python
 client.media.delete(
@@ -637,7 +796,11 @@ client.media.delete(
 
 Downloads a stored media file.
 
-`GET /media/{media_name}/download`
+`client.media.download()` — `GET /media/{media_name}/download`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `media_name` | string | Yes | Uniquely identifies a media resource. |
 
 ```python
 response = client.media.download(
@@ -652,33 +815,37 @@ print(content)
 
 This endpoint will make an asynchronous request to refresh the Operator Connect integration with Microsoft Teams for the current user. This will create new external connections on the user's account if needed, and/or report the integration results as [log messages](https://developers.telnyx.com/api-reference/external-connections/list-all-log-messages#list-all-log-messages).
 
-`POST /operator_connect/actions/refresh`
+`client.operator_connect.actions.refresh()` — `POST /operator_connect/actions/refresh`
 
 ```python
 response = client.operator_connect.actions.refresh()
 print(response.message)
 ```
 
-Returns: `message` (string), `success` (boolean)
+Key response fields: `response.data.message, response.data.success`
 
 ## List all recording transcriptions
 
 Returns a list of your recording transcriptions.
 
-`GET /recording_transcriptions`
+`client.recording_transcriptions.list()` — `GET /recording_transcriptions`
 
 ```python
 recording_transcriptions = client.recording_transcriptions.list()
 print(recording_transcriptions.data)
 ```
 
-Returns: `created_at` (string), `duration_millis` (int32), `id` (string), `record_type` (enum: recording_transcription), `recording_id` (string), `status` (enum: in-progress, completed), `transcription_text` (string), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Retrieve a recording transcription
 
 Retrieves the details of an existing recording transcription.
 
-`GET /recording_transcriptions/{recording_transcription_id}`
+`client.recording_transcriptions.retrieve()` — `GET /recording_transcriptions/{recording_transcription_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `recording_transcription_id` | string (UUID) | Yes | Uniquely identifies the recording transcription by id. |
 
 ```python
 recording_transcription = client.recording_transcriptions.retrieve(
@@ -687,13 +854,17 @@ recording_transcription = client.recording_transcriptions.retrieve(
 print(recording_transcription.data)
 ```
 
-Returns: `created_at` (string), `duration_millis` (int32), `id` (string), `record_type` (enum: recording_transcription), `recording_id` (string), `status` (enum: in-progress, completed), `transcription_text` (string), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Delete a recording transcription
 
 Permanently deletes a recording transcription.
 
-`DELETE /recording_transcriptions/{recording_transcription_id}`
+`client.recording_transcriptions.delete()` — `DELETE /recording_transcriptions/{recording_transcription_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `recording_transcription_id` | string (UUID) | Yes | Uniquely identifies the recording transcription by id. |
 
 ```python
 recording_transcription = client.recording_transcriptions.delete(
@@ -702,13 +873,13 @@ recording_transcription = client.recording_transcriptions.delete(
 print(recording_transcription.data)
 ```
 
-Returns: `created_at` (string), `duration_millis` (int32), `id` (string), `record_type` (enum: recording_transcription), `recording_id` (string), `status` (enum: in-progress, completed), `transcription_text` (string), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## List all call recordings
 
 Returns a list of your call recordings.
 
-`GET /recordings`
+`client.recordings.list()` — `GET /recordings`
 
 ```python
 page = client.recordings.list()
@@ -716,13 +887,13 @@ page = page.data[0]
 print(page.id)
 ```
 
-Returns: `call_control_id` (string), `call_leg_id` (string), `call_session_id` (string), `channels` (enum: single, dual), `conference_id` (string), `created_at` (string), `download_urls` (object), `duration_millis` (int32), `id` (string), `record_type` (enum: recording), `recording_ended_at` (string), `recording_started_at` (string), `source` (enum: conference, call), `status` (enum: completed), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.call_control_id`
 
 ## Delete a list of call recordings
 
 Permanently deletes a list of call recordings.
 
-`POST /recordings/actions/delete`
+`client.recordings.actions.delete()` — `POST /recordings/actions/delete`
 
 ```python
 client.recordings.actions.delete(
@@ -734,7 +905,11 @@ client.recordings.actions.delete(
 
 Retrieves the details of an existing call recording.
 
-`GET /recordings/{recording_id}`
+`client.recordings.retrieve()` — `GET /recordings/{recording_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `recording_id` | string (UUID) | Yes | Uniquely identifies the recording by id. |
 
 ```python
 recording = client.recordings.retrieve(
@@ -743,13 +918,17 @@ recording = client.recordings.retrieve(
 print(recording.data)
 ```
 
-Returns: `call_control_id` (string), `call_leg_id` (string), `call_session_id` (string), `channels` (enum: single, dual), `conference_id` (string), `created_at` (string), `download_urls` (object), `duration_millis` (int32), `id` (string), `record_type` (enum: recording), `recording_ended_at` (string), `recording_started_at` (string), `source` (enum: conference, call), `status` (enum: completed), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.call_control_id`
 
 ## Delete a call recording
 
 Permanently deletes a call recording.
 
-`DELETE /recordings/{recording_id}`
+`client.recordings.delete()` — `DELETE /recordings/{recording_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `recording_id` | string (UUID) | Yes | Uniquely identifies the recording by id. |
 
 ```python
 recording = client.recordings.delete(
@@ -758,13 +937,13 @@ recording = client.recordings.delete(
 print(recording.data)
 ```
 
-Returns: `call_control_id` (string), `call_leg_id` (string), `call_session_id` (string), `channels` (enum: single, dual), `conference_id` (string), `created_at` (string), `download_urls` (object), `duration_millis` (int32), `id` (string), `record_type` (enum: recording), `recording_ended_at` (string), `recording_started_at` (string), `source` (enum: conference, call), `status` (enum: completed), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.call_control_id`
 
 ## Create a SIPREC connector
 
 Creates a new SIPREC connector configuration.
 
-`POST /siprec_connectors`
+`client.siprec_connectors.create()` — `POST /siprec_connectors`
 
 ```python
 siprec_connector = client.siprec_connectors.create(
@@ -775,13 +954,17 @@ siprec_connector = client.siprec_connectors.create(
 print(siprec_connector.data)
 ```
 
-Returns: `app_subdomain` (string), `created_at` (string), `host` (string), `name` (string), `port` (integer), `record_type` (string), `updated_at` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.updated_at`
 
 ## Retrieve a SIPREC connector
 
 Returns details of a stored SIPREC connector.
 
-`GET /siprec_connectors/{connector_name}`
+`client.siprec_connectors.retrieve()` — `GET /siprec_connectors/{connector_name}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connector_name` | string | Yes | Uniquely identifies a SIPREC connector. |
 
 ```python
 siprec_connector = client.siprec_connectors.retrieve(
@@ -790,13 +973,17 @@ siprec_connector = client.siprec_connectors.retrieve(
 print(siprec_connector.data)
 ```
 
-Returns: `app_subdomain` (string), `created_at` (string), `host` (string), `name` (string), `port` (integer), `record_type` (string), `updated_at` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.updated_at`
 
 ## Update a SIPREC connector
 
 Updates a stored SIPREC connector configuration.
 
-`PUT /siprec_connectors/{connector_name}`
+`client.siprec_connectors.update()` — `PUT /siprec_connectors/{connector_name}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connector_name` | string | Yes | Uniquely identifies a SIPREC connector. |
 
 ```python
 siprec_connector = client.siprec_connectors.update(
@@ -808,16 +995,24 @@ siprec_connector = client.siprec_connectors.update(
 print(siprec_connector.data)
 ```
 
-Returns: `app_subdomain` (string), `created_at` (string), `host` (string), `name` (string), `port` (integer), `record_type` (string), `updated_at` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.updated_at`
 
 ## Delete a SIPREC connector
 
 Deletes a stored SIPREC connector.
 
-`DELETE /siprec_connectors/{connector_name}`
+`client.siprec_connectors.delete()` — `DELETE /siprec_connectors/{connector_name}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `connector_name` | string | Yes | Uniquely identifies a SIPREC connector. |
 
 ```python
 client.siprec_connectors.delete(
     "connector_name",
 )
 ```
+
+---
+
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**

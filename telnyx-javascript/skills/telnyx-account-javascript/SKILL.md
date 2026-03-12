@@ -1,8 +1,7 @@
 ---
 name: telnyx-account-javascript
 description: >-
-  Manage account balance, payments, invoices, webhooks, and view audit logs and
-  detail records. This skill provides JavaScript SDK examples.
+  Account balance, payments, invoices, webhooks, audit logs, and detail records.
 metadata:
   author: telnyx
   product: account
@@ -13,6 +12,20 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx Account - JavaScript
+
+## Core Workflow
+
+### Steps
+
+1. **Check balance**: `client.balance.retrieve()`
+2. **List invoices**: `client.billing.invoices.list()`
+3. **Configure webhooks**: `client.webhookDeliveries.list()`
+
+### Common mistakes
+
+- API keys provide full account access — use scoped tokens for limited permissions
+
+**Related skills**: telnyx-account-access-javascript, telnyx-account-reports-javascript
 
 ## Installation
 
@@ -39,7 +52,7 @@ or authentication errors (401). Always handle errors in production code:
 
 ```javascript
 try {
-  const result = await client.messages.send({ to: '+13125550001', from: '+13125550002', text: 'Hello' });
+  const result = await client.balance.retrieve(params);
 } catch (err) {
   if (err instanceof Telnyx.APIConnectionError) {
     console.error('Network error — check connectivity and retry');
@@ -64,11 +77,13 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 
 - **Pagination:** List methods return an auto-paginating iterator. Use `for await (const item of result) { ... }` to iterate through all pages automatically.
 
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
+
 ## List Audit Logs
 
 Retrieve a list of audit log entries. Audit logs are a best-effort, eventually consistent record of significant account-related changes.
 
-`GET /audit_events`
+`client.auditEvents.list()` — `GET /audit_events`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -77,11 +92,11 @@ for await (const auditEventListResponse of client.auditEvents.list()) {
 }
 ```
 
-Returns: `alternate_resource_id` (string | null), `change_made_by` (enum: telnyx, account_manager, account_owner, organization_member), `change_type` (string), `changes` (array | null), `created_at` (date-time), `id` (uuid), `organization_id` (uuid), `record_type` (string), `resource_id` (string), `user_id` (uuid)
+Key response fields: `response.data.id, response.data.created_at, response.data.alternate_resource_id`
 
 ## Get user balance details
 
-`GET /balance`
+`client.balance.retrieve()` — `GET /balance`
 
 ```javascript
 const balance = await client.balance.retrieve();
@@ -89,13 +104,13 @@ const balance = await client.balance.retrieve();
 console.log(balance.data);
 ```
 
-Returns: `available_credit` (string), `balance` (string), `credit_limit` (string), `currency` (string), `pending` (string), `record_type` (enum: balance)
+Key response fields: `response.data.available_credit, response.data.balance, response.data.credit_limit`
 
 ## Get monthly charges breakdown
 
 Retrieve a detailed breakdown of monthly charges for phone numbers in a specified date range. The date range cannot exceed 31 days.
 
-`GET /charges_breakdown`
+`client.chargesBreakdown.retrieve()` — `GET /charges_breakdown`
 
 ```javascript
 const chargesBreakdown = await client.chargesBreakdown.retrieve({ start_date: '2025-05-01' });
@@ -103,13 +118,13 @@ const chargesBreakdown = await client.chargesBreakdown.retrieve({ start_date: '2
 console.log(chargesBreakdown.data);
 ```
 
-Returns: `currency` (string), `end_date` (date), `results` (array[object]), `start_date` (date), `user_email` (email), `user_id` (string)
+Key response fields: `response.data.currency, response.data.end_date, response.data.results`
 
 ## Get monthly charges summary
 
 Retrieve a summary of monthly charges for a specified date range. The date range cannot exceed 31 days.
 
-`GET /charges_summary`
+`client.chargesSummary.retrieve()` — `GET /charges_summary`
 
 ```javascript
 const chargesSummary = await client.chargesSummary.retrieve({
@@ -120,13 +135,13 @@ const chargesSummary = await client.chargesSummary.retrieve({
 console.log(chargesSummary.data);
 ```
 
-Returns: `currency` (string), `end_date` (date), `start_date` (date), `summary` (object), `total` (object), `user_email` (email), `user_id` (string)
+Key response fields: `response.data.currency, response.data.end_date, response.data.start_date`
 
 ## Search detail records
 
 Search for any detail record across the Telnyx Platform
 
-`GET /detail_records`
+`client.detailRecords.list()` — `GET /detail_records`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -135,13 +150,13 @@ for await (const detailRecordListResponse of client.detailRecords.list()) {
 }
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.status, response.data.direction, response.data.created_at`
 
 ## List invoices
 
 Retrieve a paginated list of invoices.
 
-`GET /invoices`
+`client.invoices.list()` — `GET /invoices`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -150,13 +165,17 @@ for await (const invoiceListResponse of client.invoices.list()) {
 }
 ```
 
-Returns: `file_id` (uuid), `invoice_id` (uuid), `paid` (boolean), `period_end` (date), `period_start` (date), `url` (uri)
+Key response fields: `response.data.url, response.data.file_id, response.data.invoice_id`
 
 ## Get invoice by ID
 
 Retrieve a single invoice by its unique identifier.
 
-`GET /invoices/{id}`
+`client.invoices.retrieve()` — `GET /invoices/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Invoice UUID |
 
 ```javascript
 const invoice = await client.invoices.retrieve('182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e');
@@ -164,13 +183,13 @@ const invoice = await client.invoices.retrieve('182bd5e5-6e1a-4fe4-a799-aa6d9a6a
 console.log(invoice.data);
 ```
 
-Returns: `download_url` (uri), `file_id` (uuid), `invoice_id` (uuid), `paid` (boolean), `period_end` (date), `period_start` (date), `url` (uri)
+Key response fields: `response.data.url, response.data.download_url, response.data.file_id`
 
 ## List auto recharge preferences
 
 Returns the payment auto recharge preferences.
 
-`GET /payment/auto_recharge_prefs`
+`client.payment.autoRechargePrefs.list()` — `GET /payment/auto_recharge_prefs`
 
 ```javascript
 const autoRechargePrefs = await client.payment.autoRechargePrefs.list();
@@ -178,15 +197,18 @@ const autoRechargePrefs = await client.payment.autoRechargePrefs.list();
 console.log(autoRechargePrefs.data);
 ```
 
-Returns: `enabled` (boolean), `id` (string), `invoice_enabled` (boolean), `preference` (enum: credit_paypal, ach), `recharge_amount` (string), `record_type` (string), `threshold_amount` (string)
+Key response fields: `response.data.id, response.data.enabled, response.data.invoice_enabled`
 
 ## Update auto recharge preferences
 
 Update payment auto recharge preferences.
 
-`PATCH /payment/auto_recharge_prefs`
+`client.payment.autoRechargePrefs.update()` — `PATCH /payment/auto_recharge_prefs`
 
-Optional: `enabled` (boolean), `invoice_enabled` (boolean), `preference` (enum: credit_paypal, ach), `recharge_amount` (string), `threshold_amount` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `preference` | enum (credit_paypal, ach) | No | The payment preference for auto recharge. |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```javascript
 const autoRechargePref = await client.payment.autoRechargePrefs.update();
@@ -194,13 +216,13 @@ const autoRechargePref = await client.payment.autoRechargePrefs.update();
 console.log(autoRechargePref.data);
 ```
 
-Returns: `enabled` (boolean), `id` (string), `invoice_enabled` (boolean), `preference` (enum: credit_paypal, ach), `recharge_amount` (string), `record_type` (string), `threshold_amount` (string)
+Key response fields: `response.data.id, response.data.enabled, response.data.invoice_enabled`
 
 ## List User Tags
 
 List all user tags.
 
-`GET /user_tags`
+`client.userTags.list()` — `GET /user_tags`
 
 ```javascript
 const userTags = await client.userTags.list();
@@ -208,11 +230,15 @@ const userTags = await client.userTags.list();
 console.log(userTags.data);
 ```
 
-Returns: `number_tags` (array[string]), `outbound_profile_tags` (array[string])
+Key response fields: `response.data.number_tags, response.data.outbound_profile_tags`
 
 ## Create a stored payment transaction
 
-`POST /v2/payment/stored_payment_transactions` — Required: `amount`
+`client.payment.createStoredPaymentTransaction()` — `POST /v2/payment/stored_payment_transactions`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `amount` | string | Yes | Amount in dollars and cents, e.g. |
 
 ```javascript
 const response = await client.payment.createStoredPaymentTransaction({ amount: '120.00' });
@@ -220,13 +246,13 @@ const response = await client.payment.createStoredPaymentTransaction({ amount: '
 console.log(response.data);
 ```
 
-Returns: `amount_cents` (integer), `amount_currency` (string), `auto_recharge` (boolean), `created_at` (date-time), `id` (string), `processor_status` (string), `record_type` (enum: transaction), `transaction_processing_type` (enum: stored_payment)
+Key response fields: `response.data.id, response.data.created_at, response.data.amount_cents`
 
 ## List webhook deliveries
 
 Lists webhook_deliveries for the authenticated user
 
-`GET /webhook_deliveries`
+`client.webhookDeliveries.list()` — `GET /webhook_deliveries`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -235,13 +261,17 @@ for await (const webhookDeliveryListResponse of client.webhookDeliveries.list())
 }
 ```
 
-Returns: `attempts` (array[object]), `finished_at` (date-time), `id` (uuid), `record_type` (string), `started_at` (date-time), `status` (enum: delivered, failed), `user_id` (uuid), `webhook` (object)
+Key response fields: `response.data.id, response.data.status, response.data.attempts`
 
 ## Find webhook_delivery details by ID
 
 Provides webhook_delivery debug data, such as timestamps, delivery status and attempts.
 
-`GET /webhook_deliveries/{id}`
+`client.webhookDeliveries.retrieve()` — `GET /webhook_deliveries/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Uniquely identifies the webhook_delivery. |
 
 ```javascript
 const webhookDelivery = await client.webhookDeliveries.retrieve(
@@ -251,4 +281,8 @@ const webhookDelivery = await client.webhookDeliveries.retrieve(
 console.log(webhookDelivery.data);
 ```
 
-Returns: `attempts` (array[object]), `finished_at` (date-time), `id` (uuid), `record_type` (string), `started_at` (date-time), `status` (enum: delivered, failed), `user_id` (uuid), `webhook` (object)
+Key response fields: `response.data.id, response.data.status, response.data.attempts`
+
+---
+
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**

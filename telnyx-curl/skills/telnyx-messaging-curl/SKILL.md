@@ -1,9 +1,8 @@
 ---
 name: telnyx-messaging-curl
 description: >-
-  Send and receive SMS/MMS messages, manage messaging-enabled phone numbers, and
-  handle opt-outs. Use when building messaging applications, implementing 2FA,
-  or sending notifications. This skill provides REST API (curl) examples.
+  Send and receive SMS/MMS, handle opt-outs and delivery webhooks. Use for
+  notifications, 2FA, or messaging apps.
 metadata:
   author: telnyx
   product: messaging
@@ -14,6 +13,34 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx Messaging - curl
+
+## Core Workflow
+
+### Prerequisites
+
+1. Buy a phone number (see telnyx-numbers-curl)
+2. Create a messaging profile and configure webhook URL (see telnyx-messaging-profiles-curl)
+3. Assign the phone number to the messaging profile
+4. For US A2P via long code: complete 10DLC registration — brand, campaign, number assignment (see telnyx-10dlc-curl)
+5. For toll-free: complete toll-free verification
+
+### Steps
+
+1. **Search & buy number**
+2. **Create messaging profile**
+3. **Assign number to profile**
+4. **Send SMS**
+5. **Send MMS**
+
+### Common mistakes
+
+- NEVER send without assigning the number to a messaging profile — the from number will be rejected
+- NEVER send US A2P traffic via long code without 10DLC registration — messages silently blocked by carriers
+- NEVER use non-E.164 phone numbers — must be +[country code][number] with no spaces or dashes
+- NEVER assume delivery receipt = delivery — some carriers never return delivery receipts
+- For MMS: pass media_urls: ["https://..."] — URLs must be publicly accessible HTTPS (max 1 MB per file, 10 attachments, 2 MB total). type is auto-detected when media_urls is present
+
+**Related skills**: telnyx-messaging-profiles-curl, telnyx-10dlc-curl, telnyx-numbers-curl
 
 ## Installation
 
@@ -63,6 +90,277 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 - **Phone numbers** must be in E.164 format (e.g., `+13125550001`). Include the `+` prefix and country code. No spaces, dashes, or parentheses.
 - **Pagination:** List endpoints return paginated results. Use `page[number]` and `page[size]` query parameters to navigate pages. Check `meta.total_pages` in the response.
 
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
+
+## Send a message
+
+Send a message with a Phone Number, Alphanumeric Sender ID, Short Code or Number Pool. This endpoint allows you to send a message with any messaging resource. Current messaging resources include: long-code, short-code, number-pool, and
+alphanumeric-sender-id.
+
+`POST /messages`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `to` | string (E.164) | Yes | Receiving address (+E.164 formatted phone number or short co... |
+| `messaging_profile_id` | string (UUID) | No | Unique identifier for a messaging profile. |
+| `media_urls` | array[string] | No | A list of media URLs. |
+| `webhook_url` | string (URL) | No | The URL where webhooks related to this message will be sent. |
+| ... | | | +9 optional params in [references/api-details.md](references/api-details.md) |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+      "to": "+13125550001",
+      "from": "+18005550101",
+      "text": "Hello from Telnyx!"
+  }' \
+  "https://api.telnyx.com/v2/messages"
+```
+
+Key response fields: `.data.id, .data.to, .data.from`
+
+## Send a message using an alphanumeric sender ID
+
+Send an SMS message using an alphanumeric sender ID. This is SMS only.
+
+`POST /messages/alphanumeric_sender_id`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from` | string (E.164) | Yes | A valid alphanumeric sender ID on the user's account. |
+| `to` | string (E.164) | Yes | Receiving address (+E.164 formatted phone number or short co... |
+| `text` | string | Yes | The message body. |
+| `messaging_profile_id` | string (UUID) | Yes | The messaging profile ID to use. |
+| `webhook_url` | string (URL) | No | Callback URL for delivery status updates. |
+| `webhook_failover_url` | string (URL) | No | Failover callback URL for delivery status updates. |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "from": "MyCompany",
+  "to": "+13125550001",
+  "text": "Hello from Telnyx!",
+  "messaging_profile_id": "550e8400-e29b-41d4-a716-446655440000"
+}' \
+  "https://api.telnyx.com/v2/messages/alphanumeric_sender_id"
+```
+
+Key response fields: `.data.id, .data.to, .data.from`
+
+## Send a group MMS message
+
+`POST /messages/group_mms`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from` | string (E.164) | Yes | Phone number, in +E.164 format, used to send the message. |
+| `to` | array[object] | Yes | A list of destinations. |
+| `media_urls` | array[string] | No | A list of media URLs. |
+| `webhook_url` | string (URL) | No | The URL where webhooks related to this message will be sent. |
+| `webhook_failover_url` | string (URL) | No | The failover URL where webhooks related to this message will... |
+| ... | | | +3 optional params in [references/api-details.md](references/api-details.md) |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+      "from": "+18005550101",
+      "to": [
+          "+13125550001"
+      ],
+      "text": "Hello from Telnyx!"
+  }' \
+  "https://api.telnyx.com/v2/messages/group_mms"
+```
+
+Key response fields: `.data.id, .data.to, .data.from`
+
+## Send a long code message
+
+`POST /messages/long_code`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from` | string (E.164) | Yes | Phone number, in +E.164 format, used to send the message. |
+| `to` | string (E.164) | Yes | Receiving address (+E.164 formatted phone number or short co... |
+| `media_urls` | array[string] | No | A list of media URLs. |
+| `webhook_url` | string (URL) | No | The URL where webhooks related to this message will be sent. |
+| `webhook_failover_url` | string (URL) | No | The failover URL where webhooks related to this message will... |
+| ... | | | +6 optional params in [references/api-details.md](references/api-details.md) |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+      "from": "+18005550101",
+      "to": "+13125550001",
+      "text": "Hello from Telnyx!"
+  }' \
+  "https://api.telnyx.com/v2/messages/long_code"
+```
+
+Key response fields: `.data.id, .data.to, .data.from`
+
+## Send a message using number pool
+
+`POST /messages/number_pool`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `messaging_profile_id` | string (UUID) | Yes | Unique identifier for a messaging profile. |
+| `to` | string (E.164) | Yes | Receiving address (+E.164 formatted phone number or short co... |
+| `media_urls` | array[string] | No | A list of media URLs. |
+| `webhook_url` | string (URL) | No | The URL where webhooks related to this message will be sent. |
+| `webhook_failover_url` | string (URL) | No | The failover URL where webhooks related to this message will... |
+| ... | | | +6 optional params in [references/api-details.md](references/api-details.md) |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+      "messaging_profile_id": "550e8400-e29b-41d4-a716-446655440000",
+      "to": "+13125550001",
+      "text": "Hello from Telnyx!"
+  }' \
+  "https://api.telnyx.com/v2/messages/number_pool"
+```
+
+Key response fields: `.data.id, .data.to, .data.from`
+
+## Send a short code message
+
+`POST /messages/short_code`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from` | string (E.164) | Yes | Phone number, in +E.164 format, used to send the message. |
+| `to` | string (E.164) | Yes | Receiving address (+E.164 formatted phone number or short co... |
+| `media_urls` | array[string] | No | A list of media URLs. |
+| `webhook_url` | string (URL) | No | The URL where webhooks related to this message will be sent. |
+| `webhook_failover_url` | string (URL) | No | The failover URL where webhooks related to this message will... |
+| ... | | | +6 optional params in [references/api-details.md](references/api-details.md) |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+      "from": "12345",
+      "to": "+13125550001",
+      "text": "Hello from Telnyx!"
+  }' \
+  "https://api.telnyx.com/v2/messages/short_code"
+```
+
+Key response fields: `.data.id, .data.to, .data.from`
+
+## Schedule a message
+
+Schedule a message with a Phone Number, Alphanumeric Sender ID, Short Code or Number Pool. This endpoint allows you to schedule a message with any messaging resource. Current messaging resources include: long-code, short-code, number-pool, and
+alphanumeric-sender-id.
+
+`POST /messages/schedule`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `to` | string (E.164) | Yes | Receiving address (+E.164 formatted phone number or short co... |
+| `messaging_profile_id` | string (UUID) | No | Unique identifier for a messaging profile. |
+| `media_urls` | array[string] | No | A list of media URLs. |
+| `webhook_url` | string (URL) | No | The URL where webhooks related to this message will be sent. |
+| ... | | | +8 optional params in [references/api-details.md](references/api-details.md) |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+      "to": "+13125550001",
+      "from": "+18005550101",
+      "text": "Appointment reminder",
+      "send_at": "2025-07-01T15:00:00Z"
+  }' \
+  "https://api.telnyx.com/v2/messages/schedule"
+```
+
+Key response fields: `.data.id, .data.to, .data.from`
+
+## Send a WhatsApp message
+
+`POST /messages/whatsapp`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from` | string (E.164) | Yes | Phone number in +E.164 format associated with Whatsapp accou... |
+| `to` | string (E.164) | Yes | Phone number in +E.164 format |
+| `whatsapp_message` | object | Yes |  |
+| `type` | enum (WHATSAPP) | No | Message type - must be set to "WHATSAPP" |
+| `webhook_url` | string (URL) | No | The URL where webhooks related to this message will be sent. |
+
+```bash
+curl \
+  -X POST \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "from": "+13125551234",
+  "to": "+13125551234",
+  "whatsapp_message": {}
+}' \
+  "https://api.telnyx.com/v2/messages/whatsapp"
+```
+
+Key response fields: `.data.id, .data.to, .data.from`
+
+## Retrieve a message
+
+Note: This API endpoint can only retrieve messages that are no older than 10 days since their creation. If you require messages older than this, please generate an [MDR report.](https://developers.telnyx.com/api-reference/mdr-usage-reports/create-mdr-usage-report)
+
+`GET /messages/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the message |
+
+```bash
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messages/550e8400-e29b-41d4-a716-446655440000"
+```
+
+Key response fields: `.data.data`
+
+## Cancel a scheduled message
+
+Cancel a scheduled message that has not yet been sent. Only messages with `status=scheduled` and `send_at` more than a minute from now can be cancelled.
+
+`DELETE /messages/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the message to cancel |
+
+```bash
+curl \
+  -X DELETE \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  "https://api.telnyx.com/v2/messages/550e8400-e29b-41d4-a716-446655440000"
+```
+
+Key response fields: `.data.id, .data.to, .data.from`
+
 ## List alphanumeric sender IDs
 
 List all alphanumeric sender IDs for the authenticated user.
@@ -73,15 +371,19 @@ List all alphanumeric sender IDs for the authenticated user.
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/alphanumeric_sender_ids"
 ```
 
-Returns: `alphanumeric_sender_id` (string), `id` (uuid), `messaging_profile_id` (uuid), `organization_id` (string), `record_type` (enum: alphanumeric_sender_id), `us_long_code_fallback` (string)
+Key response fields: `.data.id, .data.messaging_profile_id, .data.alphanumeric_sender_id`
 
 ## Create an alphanumeric sender ID
 
 Create a new alphanumeric sender ID associated with a messaging profile.
 
-`POST /alphanumeric_sender_ids` — Required: `alphanumeric_sender_id`, `messaging_profile_id`
+`POST /alphanumeric_sender_ids`
 
-Optional: `us_long_code_fallback` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `alphanumeric_sender_id` | string (UUID) | Yes | The alphanumeric sender ID string. |
+| `messaging_profile_id` | string (UUID) | Yes | The messaging profile to associate the sender ID with. |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```bash
 curl \
@@ -90,13 +392,12 @@ curl \
   -H "Content-Type: application/json" \
   -d '{
   "alphanumeric_sender_id": "MyCompany",
-  "messaging_profile_id": "550e8400-e29b-41d4-a716-446655440000",
-  "us_long_code_fallback": "+15551234567"
+  "messaging_profile_id": "550e8400-e29b-41d4-a716-446655440000"
 }' \
   "https://api.telnyx.com/v2/alphanumeric_sender_ids"
 ```
 
-Returns: `alphanumeric_sender_id` (string), `id` (uuid), `messaging_profile_id` (uuid), `organization_id` (string), `record_type` (enum: alphanumeric_sender_id), `us_long_code_fallback` (string)
+Key response fields: `.data.id, .data.messaging_profile_id, .data.alphanumeric_sender_id`
 
 ## Retrieve an alphanumeric sender ID
 
@@ -104,11 +405,15 @@ Retrieve a specific alphanumeric sender ID.
 
 `GET /alphanumeric_sender_ids/{id}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The identifier of the alphanumeric sender ID. |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/alphanumeric_sender_ids/{id}"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/alphanumeric_sender_ids/550e8400-e29b-41d4-a716-446655440000"
 ```
 
-Returns: `alphanumeric_sender_id` (string), `id` (uuid), `messaging_profile_id` (uuid), `organization_id` (string), `record_type` (enum: alphanumeric_sender_id), `us_long_code_fallback` (string)
+Key response fields: `.data.id, .data.messaging_profile_id, .data.alphanumeric_sender_id`
 
 ## Delete an alphanumeric sender ID
 
@@ -116,60 +421,18 @@ Delete an alphanumeric sender ID and disassociate it from its messaging profile.
 
 `DELETE /alphanumeric_sender_ids/{id}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The identifier of the alphanumeric sender ID. |
+
 ```bash
 curl \
   -X DELETE \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
-  "https://api.telnyx.com/v2/alphanumeric_sender_ids/{id}"
+  "https://api.telnyx.com/v2/alphanumeric_sender_ids/550e8400-e29b-41d4-a716-446655440000"
 ```
 
-Returns: `alphanumeric_sender_id` (string), `id` (uuid), `messaging_profile_id` (uuid), `organization_id` (string), `record_type` (enum: alphanumeric_sender_id), `us_long_code_fallback` (string)
-
-## Send a message
-
-Send a message with a Phone Number, Alphanumeric Sender ID, Short Code or Number Pool. This endpoint allows you to send a message with any messaging resource. Current messaging resources include: long-code, short-code, number-pool, and
-alphanumeric-sender-id.
-
-`POST /messages` — Required: `to`
-
-Optional: `auto_detect` (boolean), `encoding` (enum: auto, gsm7, ucs2), `from` (string), `media_urls` (array[string]), `messaging_profile_id` (string), `send_at` (date-time), `subject` (string), `text` (string), `type` (enum: SMS, MMS), `use_profile_webhooks` (boolean), `webhook_failover_url` (url), `webhook_url` (url)
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "to": "+E.164"
-}' \
-  "https://api.telnyx.com/v2/messages"
-```
-
-Returns: `cc` (array[object]), `completed_at` (date-time), `cost` (object | null), `cost_breakdown` (object | null), `direction` (enum: outbound), `encoding` (string), `errors` (array[object]), `from` (object), `id` (uuid), `media` (array[object]), `messaging_profile_id` (string), `organization_id` (uuid), `parts` (integer), `received_at` (date-time), `record_type` (enum: message), `sent_at` (date-time), `smart_encoding_applied` (boolean), `subject` (string | null), `tags` (array[string]), `tcr_campaign_billable` (boolean), `tcr_campaign_id` (string | null), `tcr_campaign_registered` (string | null), `text` (string), `to` (array[object]), `type` (enum: SMS, MMS), `valid_until` (date-time), `wait_seconds` (float), `webhook_failover_url` (url), `webhook_url` (url)
-
-## Send a message using an alphanumeric sender ID
-
-Send an SMS message using an alphanumeric sender ID. This is SMS only.
-
-`POST /messages/alphanumeric_sender_id` — Required: `from`, `to`, `text`, `messaging_profile_id`
-
-Optional: `use_profile_webhooks` (boolean), `webhook_failover_url` (url), `webhook_url` (url)
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "from": "MyCompany",
-  "to": "+E.164",
-  "text": "string",
-  "messaging_profile_id": "550e8400-e29b-41d4-a716-446655440000"
-}' \
-  "https://api.telnyx.com/v2/messages/alphanumeric_sender_id"
-```
-
-Returns: `cc` (array[object]), `completed_at` (date-time), `cost` (object | null), `cost_breakdown` (object | null), `direction` (enum: outbound), `encoding` (string), `errors` (array[object]), `from` (object), `id` (uuid), `media` (array[object]), `messaging_profile_id` (string), `organization_id` (uuid), `parts` (integer), `received_at` (date-time), `record_type` (enum: message), `sent_at` (date-time), `smart_encoding_applied` (boolean), `subject` (string | null), `tags` (array[string]), `tcr_campaign_billable` (boolean), `tcr_campaign_id` (string | null), `tcr_campaign_registered` (string | null), `text` (string), `to` (array[object]), `type` (enum: SMS, MMS), `valid_until` (date-time), `wait_seconds` (float), `webhook_failover_url` (url), `webhook_url` (url)
+Key response fields: `.data.id, .data.messaging_profile_id, .data.alphanumeric_sender_id`
 
 ## Retrieve group MMS messages
 
@@ -177,164 +440,15 @@ Retrieve all messages in a group MMS conversation by the group message ID.
 
 `GET /messages/group/{message_id}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `message_id` | string (UUID) | Yes | The group message ID. |
+
 ```bash
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messages/group/{message_id}"
 ```
 
-Returns: `cc` (array[object]), `completed_at` (date-time), `cost` (object | null), `cost_breakdown` (object | null), `direction` (enum: outbound), `encoding` (string), `errors` (array[object]), `from` (object), `id` (uuid), `media` (array[object]), `messaging_profile_id` (string), `organization_id` (uuid), `parts` (integer), `received_at` (date-time), `record_type` (enum: message), `sent_at` (date-time), `smart_encoding_applied` (boolean), `subject` (string | null), `tags` (array[string]), `tcr_campaign_billable` (boolean), `tcr_campaign_id` (string | null), `tcr_campaign_registered` (string | null), `text` (string), `to` (array[object]), `type` (enum: SMS, MMS), `valid_until` (date-time), `wait_seconds` (float), `webhook_failover_url` (url), `webhook_url` (url)
-
-## Send a group MMS message
-
-`POST /messages/group_mms` — Required: `from`, `to`
-
-Optional: `media_urls` (array[string]), `subject` (string), `text` (string), `use_profile_webhooks` (boolean), `webhook_failover_url` (url), `webhook_url` (url)
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "from": "string",
-  "to": [
-    "string"
-  ]
-}' \
-  "https://api.telnyx.com/v2/messages/group_mms"
-```
-
-Returns: `cc` (array[object]), `completed_at` (date-time), `cost` (object | null), `cost_breakdown` (object | null), `direction` (enum: outbound), `encoding` (string), `errors` (array[object]), `from` (object), `id` (uuid), `media` (array[object]), `messaging_profile_id` (string), `organization_id` (uuid), `parts` (integer), `received_at` (date-time), `record_type` (enum: message), `sent_at` (date-time), `smart_encoding_applied` (boolean), `subject` (string | null), `tags` (array[string]), `tcr_campaign_billable` (boolean), `tcr_campaign_id` (string | null), `tcr_campaign_registered` (string | null), `text` (string), `to` (array[object]), `type` (enum: SMS, MMS), `valid_until` (date-time), `wait_seconds` (float), `webhook_failover_url` (url), `webhook_url` (url)
-
-## Send a long code message
-
-`POST /messages/long_code` — Required: `from`, `to`
-
-Optional: `auto_detect` (boolean), `encoding` (enum: auto, gsm7, ucs2), `media_urls` (array[string]), `subject` (string), `text` (string), `type` (enum: SMS, MMS), `use_profile_webhooks` (boolean), `webhook_failover_url` (url), `webhook_url` (url)
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "from": "string",
-  "to": "+E.164"
-}' \
-  "https://api.telnyx.com/v2/messages/long_code"
-```
-
-Returns: `cc` (array[object]), `completed_at` (date-time), `cost` (object | null), `cost_breakdown` (object | null), `direction` (enum: outbound), `encoding` (string), `errors` (array[object]), `from` (object), `id` (uuid), `media` (array[object]), `messaging_profile_id` (string), `organization_id` (uuid), `parts` (integer), `received_at` (date-time), `record_type` (enum: message), `sent_at` (date-time), `smart_encoding_applied` (boolean), `subject` (string | null), `tags` (array[string]), `tcr_campaign_billable` (boolean), `tcr_campaign_id` (string | null), `tcr_campaign_registered` (string | null), `text` (string), `to` (array[object]), `type` (enum: SMS, MMS), `valid_until` (date-time), `wait_seconds` (float), `webhook_failover_url` (url), `webhook_url` (url)
-
-## Send a message using number pool
-
-`POST /messages/number_pool` — Required: `to`, `messaging_profile_id`
-
-Optional: `auto_detect` (boolean), `encoding` (enum: auto, gsm7, ucs2), `media_urls` (array[string]), `subject` (string), `text` (string), `type` (enum: SMS, MMS), `use_profile_webhooks` (boolean), `webhook_failover_url` (url), `webhook_url` (url)
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "messaging_profile_id": "string",
-  "to": "+E.164"
-}' \
-  "https://api.telnyx.com/v2/messages/number_pool"
-```
-
-Returns: `cc` (array[object]), `completed_at` (date-time), `cost` (object | null), `cost_breakdown` (object | null), `direction` (enum: outbound), `encoding` (string), `errors` (array[object]), `from` (object), `id` (uuid), `media` (array[object]), `messaging_profile_id` (string), `organization_id` (uuid), `parts` (integer), `received_at` (date-time), `record_type` (enum: message), `sent_at` (date-time), `smart_encoding_applied` (boolean), `subject` (string | null), `tags` (array[string]), `tcr_campaign_billable` (boolean), `tcr_campaign_id` (string | null), `tcr_campaign_registered` (string | null), `text` (string), `to` (array[object]), `type` (enum: SMS, MMS), `valid_until` (date-time), `wait_seconds` (float), `webhook_failover_url` (url), `webhook_url` (url)
-
-## Schedule a message
-
-Schedule a message with a Phone Number, Alphanumeric Sender ID, Short Code or Number Pool. This endpoint allows you to schedule a message with any messaging resource. Current messaging resources include: long-code, short-code, number-pool, and
-alphanumeric-sender-id.
-
-`POST /messages/schedule` — Required: `to`
-
-Optional: `auto_detect` (boolean), `from` (string), `media_urls` (array[string]), `messaging_profile_id` (string), `send_at` (date-time), `subject` (string), `text` (string), `type` (enum: SMS, MMS), `use_profile_webhooks` (boolean), `webhook_failover_url` (url), `webhook_url` (url)
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "to": "+E.164"
-}' \
-  "https://api.telnyx.com/v2/messages/schedule"
-```
-
-Returns: `cc` (array[object]), `completed_at` (date-time), `cost` (object | null), `cost_breakdown` (object | null), `direction` (enum: outbound), `encoding` (string), `errors` (array[object]), `from` (object), `id` (uuid), `media` (array[object]), `messaging_profile_id` (string), `organization_id` (uuid), `parts` (integer), `received_at` (date-time), `record_type` (enum: message), `sent_at` (date-time), `smart_encoding_applied` (boolean), `subject` (string | null), `tags` (array[string]), `tcr_campaign_billable` (boolean), `tcr_campaign_id` (string | null), `tcr_campaign_registered` (string | null), `text` (string), `to` (array[object]), `type` (enum: SMS, MMS), `valid_until` (date-time), `wait_seconds` (float), `webhook_failover_url` (url), `webhook_url` (url)
-
-## Send a short code message
-
-`POST /messages/short_code` — Required: `from`, `to`
-
-Optional: `auto_detect` (boolean), `encoding` (enum: auto, gsm7, ucs2), `media_urls` (array[string]), `subject` (string), `text` (string), `type` (enum: SMS, MMS), `use_profile_webhooks` (boolean), `webhook_failover_url` (url), `webhook_url` (url)
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "from": "string",
-  "to": "+E.164"
-}' \
-  "https://api.telnyx.com/v2/messages/short_code"
-```
-
-Returns: `cc` (array[object]), `completed_at` (date-time), `cost` (object | null), `cost_breakdown` (object | null), `direction` (enum: outbound), `encoding` (string), `errors` (array[object]), `from` (object), `id` (uuid), `media` (array[object]), `messaging_profile_id` (string), `organization_id` (uuid), `parts` (integer), `received_at` (date-time), `record_type` (enum: message), `sent_at` (date-time), `smart_encoding_applied` (boolean), `subject` (string | null), `tags` (array[string]), `tcr_campaign_billable` (boolean), `tcr_campaign_id` (string | null), `tcr_campaign_registered` (string | null), `text` (string), `to` (array[object]), `type` (enum: SMS, MMS), `valid_until` (date-time), `wait_seconds` (float), `webhook_failover_url` (url), `webhook_url` (url)
-
-## Send a WhatsApp message
-
-`POST /messages/whatsapp` — Required: `from`, `to`, `whatsapp_message`
-
-Optional: `type` (enum: WHATSAPP), `webhook_url` (url)
-
-```bash
-curl \
-  -X POST \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "from": "+13125551234",
-  "to": "+13125551234",
-  "whatsapp_message": {},
-  "type": "WHATSAPP"
-}' \
-  "https://api.telnyx.com/v2/messages/whatsapp"
-```
-
-Returns: `body` (object), `direction` (string), `encoding` (string), `from` (object), `id` (string), `messaging_profile_id` (string), `organization_id` (string), `received_at` (date-time), `record_type` (string), `to` (array[object]), `type` (string), `wait_seconds` (float)
-
-## Retrieve a message
-
-Note: This API endpoint can only retrieve messages that are no older than 10 days since their creation. If you require messages older than this, please generate an [MDR report.](https://developers.telnyx.com/api-reference/mdr-usage-reports/create-mdr-usage-report)
-
-`GET /messages/{id}`
-
-```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messages/{id}"
-```
-
-Returns: `data` (object)
-
-## Cancel a scheduled message
-
-Cancel a scheduled message that has not yet been sent. Only messages with `status=scheduled` and `send_at` more than a minute from now can be cancelled.
-
-`DELETE /messages/{id}`
-
-```bash
-curl \
-  -X DELETE \
-  -H "Authorization: Bearer $TELNYX_API_KEY" \
-  "https://api.telnyx.com/v2/messages/{id}"
-```
-
-Returns: `cc` (array[object]), `completed_at` (date-time), `cost` (object | null), `cost_breakdown` (object | null), `direction` (enum: outbound), `encoding` (string), `errors` (array[object]), `from` (object), `id` (uuid), `media` (array[object]), `messaging_profile_id` (string), `organization_id` (uuid), `parts` (integer), `received_at` (date-time), `record_type` (enum: message), `sent_at` (date-time), `smart_encoding_applied` (boolean), `subject` (string | null), `tags` (array[string]), `tcr_campaign_billable` (boolean), `tcr_campaign_id` (string | null), `tcr_campaign_registered` (string | null), `text` (string), `to` (array[object]), `type` (enum: SMS, MMS), `valid_until` (date-time), `webhook_failover_url` (url), `webhook_url` (url)
+Key response fields: `.data.id, .data.to, .data.from`
 
 ## List messaging hosted numbers
 
@@ -346,7 +460,7 @@ List all hosted numbers associated with the authenticated user.
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_hosted_numbers"
 ```
 
-Returns: `country_code` (string), `created_at` (date-time), `eligible_messaging_products` (array[string]), `features` (object), `health` (object), `id` (string), `messaging_product` (string), `messaging_profile_id` (string | null), `organization_id` (string), `phone_number` (string), `record_type` (enum: messaging_phone_number, messaging_settings), `tags` (array[string]), `traffic_type` (string), `type` (enum: long-code, toll-free, short-code, longcode, tollfree, shortcode), `updated_at` (date-time)
+Key response fields: `.data.id, .data.phone_number, .data.type`
 
 ## Retrieve a messaging hosted number
 
@@ -354,11 +468,15 @@ Retrieve a specific messaging hosted number by its ID or phone number.
 
 `GET /messaging_hosted_numbers/{id}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The ID or phone number of the hosted number. |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_hosted_numbers/{id}"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_hosted_numbers/550e8400-e29b-41d4-a716-446655440000"
 ```
 
-Returns: `country_code` (string), `created_at` (date-time), `eligible_messaging_products` (array[string]), `features` (object), `health` (object), `id` (string), `messaging_product` (string), `messaging_profile_id` (string | null), `organization_id` (string), `phone_number` (string), `record_type` (enum: messaging_phone_number, messaging_settings), `tags` (array[string]), `traffic_type` (string), `type` (enum: long-code, toll-free, short-code, longcode, tollfree, shortcode), `updated_at` (date-time)
+Key response fields: `.data.id, .data.phone_number, .data.type`
 
 ## Update a messaging hosted number
 
@@ -366,20 +484,22 @@ Update the messaging settings for a hosted number.
 
 `PATCH /messaging_hosted_numbers/{id}`
 
-Optional: `messaging_product` (string), `messaging_profile_id` (string), `tags` (array[string])
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The ID or phone number of the hosted number. |
+| `messaging_profile_id` | string (UUID) | No | Configure the messaging profile this phone number is assigne... |
+| `tags` | array[string] | No | Tags to set on this phone number. |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```bash
 curl \
   -X PATCH \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-  "messaging_product": "P2P"
-}' \
-  "https://api.telnyx.com/v2/messaging_hosted_numbers/{id}"
+  "https://api.telnyx.com/v2/messaging_hosted_numbers/550e8400-e29b-41d4-a716-446655440000"
 ```
 
-Returns: `country_code` (string), `created_at` (date-time), `eligible_messaging_products` (array[string]), `features` (object), `health` (object), `id` (string), `messaging_product` (string), `messaging_profile_id` (string | null), `organization_id` (string), `phone_number` (string), `record_type` (enum: messaging_phone_number, messaging_settings), `tags` (array[string]), `traffic_type` (string), `type` (enum: long-code, toll-free, short-code, longcode, tollfree, shortcode), `updated_at` (date-time)
+Key response fields: `.data.id, .data.phone_number, .data.type`
 
 ## List opt-outs
 
@@ -391,7 +511,7 @@ Retrieve a list of opt-out blocks.
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_optouts?redaction_enabled=+447766****"
 ```
 
-Returns: `created_at` (date-time), `from` (string), `keyword` (string | null), `messaging_profile_id` (string | null), `to` (string)
+Key response fields: `.data.to, .data.from, .data.messaging_profile_id`
 
 ## List high-level messaging profile metrics
 
@@ -403,7 +523,7 @@ List high-level metrics for all messaging profiles belonging to the authenticate
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_profile_metrics"
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `.data.data, .data.meta`
 
 ## Regenerate messaging profile secret
 
@@ -411,15 +531,19 @@ Regenerate the v1 secret for a messaging profile.
 
 `POST /messaging_profiles/{id}/actions/regenerate_secret`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The identifier of the messaging profile. |
+
 ```bash
 curl \
   -X POST \
   -H "Authorization: Bearer $TELNYX_API_KEY" \
   -H "Content-Type: application/json" \
-  "https://api.telnyx.com/v2/messaging_profiles/{id}/actions/regenerate_secret"
+  "https://api.telnyx.com/v2/messaging_profiles/550e8400-e29b-41d4-a716-446655440000/actions/regenerate_secret"
 ```
 
-Returns: `ai_assistant_id` (string | null), `alpha_sender` (string | null), `created_at` (date-time), `daily_spend_limit` (string), `daily_spend_limit_enabled` (boolean), `enabled` (boolean), `health_webhook_url` (url), `id` (uuid), `mms_fall_back_to_sms` (boolean), `mms_transcoding` (boolean), `mobile_only` (boolean), `name` (string), `number_pool_settings` (object | null), `organization_id` (string), `record_type` (enum: messaging_profile), `redaction_enabled` (boolean), `redaction_level` (integer), `resource_group_id` (string | null), `smart_encoding` (boolean), `updated_at` (date-time), `url_shortener_settings` (object | null), `v1_secret` (string), `webhook_api_version` (enum: 1, 2, 2010-04-01), `webhook_failover_url` (url), `webhook_url` (url), `whitelisted_destinations` (array[string])
+Key response fields: `.data.id, .data.name, .data.created_at`
 
 ## List alphanumeric sender IDs for a messaging profile
 
@@ -427,11 +551,15 @@ List all alphanumeric sender IDs associated with a specific messaging profile.
 
 `GET /messaging_profiles/{id}/alphanumeric_sender_ids`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The identifier of the messaging profile. |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_profiles/{id}/alphanumeric_sender_ids"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_profiles/550e8400-e29b-41d4-a716-446655440000/alphanumeric_sender_ids"
 ```
 
-Returns: `alphanumeric_sender_id` (string), `id` (uuid), `messaging_profile_id` (uuid), `organization_id` (string), `record_type` (enum: alphanumeric_sender_id), `us_long_code_fallback` (string)
+Key response fields: `.data.id, .data.messaging_profile_id, .data.alphanumeric_sender_id`
 
 ## Get detailed messaging profile metrics
 
@@ -439,27 +567,41 @@ Get detailed metrics for a specific messaging profile, broken down by time inter
 
 `GET /messaging_profiles/{id}/metrics`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The identifier of the messaging profile. |
+
 ```bash
-curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_profiles/{id}/metrics"
+curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_profiles/550e8400-e29b-41d4-a716-446655440000/metrics"
 ```
 
-Returns: `data` (object)
+Key response fields: `.data.data`
 
 ## List Auto-Response Settings
 
 `GET /messaging_profiles/{profile_id}/autoresp_configs`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `profile_id` | string (UUID) | Yes |  |
+
 ```bash
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_profiles/{profile_id}/autoresp_configs"
 ```
 
-Returns: `country_code` (string), `created_at` (date-time), `id` (string), `keywords` (array[string]), `op` (enum: start, stop, info), `resp_text` (string), `updated_at` (date-time)
+Key response fields: `.data.id, .data.created_at, .data.updated_at`
 
 ## Create auto-response setting
 
-`POST /messaging_profiles/{profile_id}/autoresp_configs` — Required: `op`, `keywords`, `country_code`
+`POST /messaging_profiles/{profile_id}/autoresp_configs`
 
-Optional: `resp_text` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `op` | enum (start, stop, info) | Yes |  |
+| `keywords` | array[string] | Yes |  |
+| `country_code` | string (ISO 3166-1 alpha-2) | Yes |  |
+| `profile_id` | string (UUID) | Yes |  |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```bash
 curl \
@@ -472,29 +614,40 @@ curl \
     "keyword1",
     "keyword2"
   ],
-  "resp_text": "Thank you for your message",
   "country_code": "US"
 }' \
   "https://api.telnyx.com/v2/messaging_profiles/{profile_id}/autoresp_configs"
 ```
 
-Returns: `country_code` (string), `created_at` (date-time), `id` (string), `keywords` (array[string]), `op` (enum: start, stop, info), `resp_text` (string), `updated_at` (date-time)
+Key response fields: `.data.id, .data.created_at, .data.updated_at`
 
 ## Get Auto-Response Setting
 
 `GET /messaging_profiles/{profile_id}/autoresp_configs/{autoresp_cfg_id}`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `profile_id` | string (UUID) | Yes |  |
+| `autoresp_cfg_id` | string (UUID) | Yes |  |
+
 ```bash
 curl -H "Authorization: Bearer $TELNYX_API_KEY" "https://api.telnyx.com/v2/messaging_profiles/{profile_id}/autoresp_configs/{autoresp_cfg_id}"
 ```
 
-Returns: `country_code` (string), `created_at` (date-time), `id` (string), `keywords` (array[string]), `op` (enum: start, stop, info), `resp_text` (string), `updated_at` (date-time)
+Key response fields: `.data.id, .data.created_at, .data.updated_at`
 
 ## Update Auto-Response Setting
 
-`PUT /messaging_profiles/{profile_id}/autoresp_configs/{autoresp_cfg_id}` — Required: `op`, `keywords`, `country_code`
+`PUT /messaging_profiles/{profile_id}/autoresp_configs/{autoresp_cfg_id}`
 
-Optional: `resp_text` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `op` | enum (start, stop, info) | Yes |  |
+| `keywords` | array[string] | Yes |  |
+| `country_code` | string (ISO 3166-1 alpha-2) | Yes |  |
+| `profile_id` | string (UUID) | Yes |  |
+| `autoresp_cfg_id` | string (UUID) | Yes |  |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```bash
 curl \
@@ -507,17 +660,21 @@ curl \
     "keyword1",
     "keyword2"
   ],
-  "resp_text": "Thank you for your message",
   "country_code": "US"
 }' \
   "https://api.telnyx.com/v2/messaging_profiles/{profile_id}/autoresp_configs/{autoresp_cfg_id}"
 ```
 
-Returns: `country_code` (string), `created_at` (date-time), `id` (string), `keywords` (array[string]), `op` (enum: start, stop, info), `resp_text` (string), `updated_at` (date-time)
+Key response fields: `.data.id, .data.created_at, .data.updated_at`
 
 ## Delete Auto-Response Setting
 
 `DELETE /messaging_profiles/{profile_id}/autoresp_configs/{autoresp_cfg_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `profile_id` | string (UUID) | Yes |  |
+| `autoresp_cfg_id` | string (UUID) | Yes |  |
 
 ```bash
 curl \
@@ -550,94 +707,14 @@ and `telnyx-timestamp` headers. Always verify signatures in production:
 The following webhook events are sent to your configured webhook URL.
 All webhooks include `telnyx-timestamp` and `telnyx-signature-ed25519` headers for Ed25519 signature verification. Use `client.webhooks.unwrap()` to verify.
 
-| Event | Description |
-|-------|-------------|
-| `deliveryUpdate` | Delivery Update |
-| `inboundMessage` | Inbound Message |
-| `replacedLinkClick` | Replaced Link Click |
+| Event | `data.event_type` | Description |
+|-------|-------------------|-------------|
+| `deliveryUpdate` | `message.finalized` | Delivery Update |
+| `inboundMessage` | `message.received` | Inbound Message |
+| `replacedLinkClick` | `message.link_click` | Replaced Link Click |
 
-### Webhook payload fields
+Webhook payload field definitions are in [references/api-details.md](references/api-details.md).
 
-**`deliveryUpdate`**
+---
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `data.record_type` | enum: event | Identifies the type of the resource. |
-| `data.id` | uuid | Identifies the type of resource. |
-| `data.event_type` | enum: message.sent, message.finalized | The type of event being delivered. |
-| `data.occurred_at` | date-time | ISO 8601 formatted date indicating when the resource was created. |
-| `data.payload.record_type` | enum: message | Identifies the type of the resource. |
-| `data.payload.direction` | enum: outbound | The direction of the message. |
-| `data.payload.id` | uuid | Identifies the type of resource. |
-| `data.payload.type` | enum: SMS, MMS | The type of message. |
-| `data.payload.messaging_profile_id` | string | Unique identifier for a messaging profile. |
-| `data.payload.organization_id` | uuid | The id of the organization the messaging profile belongs to. |
-| `data.payload.to` | array[object] |  |
-| `data.payload.cc` | array[object] |  |
-| `data.payload.text` | string | Message body (i.e., content) as a non-empty string. |
-| `data.payload.subject` | string | null | Subject of multimedia message |
-| `data.payload.media` | array[object] |  |
-| `data.payload.webhook_url` | url | The URL where webhooks related to this message will be sent. |
-| `data.payload.webhook_failover_url` | url | The failover URL where webhooks related to this message will be sent if sending to the primary URL fails. |
-| `data.payload.encoding` | string | Encoding scheme used for the message body. |
-| `data.payload.parts` | integer | Number of parts into which the message's body must be split. |
-| `data.payload.tags` | array[string] | Tags associated with the resource. |
-| `data.payload.cost` | object | null |  |
-| `data.payload.cost_breakdown` | object | null | Detailed breakdown of the message cost components. |
-| `data.payload.tcr_campaign_id` | string | null | The Campaign Registry (TCR) campaign ID associated with the message. |
-| `data.payload.tcr_campaign_billable` | boolean | Indicates whether the TCR campaign is billable. |
-| `data.payload.tcr_campaign_registered` | string | null | The registration status of the TCR campaign. |
-| `data.payload.received_at` | date-time | ISO 8601 formatted date indicating when the message request was received. |
-| `data.payload.sent_at` | date-time | ISO 8601 formatted date indicating when the message was sent. |
-| `data.payload.completed_at` | date-time | ISO 8601 formatted date indicating when the message was finalized. |
-| `data.payload.valid_until` | date-time | Message must be out of the queue by this time or else it will be discarded and marked as 'sending_failed'. |
-| `data.payload.errors` | array[object] | These errors may point at addressees when referring to unsuccessful/unconfirmed delivery statuses. |
-| `data.payload.smart_encoding_applied` | boolean | Indicates whether smart encoding was applied to this message. |
-| `data.payload.wait_seconds` | float | Seconds the message is queued due to rate limiting before being sent to the carrier. |
-| `meta.attempt` | integer | Number of attempts to deliver the webhook event. |
-| `meta.delivered_to` | url | The webhook URL the event was delivered to. |
-
-**`inboundMessage`**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `data.record_type` | enum: event | Identifies the type of the resource. |
-| `data.id` | uuid | Identifies the type of resource. |
-| `data.event_type` | enum: message.received | The type of event being delivered. |
-| `data.occurred_at` | date-time | ISO 8601 formatted date indicating when the resource was created. |
-| `data.payload.record_type` | enum: message | Identifies the type of the resource. |
-| `data.payload.direction` | enum: inbound | The direction of the message. |
-| `data.payload.id` | uuid | Identifies the type of resource. |
-| `data.payload.type` | enum: SMS, MMS | The type of message. |
-| `data.payload.messaging_profile_id` | string | Unique identifier for a messaging profile. |
-| `data.payload.organization_id` | string | Unique identifier for a messaging profile. |
-| `data.payload.to` | array[object] |  |
-| `data.payload.cc` | array[object] |  |
-| `data.payload.text` | string | Message body (i.e., content) as a non-empty string. |
-| `data.payload.subject` | string | null | Message subject. |
-| `data.payload.media` | array[object] |  |
-| `data.payload.webhook_url` | url | The URL where webhooks related to this message will be sent. |
-| `data.payload.webhook_failover_url` | url | The failover URL where webhooks related to this message will be sent if sending to the primary URL fails. |
-| `data.payload.encoding` | string | Encoding scheme used for the message body. |
-| `data.payload.parts` | integer | Number of parts into which the message's body must be split. |
-| `data.payload.tags` | array[string] | Tags associated with the resource. |
-| `data.payload.cost` | object | null |  |
-| `data.payload.cost_breakdown` | object | null | Detailed breakdown of the message cost components. |
-| `data.payload.tcr_campaign_id` | string | null | The Campaign Registry (TCR) campaign ID associated with the message. |
-| `data.payload.tcr_campaign_billable` | boolean | Indicates whether the TCR campaign is billable. |
-| `data.payload.tcr_campaign_registered` | string | null | The registration status of the TCR campaign. |
-| `data.payload.received_at` | date-time | ISO 8601 formatted date indicating when the message request was received. |
-| `data.payload.sent_at` | date-time | Not used for inbound messages. |
-| `data.payload.completed_at` | date-time | Not used for inbound messages. |
-| `data.payload.valid_until` | date-time | Not used for inbound messages. |
-| `data.payload.errors` | array[object] | These errors may point at addressees when referring to unsuccessful/unconfirmed delivery statuses. |
-
-**`replacedLinkClick`**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `data.record_type` | string | Identifies the type of the resource. |
-| `data.url` | string | The original link that was sent in the message. |
-| `data.to` | string | Sending address (+E.164 formatted phone number, alphanumeric sender ID, or short code). |
-| `data.message_id` | uuid | The message ID associated with the clicked link. |
-| `data.time_clicked` | date-time | ISO 8601 formatted date indicating when the message request was received. |
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**

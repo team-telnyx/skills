@@ -1,8 +1,8 @@
 ---
 name: telnyx-networking-ruby
 description: >-
-  Configure private networks, WireGuard VPN gateways, internet gateways, and
-  virtual cross connects. This skill provides Ruby SDK examples.
+  Private networks, WireGuard VPN gateways, internet gateways, and virtual cross
+  connects.
 metadata:
   author: telnyx
   product: networking
@@ -13,6 +13,25 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx Networking - Ruby
+
+## Core Workflow
+
+### Prerequisites
+
+1. Contact Telnyx support to enable private networking features on your account
+
+### Steps
+
+1. **Create network**: `client.networks.create(name: ...)`
+2. **Create WireGuard interface**: `client.wireguard_interfaces.create(network_id: ..., ...: ...)`
+3. **Create gateway**: `client.private_wireless_gateways.create(network_id: ..., ...: ...)`
+
+### Common mistakes
+
+- Private networking requires account-level enablement — contact support first
+- WireGuard peer configuration is returned once at creation — save it immediately
+
+**Related skills**: telnyx-iot-ruby
 
 ## Installation
 
@@ -39,7 +58,7 @@ or authentication errors (401). Always handle errors in production code:
 
 ```ruby
 begin
-  result = client.messages.send_(to: "+13125550001", from: "+13125550002", text: "Hello")
+  result = client.networks.create(params)
 rescue Telnyx::Errors::APIConnectionError
   puts "Network error — check connectivity and retry"
 rescue Telnyx::Errors::RateLimitError
@@ -61,6 +80,8 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 
 - **Pagination:** Use `.auto_paging_each` for automatic iteration: `page.auto_paging_each { |item| puts item.id }`.
 
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
+
 ## List all clusters
 
 `GET /ai/clusters`
@@ -71,27 +92,34 @@ page = client.ai.clusters.list
 puts(page)
 ```
 
-Returns: `bucket` (string), `created_at` (date-time), `finished_at` (date-time), `min_cluster_size` (integer), `min_subcluster_size` (integer), `status` (enum: pending, starting, running, completed, failed), `task_id` (string)
+Key response fields: `response.data.status, response.data.created_at, response.data.bucket`
 
 ## Compute new clusters
 
 Starts a background task to compute how the data in an [embedded storage bucket](https://developers.telnyx.com/api-reference/embeddings/embed-documents) is clustered. This helps identify common themes and patterns in the data.
 
-`POST /ai/clusters` — Required: `bucket`
+`client.ai.clusters.compute()` — `POST /ai/clusters`
 
-Optional: `files` (array[string]), `min_cluster_size` (integer), `min_subcluster_size` (integer), `prefix` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `bucket` | string | Yes | The embedded storage bucket to compute the clusters from. |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
-response = client.ai.clusters.compute(bucket: "bucket")
+response = client.ai.clusters.compute(bucket: "my-bucket")
 
 puts(response)
 ```
 
-Returns: `task_id` (string)
+Key response fields: `response.data.task_id`
 
 ## Fetch a cluster
 
-`GET /ai/clusters/{task_id}`
+`client.ai.clusters.retrieve()` — `GET /ai/clusters/{task_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `task_id` | string (UUID) | Yes |  |
 
 ```ruby
 cluster = client.ai.clusters.retrieve("task_id")
@@ -99,11 +127,15 @@ cluster = client.ai.clusters.retrieve("task_id")
 puts(cluster)
 ```
 
-Returns: `bucket` (string), `clusters` (array[object]), `status` (enum: pending, starting, running, completed, failed)
+Key response fields: `response.data.status, response.data.bucket, response.data.clusters`
 
 ## Delete a cluster
 
-`DELETE /ai/clusters/{task_id}`
+`client.ai.clusters.delete()` — `DELETE /ai/clusters/{task_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `task_id` | string (UUID) | Yes |  |
 
 ```ruby
 result = client.ai.clusters.delete("task_id")
@@ -113,7 +145,11 @@ puts(result)
 
 ## Fetch a cluster visualization
 
-`GET /ai/clusters/{task_id}/graph`
+`client.ai.clusters.fetch_graph()` — `GET /ai/clusters/{task_id}/graph`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `task_id` | string (UUID) | Yes |  |
 
 ```ruby
 response = client.ai.clusters.fetch_graph("task_id")
@@ -133,7 +169,7 @@ integrations = client.ai.integrations.list
 puts(integrations)
 ```
 
-Returns: `available_tools` (array[string]), `description` (string), `display_name` (string), `id` (string), `logo_url` (string), `name` (string), `status` (enum: disconnected, connected)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## List User Integrations
 
@@ -147,13 +183,17 @@ connections = client.ai.integrations.connections.list
 puts(connections)
 ```
 
-Returns: `allowed_tools` (array[string]), `id` (string), `integration_id` (string)
+Key response fields: `response.data.id, response.data.allowed_tools, response.data.integration_id`
 
 ## Get User Integration connection By Id
 
 Get user setup integrations
 
-`GET /ai/integrations/connections/{user_connection_id}`
+`client.ai.integrations.connections.retrieve()` — `GET /ai/integrations/connections/{user_connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `user_connection_id` | string (UUID) | Yes | The connection id |
 
 ```ruby
 connection = client.ai.integrations.connections.retrieve("user_connection_id")
@@ -161,13 +201,17 @@ connection = client.ai.integrations.connections.retrieve("user_connection_id")
 puts(connection)
 ```
 
-Returns: `allowed_tools` (array[string]), `id` (string), `integration_id` (string)
+Key response fields: `response.data.id, response.data.allowed_tools, response.data.integration_id`
 
 ## Delete Integration Connection
 
 Delete a specific integration connection.
 
-`DELETE /ai/integrations/connections/{user_connection_id}`
+`client.ai.integrations.connections.delete()` — `DELETE /ai/integrations/connections/{user_connection_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `user_connection_id` | string (UUID) | Yes | The user integration connection identifier |
 
 ```ruby
 result = client.ai.integrations.connections.delete("user_connection_id")
@@ -179,7 +223,11 @@ puts(result)
 
 Retrieve integration details
 
-`GET /ai/integrations/{integration_id}`
+`client.ai.integrations.retrieve()` — `GET /ai/integrations/{integration_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `integration_id` | string (UUID) | Yes | The integration id |
 
 ```ruby
 integration = client.ai.integrations.retrieve("integration_id")
@@ -187,7 +235,7 @@ integration = client.ai.integrations.retrieve("integration_id")
 puts(integration)
 ```
 
-Returns: `available_tools` (array[string]), `description` (string), `display_name` (string), `id` (string), `logo_url` (string), `name` (string), `status` (enum: disconnected, connected)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## List all Global IP Allowed Ports
 
@@ -199,7 +247,7 @@ global_ip_allowed_ports = client.global_ip_allowed_ports.list
 puts(global_ip_allowed_ports)
 ```
 
-Returns: `data` (array[object])
+Key response fields: `response.data.id, response.data.name, response.data.first_port`
 
 ## Global IP Assignment Health Check Metrics
 
@@ -211,7 +259,7 @@ global_ip_assignment_health = client.global_ip_assignment_health.retrieve
 puts(global_ip_assignment_health)
 ```
 
-Returns: `global_ip` (object), `global_ip_assignment` (object), `health` (object), `timestamp` (date-time)
+Key response fields: `response.data.global_ip, response.data.global_ip_assignment, response.data.health`
 
 ## List all Global IP assignments
 
@@ -225,7 +273,7 @@ page = client.global_ip_assignments.list
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Create a Global IP assignment
 
@@ -233,19 +281,30 @@ Create a Global IP assignment.
 
 `POST /global_ip_assignments`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `global_ip_id` | string (UUID) | No | Global IP ID. |
+| `wireguard_peer_id` | string (UUID) | No | Wireguard peer ID. |
+| `status` | enum (created, provisioning, provisioned, deleting) | No | The current status of the interface deployment. |
+| ... | | | +7 optional params in [references/api-details.md](references/api-details.md) |
+
 ```ruby
 global_ip_assignment = client.global_ip_assignments.create
 
 puts(global_ip_assignment)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Retrieve a Global IP
 
 Retrieve a Global IP assignment.
 
-`GET /global_ip_assignments/{id}`
+`client.global_ip_assignments.retrieve()` — `GET /global_ip_assignments/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 global_ip_assignment = client.global_ip_assignments.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -253,13 +312,21 @@ global_ip_assignment = client.global_ip_assignments.retrieve("6a09cdc3-8948-47f0
 puts(global_ip_assignment)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Update a Global IP assignment
 
 Update a Global IP assignment.
 
-`PATCH /global_ip_assignments/{id}`
+`client.global_ip_assignments.update()` — `PATCH /global_ip_assignments/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `global_ip_id` | string (UUID) | No |  |
+| `wireguard_peer_id` | string (UUID) | No |  |
+| `status` | enum (created, provisioning, provisioned, deleting) | No | The current status of the interface deployment. |
+| ... | | | +7 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 global_ip_assignment = client.global_ip_assignments.update(
@@ -270,13 +337,17 @@ global_ip_assignment = client.global_ip_assignments.update(
 puts(global_ip_assignment)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Delete a Global IP assignment
 
 Delete a Global IP assignment.
 
-`DELETE /global_ip_assignments/{id}`
+`client.global_ip_assignments.delete()` — `DELETE /global_ip_assignments/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 global_ip_assignment = client.global_ip_assignments.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -284,7 +355,7 @@ global_ip_assignment = client.global_ip_assignments.delete("6a09cdc3-8948-47f0-a
 puts(global_ip_assignment)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Global IP Assignment Usage Metrics
 
@@ -296,7 +367,7 @@ global_ip_assignments_usage = client.global_ip_assignments_usage.retrieve
 puts(global_ip_assignments_usage)
 ```
 
-Returns: `global_ip` (object), `global_ip_assignment` (object), `received` (object), `timestamp` (date-time), `transmitted` (object)
+Key response fields: `response.data.global_ip, response.data.global_ip_assignment, response.data.received`
 
 ## List all Global IP Health check types
 
@@ -310,7 +381,7 @@ global_ip_health_check_types = client.global_ip_health_check_types.list
 puts(global_ip_health_check_types)
 ```
 
-Returns: `data` (array[object])
+Key response fields: `response.data.health_check_params, response.data.health_check_type, response.data.record_type`
 
 ## List all Global IP health checks
 
@@ -324,7 +395,7 @@ page = client.global_ip_health_checks.list
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Create a Global IP health check
 
@@ -332,19 +403,28 @@ Create a Global IP health check.
 
 `POST /global_ip_health_checks`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `global_ip_id` | string (UUID) | No | Global IP ID. |
+| ... | | | +6 optional params in [references/api-details.md](references/api-details.md) |
+
 ```ruby
 global_ip_health_check = client.global_ip_health_checks.create
 
 puts(global_ip_health_check)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Retrieve a Global IP health check
 
 Retrieve a Global IP health check.
 
-`GET /global_ip_health_checks/{id}`
+`client.global_ip_health_checks.retrieve()` — `GET /global_ip_health_checks/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 global_ip_health_check = client.global_ip_health_checks.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -352,13 +432,17 @@ global_ip_health_check = client.global_ip_health_checks.retrieve("6a09cdc3-8948-
 puts(global_ip_health_check)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Delete a Global IP health check
 
 Delete a Global IP health check.
 
-`DELETE /global_ip_health_checks/{id}`
+`client.global_ip_health_checks.delete()` — `DELETE /global_ip_health_checks/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 global_ip_health_check = client.global_ip_health_checks.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -366,7 +450,7 @@ global_ip_health_check = client.global_ip_health_checks.delete("6a09cdc3-8948-47
 puts(global_ip_health_check)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Global IP Latency Metrics
 
@@ -378,7 +462,7 @@ global_ip_latency = client.global_ip_latency.retrieve
 puts(global_ip_latency)
 ```
 
-Returns: `global_ip` (object), `mean_latency` (object), `percentile_latency` (object), `prober_location` (object), `timestamp` (date-time)
+Key response fields: `response.data.global_ip, response.data.mean_latency, response.data.percentile_latency`
 
 ## List all Global IP Protocols
 
@@ -390,7 +474,7 @@ global_ip_protocols = client.global_ip_protocols.list
 puts(global_ip_protocols)
 ```
 
-Returns: `data` (array[object])
+Key response fields: `response.data.name, response.data.code, response.data.record_type`
 
 ## Global IP Usage Metrics
 
@@ -402,7 +486,7 @@ global_ip_usage = client.global_ip_usage.retrieve
 puts(global_ip_usage)
 ```
 
-Returns: `global_ip` (object), `received` (object), `timestamp` (date-time), `transmitted` (object)
+Key response fields: `response.data.global_ip, response.data.received, response.data.timestamp`
 
 ## List all Global IPs
 
@@ -416,7 +500,7 @@ page = client.global_ips.list
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Create a Global IP
 
@@ -430,13 +514,17 @@ global_ip = client.global_ips.create
 puts(global_ip)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Retrieve a Global IP
 
 Retrieve a Global IP.
 
-`GET /global_ips/{id}`
+`client.global_ips.retrieve()` — `GET /global_ips/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 global_ip = client.global_ips.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -444,13 +532,17 @@ global_ip = client.global_ips.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
 puts(global_ip)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Delete a Global IP
 
 Delete a Global IP.
 
-`DELETE /global_ips/{id}`
+`client.global_ips.delete()` — `DELETE /global_ips/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 global_ip = client.global_ips.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -458,7 +550,7 @@ global_ip = client.global_ips.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
 puts(global_ip)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List all Networks
 
@@ -472,13 +564,18 @@ page = client.networks.list
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Create a Network
 
 Create a new Network.
 
-`POST /networks`
+`client.networks.create()` — `POST /networks`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | A user specified name for the network. |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 network = client.networks.create(name: "test network")
@@ -486,13 +583,17 @@ network = client.networks.create(name: "test network")
 puts(network)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Retrieve a Network
 
 Retrieve a Network.
 
-`GET /networks/{id}`
+`client.networks.retrieve()` — `GET /networks/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 network = client.networks.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -500,13 +601,19 @@ network = client.networks.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
 puts(network)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Update a Network
 
 Update a Network.
 
-`PATCH /networks/{id}`
+`client.networks.update()` — `PATCH /networks/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | A user specified name for the network. |
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 network = client.networks.update("6a09cdc3-8948-47f0-aa62-74ac943d6c58", name: "test network")
@@ -514,13 +621,17 @@ network = client.networks.update("6a09cdc3-8948-47f0-aa62-74ac943d6c58", name: "
 puts(network)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Delete a Network
 
 Delete a Network.
 
-`DELETE /networks/{id}`
+`client.networks.delete()` — `DELETE /networks/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 network = client.networks.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -528,11 +639,15 @@ network = client.networks.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
 puts(network)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Get Default Gateway status.
 
-`GET /networks/{id}/default_gateway`
+`client.networks.default_gateway.retrieve()` — `GET /networks/{id}/default_gateway`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 default_gateway = client.networks.default_gateway.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -540,11 +655,19 @@ default_gateway = client.networks.default_gateway.retrieve("6a09cdc3-8948-47f0-a
 puts(default_gateway)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Create Default Gateway.
 
-`POST /networks/{id}/default_gateway`
+`client.networks.default_gateway.create()` — `POST /networks/{id}/default_gateway`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| `network_id` | string (UUID) | No | Network ID. |
+| `wireguard_peer_id` | string (UUID) | No | Wireguard peer ID. |
+| `status` | enum (created, provisioning, provisioned, deleting) | No | The current status of the interface deployment. |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 default_gateway = client.networks.default_gateway.create("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -552,11 +675,15 @@ default_gateway = client.networks.default_gateway.create("6a09cdc3-8948-47f0-aa6
 puts(default_gateway)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Delete Default Gateway.
 
-`DELETE /networks/{id}/default_gateway`
+`client.networks.default_gateway.delete()` — `DELETE /networks/{id}/default_gateway`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 default_gateway = client.networks.default_gateway.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -564,11 +691,15 @@ default_gateway = client.networks.default_gateway.delete("6a09cdc3-8948-47f0-aa6
 puts(default_gateway)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## List all Interfaces for a Network.
 
-`GET /networks/{id}/network_interfaces`
+`client.networks.list_interfaces()` — `GET /networks/{id}/network_interfaces`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 page = client.networks.list_interfaces("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -576,7 +707,7 @@ page = client.networks.list_interfaces("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Get all Private Wireless Gateways
 
@@ -590,15 +721,19 @@ page = client.private_wireless_gateways.list
 puts(page)
 ```
 
-Returns: `assigned_resources` (array[object]), `created_at` (string), `id` (uuid), `ip_range` (string), `name` (string), `network_id` (uuid), `record_type` (string), `region_code` (string), `status` (object), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Create a Private Wireless Gateway
 
 Asynchronously create a Private Wireless Gateway for SIM cards for a previously created network. This operation may take several minutes so you can check the Private Wireless Gateway status at the section Get a Private Wireless Gateway.
 
-`POST /private_wireless_gateways` — Required: `network_id`, `name`
+`client.private_wireless_gateways.create()` — `POST /private_wireless_gateways`
 
-Optional: `region_code` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `network_id` | string (UUID) | Yes | The identification of the related network resource. |
+| `name` | string | Yes | The private wireless gateway name. |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 private_wireless_gateway = client.private_wireless_gateways.create(
@@ -609,13 +744,17 @@ private_wireless_gateway = client.private_wireless_gateways.create(
 puts(private_wireless_gateway)
 ```
 
-Returns: `assigned_resources` (array[object]), `created_at` (string), `id` (uuid), `ip_range` (string), `name` (string), `network_id` (uuid), `record_type` (string), `region_code` (string), `status` (object), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Get a Private Wireless Gateway
 
 Retrieve information about a Private Wireless Gateway.
 
-`GET /private_wireless_gateways/{id}`
+`client.private_wireless_gateways.retrieve()` — `GET /private_wireless_gateways/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the private wireless gateway. |
 
 ```ruby
 private_wireless_gateway = client.private_wireless_gateways.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -623,13 +762,17 @@ private_wireless_gateway = client.private_wireless_gateways.retrieve("6a09cdc3-8
 puts(private_wireless_gateway)
 ```
 
-Returns: `assigned_resources` (array[object]), `created_at` (string), `id` (uuid), `ip_range` (string), `name` (string), `network_id` (uuid), `record_type` (string), `region_code` (string), `status` (object), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Delete a Private Wireless Gateway
 
 Deletes the Private Wireless Gateway.
 
-`DELETE /private_wireless_gateways/{id}`
+`client.private_wireless_gateways.delete()` — `DELETE /private_wireless_gateways/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the private wireless gateway. |
 
 ```ruby
 private_wireless_gateway = client.private_wireless_gateways.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -637,7 +780,7 @@ private_wireless_gateway = client.private_wireless_gateways.delete("6a09cdc3-894
 puts(private_wireless_gateway)
 ```
 
-Returns: `assigned_resources` (array[object]), `created_at` (string), `id` (uuid), `ip_range` (string), `name` (string), `network_id` (uuid), `record_type` (string), `region_code` (string), `status` (object), `updated_at` (string)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## List all Public Internet Gateways
 
@@ -651,7 +794,7 @@ page = client.public_internet_gateways.list
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Create a Public Internet Gateway
 
@@ -659,19 +802,29 @@ Create a new Public Internet Gateway.
 
 `POST /public_internet_gateways`
 
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `network_id` | string (UUID) | No | The id of the network associated with the interface. |
+| `status` | enum (created, provisioning, provisioned, deleting) | No | The current status of the interface deployment. |
+| ... | | | +7 optional params in [references/api-details.md](references/api-details.md) |
+
 ```ruby
 public_internet_gateway = client.public_internet_gateways.create
 
 puts(public_internet_gateway)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Retrieve a Public Internet Gateway
 
 Retrieve a Public Internet Gateway.
 
-`GET /public_internet_gateways/{id}`
+`client.public_internet_gateways.retrieve()` — `GET /public_internet_gateways/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 public_internet_gateway = client.public_internet_gateways.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -679,13 +832,17 @@ public_internet_gateway = client.public_internet_gateways.retrieve("6a09cdc3-894
 puts(public_internet_gateway)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Delete a Public Internet Gateway
 
 Delete a Public Internet Gateway.
 
-`DELETE /public_internet_gateways/{id}`
+`client.public_internet_gateways.delete()` — `DELETE /public_internet_gateways/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 public_internet_gateway = client.public_internet_gateways.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -693,7 +850,7 @@ public_internet_gateway = client.public_internet_gateways.delete("6a09cdc3-8948-
 puts(public_internet_gateway)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## List all Regions
 
@@ -707,7 +864,7 @@ regions = client.regions.list
 puts(regions)
 ```
 
-Returns: `code` (string), `created_at` (string), `name` (string), `record_type` (string), `supported_interfaces` (array[string]), `updated_at` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.updated_at`
 
 ## List all Virtual Cross Connects
 
@@ -721,13 +878,25 @@ page = client.virtual_cross_connects.list
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Create a Virtual Cross Connect
 
 Create a new Virtual Cross Connect.  For AWS and GCE, you have the option of creating the primary connection first and the secondary connection later. You also have the option of disabling the primary and/or secondary connections at any time and later re-enabling them. With Azure, you do not have this option.
 
-`POST /virtual_cross_connects`
+`client.virtual_cross_connects.create()` — `POST /virtual_cross_connects`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `network_id` | string (UUID) | Yes | The id of the network associated with the interface. |
+| `cloud_provider` | enum (aws, azure, gce) | Yes | The Virtual Private Cloud with which you would like to estab... |
+| `cloud_provider_region` | string | Yes | The region where your Virtual Private Cloud hosts are locate... |
+| `bgp_asn` | number | Yes | The Border Gateway Protocol (BGP) Autonomous System Number (... |
+| `primary_cloud_account_id` | string (UUID) | Yes | The identifier for your Virtual Private Cloud. |
+| `region_code` | string | Yes | The region the interface should be deployed to. |
+| `status` | enum (created, provisioning, provisioned, deleting) | No | The current status of the interface deployment. |
+| `secondary_cloud_account_id` | string (UUID) | No | The identifier for your Virtual Private Cloud. |
+| ... | | | +14 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 virtual_cross_connect = client.virtual_cross_connects.create(region_code: "ashburn-va")
@@ -735,13 +904,17 @@ virtual_cross_connect = client.virtual_cross_connects.create(region_code: "ashbu
 puts(virtual_cross_connect)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Retrieve a Virtual Cross Connect
 
 Retrieve a Virtual Cross Connect.
 
-`GET /virtual_cross_connects/{id}`
+`client.virtual_cross_connects.retrieve()` — `GET /virtual_cross_connects/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 virtual_cross_connect = client.virtual_cross_connects.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -749,13 +922,18 @@ virtual_cross_connect = client.virtual_cross_connects.retrieve("6a09cdc3-8948-47
 puts(virtual_cross_connect)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Update the Virtual Cross Connect
 
 Update the Virtual Cross Connect.  Cloud IPs can only be patched during the `created` state, as GCE will only inform you of your generated IP once the pending connection requested has been accepted.
 
-`PATCH /virtual_cross_connects/{id}`
+`client.virtual_cross_connects.update()` — `PATCH /virtual_cross_connects/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| ... | | | +6 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 virtual_cross_connect = client.virtual_cross_connects.update("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -763,13 +941,17 @@ virtual_cross_connect = client.virtual_cross_connects.update("6a09cdc3-8948-47f0
 puts(virtual_cross_connect)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Delete a Virtual Cross Connect
 
 Delete a Virtual Cross Connect.
 
-`DELETE /virtual_cross_connects/{id}`
+`client.virtual_cross_connects.delete()` — `DELETE /virtual_cross_connects/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 virtual_cross_connect = client.virtual_cross_connects.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -777,7 +959,7 @@ virtual_cross_connect = client.virtual_cross_connects.delete("6a09cdc3-8948-47f0
 puts(virtual_cross_connect)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## List Virtual Cross Connect Cloud Coverage
 
@@ -791,7 +973,7 @@ page = client.virtual_cross_connects_coverage.list
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.available_bandwidth, response.data.cloud_provider, response.data.cloud_provider_region`
 
 ## List all WireGuard Interfaces
 
@@ -805,13 +987,20 @@ page = client.wireguard_interfaces.list
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Create a WireGuard Interface
 
 Create a new WireGuard Interface. Current limitation of 10 interfaces per user can be created.
 
-`POST /wireguard_interfaces`
+`client.wireguard_interfaces.create()` — `POST /wireguard_interfaces`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `network_id` | string (UUID) | Yes | The id of the network associated with the interface. |
+| `region_code` | string | Yes | The region the interface should be deployed to. |
+| `status` | enum (created, provisioning, provisioned, deleting) | No | The current status of the interface deployment. |
+| ... | | | +8 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 wireguard_interface = client.wireguard_interfaces.create(region_code: "ashburn-va")
@@ -819,13 +1008,17 @@ wireguard_interface = client.wireguard_interfaces.create(region_code: "ashburn-v
 puts(wireguard_interface)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Retrieve a WireGuard Interfaces
 
 Retrieve a WireGuard Interfaces.
 
-`GET /wireguard_interfaces/{id}`
+`client.wireguard_interfaces.retrieve()` — `GET /wireguard_interfaces/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 wireguard_interface = client.wireguard_interfaces.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -833,13 +1026,17 @@ wireguard_interface = client.wireguard_interfaces.retrieve("6a09cdc3-8948-47f0-a
 puts(wireguard_interface)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## Delete a WireGuard Interface
 
 Delete a WireGuard Interface.
 
-`DELETE /wireguard_interfaces/{id}`
+`client.wireguard_interfaces.delete()` — `DELETE /wireguard_interfaces/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 wireguard_interface = client.wireguard_interfaces.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -847,7 +1044,7 @@ wireguard_interface = client.wireguard_interfaces.delete("6a09cdc3-8948-47f0-aa6
 puts(wireguard_interface)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.status, response.data.name`
 
 ## List all WireGuard Peers
 
@@ -861,13 +1058,18 @@ page = client.wireguard_peers.list
 puts(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Create a WireGuard Peer
 
 Create a new WireGuard Peer. Current limitation of 5 peers per interface can be created.
 
-`POST /wireguard_peers`
+`client.wireguard_peers.create()` — `POST /wireguard_peers`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `wireguard_interface_id` | string (UUID) | Yes | The id of the wireguard interface associated with the peer. |
+| ... | | | +7 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 wireguard_peer = client.wireguard_peers.create(wireguard_interface_id: "6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -875,13 +1077,17 @@ wireguard_peer = client.wireguard_peers.create(wireguard_interface_id: "6a09cdc3
 puts(wireguard_peer)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Retrieve the WireGuard Peer
 
 Retrieve the WireGuard peer.
 
-`GET /wireguard_peers/{id}`
+`client.wireguard_peers.retrieve()` — `GET /wireguard_peers/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 wireguard_peer = client.wireguard_peers.retrieve("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -889,15 +1095,18 @@ wireguard_peer = client.wireguard_peers.retrieve("6a09cdc3-8948-47f0-aa62-74ac94
 puts(wireguard_peer)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Update the WireGuard Peer
 
 Update the WireGuard peer.
 
-`PATCH /wireguard_peers/{id}`
+`client.wireguard_peers.update()` — `PATCH /wireguard_peers/{id}`
 
-Optional: `public_key` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 wireguard_peer = client.wireguard_peers.update("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -905,13 +1114,17 @@ wireguard_peer = client.wireguard_peers.update("6a09cdc3-8948-47f0-aa62-74ac943d
 puts(wireguard_peer)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Delete the WireGuard Peer
 
 Delete the WireGuard peer.
 
-`DELETE /wireguard_peers/{id}`
+`client.wireguard_peers.delete()` — `DELETE /wireguard_peers/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 wireguard_peer = client.wireguard_peers.delete("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
@@ -919,14 +1132,22 @@ wireguard_peer = client.wireguard_peers.delete("6a09cdc3-8948-47f0-aa62-74ac943d
 puts(wireguard_peer)
 ```
 
-Returns: `data` (object)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Retrieve Wireguard config template for Peer
 
-`GET /wireguard_peers/{id}/config`
+`client.wireguard_peers.retrieve_config()` — `GET /wireguard_peers/{id}/config`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Identifies the resource. |
 
 ```ruby
 response = client.wireguard_peers.retrieve_config("6a09cdc3-8948-47f0-aa62-74ac943d6c58")
 
 puts(response)
 ```
+
+---
+
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**
