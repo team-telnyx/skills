@@ -1,8 +1,7 @@
 ---
 name: telnyx-account-notifications-ruby
 description: >-
-  Configure notification channels and settings for account alerts and events.
-  This skill provides Ruby SDK examples.
+  Notification channels and settings for account alerts.
 metadata:
   author: telnyx
   product: account-notifications
@@ -13,6 +12,19 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx Account Notifications - Ruby
+
+## Core Workflow
+
+### Steps
+
+1. **Create notification channel**: `client.notification_channels.create(channel_type_id: ..., channel_destination: ...)`
+2. **Create notification profile**: `client.notification_profiles.create(name: ...)`
+
+### Common mistakes
+
+- Notification channels must be verified before they receive alerts
+
+**Related skills**: telnyx-account-ruby
 
 ## Installation
 
@@ -39,7 +51,7 @@ or authentication errors (401). Always handle errors in production code:
 
 ```ruby
 begin
-  result = client.messages.send_(to: "+13125550001", from: "+13125550002", text: "Hello")
+  result = client.notification_channels.create(params)
 rescue Telnyx::Errors::APIConnectionError
   puts "Network error — check connectivity and retry"
 rescue Telnyx::Errors::RateLimitError
@@ -61,6 +73,8 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 
 - **Pagination:** Use `.auto_paging_each` for automatic iteration: `page.auto_paging_each { |item| puts item.id }`.
 
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
+
 ## List notification channels
 
 List notification channels.
@@ -73,29 +87,36 @@ page = client.notification_channels.list
 puts(page)
 ```
 
-Returns: `channel_destination` (string), `channel_type_id` (enum: sms, voice, email, webhook), `created_at` (date-time), `id` (string), `notification_profile_id` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Create a notification channel
 
 Create a notification channel.
 
-`POST /notification_channels`
+`client.notification_channels.create()` — `POST /notification_channels`
 
-Optional: `channel_destination` (string), `channel_type_id` (enum: sms, voice, email, webhook), `created_at` (date-time), `id` (string), `notification_profile_id` (string), `updated_at` (date-time)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `notification_profile_id` | string (UUID) | No | A UUID reference to the associated Notification Profile. |
+| `channel_type_id` | enum (sms, voice, email, webhook) | No | A Channel Type ID |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
-notification_channel = client.notification_channels.create
-
+notification_channel = client.notification_channels.create(channel_type_id: "webhook", channel_destination: "https://example.com/webhooks")
 puts(notification_channel)
 ```
 
-Returns: `channel_destination` (string), `channel_type_id` (enum: sms, voice, email, webhook), `created_at` (date-time), `id` (string), `notification_profile_id` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Get a notification channel
 
 Get a notification channel.
 
-`GET /notification_channels/{id}`
+`client.notification_channels.retrieve()` — `GET /notification_channels/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the resource. |
 
 ```ruby
 notification_channel = client.notification_channels.retrieve("182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e")
@@ -103,15 +124,20 @@ notification_channel = client.notification_channels.retrieve("182bd5e5-6e1a-4fe4
 puts(notification_channel)
 ```
 
-Returns: `channel_destination` (string), `channel_type_id` (enum: sms, voice, email, webhook), `created_at` (date-time), `id` (string), `notification_profile_id` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Update a notification channel
 
 Update a notification channel.
 
-`PATCH /notification_channels/{id}`
+`client.notification_channels.update()` — `PATCH /notification_channels/{id}`
 
-Optional: `channel_destination` (string), `channel_type_id` (enum: sms, voice, email, webhook), `created_at` (date-time), `id` (string), `notification_profile_id` (string), `updated_at` (date-time)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the resource. |
+| `notification_profile_id` | string (UUID) | No | A UUID reference to the associated Notification Profile. |
+| `channel_type_id` | enum (sms, voice, email, webhook) | No | A Channel Type ID |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 notification_channel = client.notification_channels.update("182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e")
@@ -119,13 +145,17 @@ notification_channel = client.notification_channels.update("182bd5e5-6e1a-4fe4-a
 puts(notification_channel)
 ```
 
-Returns: `channel_destination` (string), `channel_type_id` (enum: sms, voice, email, webhook), `created_at` (date-time), `id` (string), `notification_profile_id` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## Delete a notification channel
 
 Delete a notification channel.
 
-`DELETE /notification_channels/{id}`
+`client.notification_channels.delete()` — `DELETE /notification_channels/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the resource. |
 
 ```ruby
 notification_channel = client.notification_channels.delete("182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e")
@@ -133,7 +163,7 @@ notification_channel = client.notification_channels.delete("182bd5e5-6e1a-4fe4-a
 puts(notification_channel)
 ```
 
-Returns: `channel_destination` (string), `channel_type_id` (enum: sms, voice, email, webhook), `created_at` (date-time), `id` (string), `notification_profile_id` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.created_at, response.data.updated_at`
 
 ## List all Notifications Events Conditions
 
@@ -147,7 +177,7 @@ page = client.notification_event_conditions.list
 puts(page)
 ```
 
-Returns: `allow_multiple_channels` (boolean), `associated_record_type` (enum: account, phone_number), `asynchronous` (boolean), `created_at` (date-time), `description` (string), `enabled` (boolean), `id` (string), `name` (string), `notification_event_id` (string), `parameters` (array[object]), `supported_channels` (array[string]), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List all Notifications Events
 
@@ -161,7 +191,7 @@ page = client.notification_events.list
 puts(page)
 ```
 
-Returns: `created_at` (date-time), `enabled` (boolean), `id` (string), `name` (string), `notification_category` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List all Notifications Profiles
 
@@ -175,29 +205,30 @@ page = client.notification_profiles.list
 puts(page)
 ```
 
-Returns: `created_at` (date-time), `id` (string), `name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Create a notification profile
 
 Create a notification profile.
 
-`POST /notification_profiles`
-
-Optional: `created_at` (date-time), `id` (string), `name` (string), `updated_at` (date-time)
+`client.notification_profiles.create()` — `POST /notification_profiles`
 
 ```ruby
-notification_profile = client.notification_profiles.create
-
+notification_profile = client.notification_profiles.create(name: "My Notification Profile")
 puts(notification_profile)
 ```
 
-Returns: `created_at` (date-time), `id` (string), `name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Get a notification profile
 
 Get a notification profile.
 
-`GET /notification_profiles/{id}`
+`client.notification_profiles.retrieve()` — `GET /notification_profiles/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the resource. |
 
 ```ruby
 notification_profile = client.notification_profiles.retrieve("182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e")
@@ -205,15 +236,18 @@ notification_profile = client.notification_profiles.retrieve("182bd5e5-6e1a-4fe4
 puts(notification_profile)
 ```
 
-Returns: `created_at` (date-time), `id` (string), `name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Update a notification profile
 
 Update a notification profile.
 
-`PATCH /notification_profiles/{id}`
+`client.notification_profiles.update()` — `PATCH /notification_profiles/{id}`
 
-Optional: `created_at` (date-time), `id` (string), `name` (string), `updated_at` (date-time)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the resource. |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 notification_profile = client.notification_profiles.update("182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e")
@@ -221,13 +255,17 @@ notification_profile = client.notification_profiles.update("182bd5e5-6e1a-4fe4-a
 puts(notification_profile)
 ```
 
-Returns: `created_at` (date-time), `id` (string), `name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Delete a notification profile
 
 Delete a notification profile.
 
-`DELETE /notification_profiles/{id}`
+`client.notification_profiles.delete()` — `DELETE /notification_profiles/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the resource. |
 
 ```ruby
 notification_profile = client.notification_profiles.delete("182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e")
@@ -235,7 +273,7 @@ notification_profile = client.notification_profiles.delete("182bd5e5-6e1a-4fe4-a
 puts(notification_profile)
 ```
 
-Returns: `created_at` (date-time), `id` (string), `name` (string), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List notification settings
 
@@ -249,7 +287,7 @@ page = client.notification_settings.list
 puts(page)
 ```
 
-Returns: `associated_record_type` (string), `associated_record_type_value` (string), `created_at` (date-time), `id` (string), `notification_channel_id` (string), `notification_event_condition_id` (string), `notification_profile_id` (string), `parameters` (array[object]), `status` (enum: enabled, enable-received, enable-pending, enable-submitted, delete-received, delete-pending, delete-submitted, deleted), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Add a Notification Setting
 
@@ -257,7 +295,12 @@ Add a notification setting.
 
 `POST /notification_settings`
 
-Optional: `associated_record_type` (string), `associated_record_type_value` (string), `created_at` (date-time), `id` (string), `notification_channel_id` (string), `notification_event_condition_id` (string), `notification_profile_id` (string), `parameters` (array[object]), `status` (enum: enabled, enable-received, enable-pending, enable-submitted, delete-received, delete-pending, delete-submitted, deleted), `updated_at` (date-time)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `notification_event_condition_id` | string (UUID) | No | A UUID reference to the associated Notification Event Condit... |
+| `notification_profile_id` | string (UUID) | No | A UUID reference to the associated Notification Profile. |
+| `status` | enum (enabled, enable-received, enable-pending, enable-submtited, delete-received, ...) | No | Most preferences apply immediately; however, other may needs... |
+| ... | | | +7 optional params in [references/api-details.md](references/api-details.md) |
 
 ```ruby
 notification_setting = client.notification_settings.create
@@ -265,13 +308,17 @@ notification_setting = client.notification_settings.create
 puts(notification_setting)
 ```
 
-Returns: `associated_record_type` (string), `associated_record_type_value` (string), `created_at` (date-time), `id` (string), `notification_channel_id` (string), `notification_event_condition_id` (string), `notification_profile_id` (string), `parameters` (array[object]), `status` (enum: enabled, enable-received, enable-pending, enable-submitted, delete-received, delete-pending, delete-submitted, deleted), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Get a notification setting
 
 Get a notification setting.
 
-`GET /notification_settings/{id}`
+`client.notification_settings.retrieve()` — `GET /notification_settings/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the resource. |
 
 ```ruby
 notification_setting = client.notification_settings.retrieve("182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e")
@@ -279,13 +326,17 @@ notification_setting = client.notification_settings.retrieve("182bd5e5-6e1a-4fe4
 puts(notification_setting)
 ```
 
-Returns: `associated_record_type` (string), `associated_record_type_value` (string), `created_at` (date-time), `id` (string), `notification_channel_id` (string), `notification_event_condition_id` (string), `notification_profile_id` (string), `parameters` (array[object]), `status` (enum: enabled, enable-received, enable-pending, enable-submitted, delete-received, delete-pending, delete-submitted, deleted), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
 
 ## Delete a notification setting
 
 Delete a notification setting.
 
-`DELETE /notification_settings/{id}`
+`client.notification_settings.delete()` — `DELETE /notification_settings/{id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | The id of the resource. |
 
 ```ruby
 notification_setting = client.notification_settings.delete("182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e")
@@ -293,4 +344,8 @@ notification_setting = client.notification_settings.delete("182bd5e5-6e1a-4fe4-a
 puts(notification_setting)
 ```
 
-Returns: `associated_record_type` (string), `associated_record_type_value` (string), `created_at` (date-time), `id` (string), `notification_channel_id` (string), `notification_event_condition_id` (string), `notification_profile_id` (string), `parameters` (array[object]), `status` (enum: enabled, enable-received, enable-pending, enable-submitted, delete-received, delete-pending, delete-submitted, deleted), `updated_at` (date-time)
+Key response fields: `response.data.id, response.data.status, response.data.created_at`
+
+---
+
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**

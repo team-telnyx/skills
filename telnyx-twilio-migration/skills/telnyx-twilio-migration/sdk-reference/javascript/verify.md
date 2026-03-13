@@ -2,6 +2,38 @@
 
 # Telnyx Verify - JavaScript
 
+## Core Workflow
+
+### Prerequisites
+
+1. Create a Verify Profile with channel settings (SMS, Call, Flashcall, RCS, DTMF)
+
+### Steps
+
+1. **Create profile**: `client.verifyProfiles.create({name: ..., defaultTimeoutSecs: ...})`
+2. **Trigger verification**: `client.verifications.triggerSms({phoneNumber: ..., verifyProfileId: ...})`
+3. **User receives code**: `Via SMS, call, flashcall, RCS, or DTMF`
+4. **Submit code**: `client.verifications.byPhoneNumber.actions.verify({phoneNumber: ..., code: ..., verifyProfileId: ...})`
+
+### Which approach to use?
+
+| Scenario | Recommendation |
+|----------|---------------|
+| Default, widest reach | SMS verification |
+| Landlines or accessibility | Voice call verification |
+| Frictionless mobile (code in caller ID) | Flashcall verification |
+| Ownership confirmation without code entry | DTMF Confirm |
+| Rich mobile UX with SMS fallback | RCS verification |
+
+### Common mistakes
+
+- NEVER use non-E.164 phone numbers — returns 400 Bad Request
+- NEVER reuse expired verification IDs — must re-trigger verification
+- For DTMF Confirm: result is ONLY delivered via webhook — configure your webhook endpoint in the Verify Profile settings. No verify webhooks are documented in this skill; handle the verify.dtmf_confirm event manually
+- When verifying by ID, you MUST pass the code parameter — omitting it will not validate the user's input
+
+**Related skills**: telnyx-messaging-javascript, telnyx-voice-javascript
+
 ## Installation
 
 ```bash
@@ -27,7 +59,7 @@ or authentication errors (401). Always handle errors in production code:
 
 ```javascript
 try {
-  const result = await client.messages.send({ to: '+13125550001', from: '+13125550002', text: 'Hello' });
+  const result = await client.verifications.trigger_sms(params);
 } catch (err) {
   if (err instanceof Telnyx.APIConnectionError) {
     console.error('Network error — check connectivity and retry');
@@ -53,86 +85,17 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 - **Phone numbers** must be in E.164 format (e.g., `+13125550001`). Include the `+` prefix and country code. No spaces, dashes, or parentheses.
 - **Pagination:** List methods return an auto-paginating iterator. Use `for await (const item of result) { ... }` to iterate through all pages automatically.
 
-## Lookup phone number data
-
-Returns information about the provided phone number.
-
-`GET /number_lookup/{phone_number}`
-
-```javascript
-const numberLookup = await client.numberLookup.retrieve('+18665552368');
-
-console.log(numberLookup.data);
-```
-
-Returns: `caller_name` (object), `carrier` (object), `country_code` (string), `fraud` (string | null), `national_format` (string), `phone_number` (string), `portability` (object), `record_type` (string)
-
-## List verifications by phone number
-
-`GET /verifications/by_phone_number/{phone_number}`
-
-```javascript
-const byPhoneNumbers = await client.verifications.byPhoneNumber.list('+13035551234');
-
-console.log(byPhoneNumbers.data);
-```
-
-Returns: `created_at` (string), `custom_code` (string | null), `id` (uuid), `phone_number` (string), `record_type` (enum: verification), `status` (enum: pending, accepted, invalid, expired, error), `timeout_secs` (integer), `type` (enum: sms, call, flashcall), `updated_at` (string), `verify_profile_id` (uuid)
-
-## Verify verification code by phone number
-
-`POST /verifications/by_phone_number/{phone_number}/actions/verify` — Required: `code`, `verify_profile_id`
-
-```javascript
-const verifyVerificationCodeResponse = await client.verifications.byPhoneNumber.actions.verify(
-  '+13035551234',
-  { code: '17686', verify_profile_id: '12ade33a-21c0-473b-b055-b3c836e1c292' },
-);
-
-console.log(verifyVerificationCodeResponse.data);
-```
-
-Returns: `phone_number` (string), `response_code` (enum: accepted, rejected)
-
-## Trigger Call verification
-
-`POST /verifications/call` — Required: `phone_number`, `verify_profile_id`
-
-Optional: `custom_code` (string | null), `extension` (string | null), `timeout_secs` (integer)
-
-```javascript
-const createVerificationResponse = await client.verifications.triggerCall({
-  phone_number: '+13035551234',
-  verify_profile_id: '12ade33a-21c0-473b-b055-b3c836e1c292',
-});
-
-console.log(createVerificationResponse.data);
-```
-
-Returns: `created_at` (string), `custom_code` (string | null), `id` (uuid), `phone_number` (string), `record_type` (enum: verification), `status` (enum: pending, accepted, invalid, expired, error), `timeout_secs` (integer), `type` (enum: sms, call, flashcall), `updated_at` (string), `verify_profile_id` (uuid)
-
-## Trigger Flash call verification
-
-`POST /verifications/flashcall` — Required: `phone_number`, `verify_profile_id`
-
-Optional: `timeout_secs` (integer)
-
-```javascript
-const createVerificationResponse = await client.verifications.triggerFlashcall({
-  phone_number: '+13035551234',
-  verify_profile_id: '12ade33a-21c0-473b-b055-b3c836e1c292',
-});
-
-console.log(createVerificationResponse.data);
-```
-
-Returns: `created_at` (string), `custom_code` (string | null), `id` (uuid), `phone_number` (string), `record_type` (enum: verification), `status` (enum: pending, accepted, invalid, expired, error), `timeout_secs` (integer), `type` (enum: sms, call, flashcall), `updated_at` (string), `verify_profile_id` (uuid)
-
+**Complete response schemas, all optional parameters, and webhook payload fields are in the API Details section at the end of this file.**
 ## Trigger SMS verification
 
-`POST /verifications/sms` — Required: `phone_number`, `verify_profile_id`
+`client.verifications.triggerSMS()` — `POST /verifications/sms`
 
-Optional: `custom_code` (string | null), `timeout_secs` (integer)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phoneNumber` | string (E.164) | Yes | +E164 formatted phone number. |
+| `verifyProfileId` | string (UUID) | Yes | The identifier of the associated Verify profile. |
+| `timeoutSecs` | integer | No | The number of seconds the verification code is valid for. |
+| ... | | | +1 optional params in the API Details section below |
 
 ```javascript
 const createVerificationResponse = await client.verifications.triggerSMS({
@@ -143,11 +106,134 @@ const createVerificationResponse = await client.verifications.triggerSMS({
 console.log(createVerificationResponse.data);
 ```
 
-Returns: `created_at` (string), `custom_code` (string | null), `id` (uuid), `phone_number` (string), `record_type` (enum: verification), `status` (enum: pending, accepted, invalid, expired, error), `timeout_secs` (integer), `type` (enum: sms, call, flashcall), `updated_at` (string), `verify_profile_id` (uuid)
+Key response fields: `response.data.id, response.data.status, response.data.phone_number`
+
+## Verify verification code by phone number
+
+`client.verifications.byPhoneNumber.actions.verify()` — `POST /verifications/by_phone_number/{phone_number}/actions/verify`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `code` | string | Yes | This is the code the user submits for verification. |
+| `verifyProfileId` | string (UUID) | Yes | The identifier of the associated Verify profile. |
+| `phoneNumber` | string (E.164) | Yes | +E164 formatted phone number. |
+
+```javascript
+const verifyVerificationCodeResponse = await client.verifications.byPhoneNumber.actions.verify(
+  '+13035551234',
+  { code: '17686', verify_profile_id: '12ade33a-21c0-473b-b055-b3c836e1c292' },
+);
+
+console.log(verifyVerificationCodeResponse.data);
+```
+
+Key response fields: `response.data.phone_number, response.data.response_code`
+
+## Create a Verify profile
+
+Creates a new Verify profile to associate verifications with.
+
+`client.verifyProfiles.create()` — `POST /verify_profiles`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes |  |
+| `webhookUrl` | string (URL) | No |  |
+| `webhookFailoverUrl` | string (URL) | No |  |
+| ... | | | +5 optional params in the API Details section below |
+
+```javascript
+const verifyProfileData = await client.verifyProfiles.create({ name: 'Test Profile' });
+
+console.log(verifyProfileData.data);
+```
+
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
+
+## Trigger Call verification
+
+`client.verifications.triggerCall()` — `POST /verifications/call`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phoneNumber` | string (E.164) | Yes | +E164 formatted phone number. |
+| `verifyProfileId` | string (UUID) | Yes | The identifier of the associated Verify profile. |
+| `timeoutSecs` | integer | No | The number of seconds the verification code is valid for. |
+| ... | | | +2 optional params in the API Details section below |
+
+```javascript
+const createVerificationResponse = await client.verifications.triggerCall({
+  phone_number: '+13035551234',
+  verify_profile_id: '12ade33a-21c0-473b-b055-b3c836e1c292',
+});
+
+console.log(createVerificationResponse.data);
+```
+
+Key response fields: `response.data.id, response.data.status, response.data.phone_number`
+
+## Lookup phone number data
+
+Returns information about the provided phone number.
+
+`client.numberLookup.retrieve()` — `GET /number_lookup/{phone_number}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phoneNumber` | string (E.164) | Yes | The phone number to be looked up |
+
+```javascript
+const numberLookup = await client.numberLookup.retrieve('+18665552368');
+
+console.log(numberLookup.data);
+```
+
+Key response fields: `response.data.phone_number, response.data.caller_name, response.data.carrier`
+
+## List verifications by phone number
+
+`client.verifications.byPhoneNumber.list()` — `GET /verifications/by_phone_number/{phone_number}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phoneNumber` | string (E.164) | Yes | +E164 formatted phone number. |
+
+```javascript
+const byPhoneNumbers = await client.verifications.byPhoneNumber.list('+13035551234');
+
+console.log(byPhoneNumbers.data);
+```
+
+Key response fields: `response.data.id, response.data.status, response.data.phone_number`
+
+## Trigger Flash call verification
+
+`client.verifications.triggerFlashcall()` — `POST /verifications/flashcall`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phoneNumber` | string (E.164) | Yes | +E164 formatted phone number. |
+| `verifyProfileId` | string (UUID) | Yes | The identifier of the associated Verify profile. |
+| `timeoutSecs` | integer | No | The number of seconds the verification code is valid for. |
+
+```javascript
+const createVerificationResponse = await client.verifications.triggerFlashcall({
+  phone_number: '+13035551234',
+  verify_profile_id: '12ade33a-21c0-473b-b055-b3c836e1c292',
+});
+
+console.log(createVerificationResponse.data);
+```
+
+Key response fields: `response.data.id, response.data.status, response.data.phone_number`
 
 ## Retrieve verification
 
-`GET /verifications/{verification_id}`
+`client.verifications.retrieve()` — `GET /verifications/{verification_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `verificationId` | string (UUID) | Yes | The identifier of the verification to retrieve. |
 
 ```javascript
 const verification = await client.verifications.retrieve('12ade33a-21c0-473b-b055-b3c836e1c292');
@@ -155,13 +241,17 @@ const verification = await client.verifications.retrieve('12ade33a-21c0-473b-b05
 console.log(verification.data);
 ```
 
-Returns: `created_at` (string), `custom_code` (string | null), `id` (uuid), `phone_number` (string), `record_type` (enum: verification), `status` (enum: pending, accepted, invalid, expired, error), `timeout_secs` (integer), `type` (enum: sms, call, flashcall), `updated_at` (string), `verify_profile_id` (uuid)
+Key response fields: `response.data.id, response.data.status, response.data.phone_number`
 
 ## Verify verification code by ID
 
-`POST /verifications/{verification_id}/actions/verify`
+`client.verifications.actions.verify()` — `POST /verifications/{verification_id}/actions/verify`
 
-Optional: `code` (string), `status` (enum: accepted, rejected)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `verificationId` | string (UUID) | Yes | The identifier of the verification to retrieve. |
+| `status` | enum (accepted, rejected) | No | Identifies if the verification code has been accepted or rej... |
+| ... | | | +1 optional params in the API Details section below |
 
 ```javascript
 const verifyVerificationCodeResponse = await client.verifications.actions.verify(
@@ -171,13 +261,13 @@ const verifyVerificationCodeResponse = await client.verifications.actions.verify
 console.log(verifyVerificationCodeResponse.data);
 ```
 
-Returns: `phone_number` (string), `response_code` (enum: accepted, rejected)
+Key response fields: `response.data.phone_number, response.data.response_code`
 
 ## List all Verify profiles
 
 Gets a paginated list of Verify profiles.
 
-`GET /verify_profiles`
+`client.verifyProfiles.list()` — `GET /verify_profiles`
 
 ```javascript
 // Automatically fetches more pages as needed.
@@ -186,29 +276,13 @@ for await (const verifyProfile of client.verifyProfiles.list()) {
 }
 ```
 
-Returns: `call` (object), `created_at` (string), `flashcall` (object), `id` (uuid), `language` (string), `name` (string), `rcs` (object), `record_type` (enum: verification_profile), `sms` (object), `updated_at` (string), `webhook_failover_url` (string), `webhook_url` (string)
-
-## Create a Verify profile
-
-Creates a new Verify profile to associate verifications with.
-
-`POST /verify_profiles` — Required: `name`
-
-Optional: `call` (object), `flashcall` (object), `language` (string), `rcs` (object), `sms` (object), `webhook_failover_url` (string), `webhook_url` (string)
-
-```javascript
-const verifyProfileData = await client.verifyProfiles.create({ name: 'Test Profile' });
-
-console.log(verifyProfileData.data);
-```
-
-Returns: `call` (object), `created_at` (string), `flashcall` (object), `id` (uuid), `language` (string), `name` (string), `rcs` (object), `record_type` (enum: verification_profile), `sms` (object), `updated_at` (string), `webhook_failover_url` (string), `webhook_url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Retrieve Verify profile message templates
 
 List all Verify profile message templates.
 
-`GET /verify_profiles/templates`
+`client.verifyProfiles.retrieveTemplates()` — `GET /verify_profiles/templates`
 
 ```javascript
 const response = await client.verifyProfiles.retrieveTemplates();
@@ -216,13 +290,17 @@ const response = await client.verifyProfiles.retrieveTemplates();
 console.log(response.data);
 ```
 
-Returns: `id` (uuid), `text` (string)
+Key response fields: `response.data.id, response.data.text`
 
 ## Create message template
 
 Create a new Verify profile message template.
 
-`POST /verify_profiles/templates` — Required: `text`
+`client.verifyProfiles.createTemplate()` — `POST /verify_profiles/templates`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `text` | string | Yes | The text content of the message template. |
 
 ```javascript
 const messageTemplate = await client.verifyProfiles.createTemplate({
@@ -232,13 +310,18 @@ const messageTemplate = await client.verifyProfiles.createTemplate({
 console.log(messageTemplate.data);
 ```
 
-Returns: `id` (uuid), `text` (string)
+Key response fields: `response.data.id, response.data.text`
 
 ## Update message template
 
 Update an existing Verify profile message template.
 
-`PATCH /verify_profiles/templates/{template_id}` — Required: `text`
+`client.verifyProfiles.updateTemplate()` — `PATCH /verify_profiles/templates/{template_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `text` | string | Yes | The text content of the message template. |
+| `templateId` | string (UUID) | Yes | The identifier of the message template to update. |
 
 ```javascript
 const messageTemplate = await client.verifyProfiles.updateTemplate(
@@ -249,13 +332,17 @@ const messageTemplate = await client.verifyProfiles.updateTemplate(
 console.log(messageTemplate.data);
 ```
 
-Returns: `id` (uuid), `text` (string)
+Key response fields: `response.data.id, response.data.text`
 
 ## Retrieve Verify profile
 
 Gets a single Verify profile.
 
-`GET /verify_profiles/{verify_profile_id}`
+`client.verifyProfiles.retrieve()` — `GET /verify_profiles/{verify_profile_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `verifyProfileId` | string (UUID) | Yes | The identifier of the Verify profile to retrieve. |
 
 ```javascript
 const verifyProfileData = await client.verifyProfiles.retrieve(
@@ -265,13 +352,18 @@ const verifyProfileData = await client.verifyProfiles.retrieve(
 console.log(verifyProfileData.data);
 ```
 
-Returns: `call` (object), `created_at` (string), `flashcall` (object), `id` (uuid), `language` (string), `name` (string), `rcs` (object), `record_type` (enum: verification_profile), `sms` (object), `updated_at` (string), `webhook_failover_url` (string), `webhook_url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Update Verify profile
 
-`PATCH /verify_profiles/{verify_profile_id}`
+`client.verifyProfiles.update()` — `PATCH /verify_profiles/{verify_profile_id}`
 
-Optional: `call` (object), `flashcall` (object), `language` (string), `name` (string), `rcs` (object), `sms` (object), `webhook_failover_url` (string), `webhook_url` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `verifyProfileId` | string (UUID) | Yes | The identifier of the Verify profile to update. |
+| `webhookUrl` | string (URL) | No |  |
+| `webhookFailoverUrl` | string (URL) | No |  |
+| ... | | | +6 optional params in the API Details section below |
 
 ```javascript
 const verifyProfileData = await client.verifyProfiles.update(
@@ -281,11 +373,15 @@ const verifyProfileData = await client.verifyProfiles.update(
 console.log(verifyProfileData.data);
 ```
 
-Returns: `call` (object), `created_at` (string), `flashcall` (object), `id` (uuid), `language` (string), `name` (string), `rcs` (object), `record_type` (enum: verification_profile), `sms` (object), `updated_at` (string), `webhook_failover_url` (string), `webhook_url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Delete Verify profile
 
-`DELETE /verify_profiles/{verify_profile_id}`
+`client.verifyProfiles.delete()` — `DELETE /verify_profiles/{verify_profile_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `verifyProfileId` | string (UUID) | Yes | The identifier of the Verify profile to delete. |
 
 ```javascript
 const verifyProfileData = await client.verifyProfiles.delete(
@@ -295,4 +391,131 @@ const verifyProfileData = await client.verifyProfiles.delete(
 console.log(verifyProfileData.data);
 ```
 
-Returns: `call` (object), `created_at` (string), `flashcall` (object), `id` (uuid), `language` (string), `name` (string), `rcs` (object), `record_type` (enum: verification_profile), `sms` (object), `updated_at` (string), `webhook_failover_url` (string), `webhook_url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
+
+---
+
+# Verify (JavaScript) — API Details
+
+<!-- Auto-generated reference file. Do not edit. -->
+
+## Table of Contents
+
+- [Response Schemas](#response-schemas)
+- [Optional Parameters](#optional-parameters)
+
+## Response Schemas
+
+**Returned by:** Lookup phone number data
+
+| Field | Type |
+|-------|------|
+| `caller_name` | object |
+| `carrier` | object |
+| `country_code` | string |
+| `fraud` | string | null |
+| `national_format` | string |
+| `phone_number` | string |
+| `portability` | object |
+| `record_type` | string |
+
+**Returned by:** List verifications by phone number, Trigger Call verification, Trigger Flash call verification, Trigger SMS verification, Retrieve verification
+
+| Field | Type |
+|-------|------|
+| `created_at` | string |
+| `custom_code` | string | null |
+| `id` | uuid |
+| `phone_number` | string |
+| `record_type` | enum: verification |
+| `status` | enum: pending, accepted, invalid, expired, error |
+| `timeout_secs` | integer |
+| `type` | enum: sms, call, flashcall |
+| `updated_at` | string |
+| `verify_profile_id` | uuid |
+
+**Returned by:** Verify verification code by phone number, Verify verification code by ID
+
+| Field | Type |
+|-------|------|
+| `phone_number` | string |
+| `response_code` | enum: accepted, rejected |
+
+**Returned by:** List all Verify profiles, Create a Verify profile, Retrieve Verify profile, Update Verify profile, Delete Verify profile
+
+| Field | Type |
+|-------|------|
+| `call` | object |
+| `created_at` | string |
+| `flashcall` | object |
+| `id` | uuid |
+| `language` | string |
+| `name` | string |
+| `rcs` | object |
+| `record_type` | enum: verification_profile |
+| `sms` | object |
+| `updated_at` | string |
+| `webhook_failover_url` | string |
+| `webhook_url` | string |
+
+**Returned by:** Retrieve Verify profile message templates, Create message template, Update message template
+
+| Field | Type |
+|-------|------|
+| `id` | uuid |
+| `text` | string |
+
+## Optional Parameters
+
+### Trigger Call verification — `client.verifications.triggerCall()`
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `customCode` | string | Send a self-generated numeric code to the end-user |
+| `timeoutSecs` | integer | The number of seconds the verification code is valid for. |
+| `extension` | string | Optional extension to dial after call is answered using DTMF digits. |
+
+### Trigger Flash call verification — `client.verifications.triggerFlashcall()`
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `timeoutSecs` | integer | The number of seconds the verification code is valid for. |
+
+### Trigger SMS verification — `client.verifications.triggerSMS()`
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `customCode` | string | Send a self-generated numeric code to the end-user |
+| `timeoutSecs` | integer | The number of seconds the verification code is valid for. |
+
+### Verify verification code by ID — `client.verifications.actions.verify()`
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `code` | string | This is the code the user submits for verification. |
+| `status` | enum (accepted, rejected) | Identifies if the verification code has been accepted or rejected. |
+
+### Create a Verify profile — `client.verifyProfiles.create()`
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `webhookUrl` | string (URL) |  |
+| `webhookFailoverUrl` | string (URL) |  |
+| `sms` | object |  |
+| `call` | object |  |
+| `flashcall` | object |  |
+| `language` | string |  |
+| `rcs` | object |  |
+
+### Update Verify profile — `client.verifyProfiles.update()`
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | string |  |
+| `webhookUrl` | string (URL) |  |
+| `webhookFailoverUrl` | string (URL) |  |
+| `sms` | object |  |
+| `call` | object |  |
+| `flashcall` | object |  |
+| `language` | string |  |
+| `rcs` | object |  |

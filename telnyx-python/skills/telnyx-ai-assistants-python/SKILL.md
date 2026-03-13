@@ -1,8 +1,8 @@
 ---
 name: telnyx-ai-assistants-python
 description: >-
-  Create and manage AI voice assistants with custom personalities, knowledge
-  bases, and tool integrations. This skill provides Python SDK examples.
+  AI voice assistants with custom instructions, knowledge bases, and tool
+  integrations.
 metadata:
   author: telnyx
   product: ai-assistants
@@ -13,6 +13,31 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx Ai Assistants - Python
+
+## Core Workflow
+
+### Prerequisites
+
+1. Create an AI Assistant with instructions (system prompt) and greeting
+2. Select language model (e.g., gpt-4o, llama-4-maverick)
+3. Configure voice: choose TTS provider (Telnyx, AWS, Azure, ElevenLabs, Inworld) and STT provider
+4. For inbound calls: buy a phone number and assign to a Voice API Application or TeXML Application
+
+### Steps
+
+1. **Create assistant**: `client.ai.assistants.create(instructions=..., model=...)`
+2. **(Optional) Attach knowledge base**: `client.ai.assistants.update(knowledge_base_ids=[...])`
+3. **(Optional) Configure tools**: `Webhook tools, transfer, DTMF, handoff, MCP servers`
+4. **Assign to phone number**: `Via connection or TeXML app`
+5. **Test**: `Call the number or use the portal test feature`
+
+### Common mistakes
+
+- NEVER use free-tier API keys for ElevenLabs or OpenAI providers — requests are rejected
+- For multilingual: MUST set STT to openai/whisper-large-v3-turbo — default is English-only
+- Only gpt-4o and llama-4-maverick support image/vision analysis — other models silently ignore images
+
+**Related skills**: telnyx-voice-python, telnyx-texml-python, telnyx-numbers-python
 
 ## Installation
 
@@ -42,7 +67,7 @@ or authentication errors (401). Always handle errors in production code:
 import telnyx
 
 try:
-    result = client.messages.send(to="+13125550001", from_="+13125550002", text="Hello")
+    result = client.ai.assistants.create(params)
 except telnyx.APIConnectionError:
     print("Network error — check connectivity and retry")
 except telnyx.RateLimitError:
@@ -64,72 +89,146 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 - **Phone numbers** must be in E.164 format (e.g., `+13125550001`). Include the `+` prefix and country code. No spaces, dashes, or parentheses.
 - **Pagination:** List methods return an auto-paginating iterator. Use `for item in page_result:` to iterate through all pages automatically.
 
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
+
+## Create an assistant
+
+Create a new AI Assistant.
+
+`client.ai.assistants.create()` — `POST /ai/assistants`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes |  |
+| `model` | string | Yes | ID of the model to use. |
+| `instructions` | string | Yes | System instructions for the assistant. |
+| ... | | | +14 optional params in [references/api-details.md](references/api-details.md) |
+
+```python
+assistant = client.ai.assistants.create(
+    instructions="You are a helpful assistant.",
+    model="meta-llama/Meta-Llama-3.1-8B-Instruct",
+    name="my-resource",
+)
+print(assistant.id)
+```
+
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
+
+## Get an assistant
+
+Retrieve an AI Assistant configuration by `assistant_id`.
+
+`client.ai.assistants.retrieve()` — `GET /ai/assistants/{assistant_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+
+```python
+assistant = client.ai.assistants.retrieve(
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
+)
+print(assistant.id)
+```
+
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
+
+## Update an assistant
+
+Update an AI Assistant's attributes.
+
+`client.ai.assistants.update()` — `POST /ai/assistants/{assistant_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+| ... | | | +18 optional params in [references/api-details.md](references/api-details.md) |
+
+```python
+assistant = client.ai.assistants.update(
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
+)
+print(assistant.id)
+```
+
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
+
+## Assistant Chat (BETA)
+
+This endpoint allows a client to send a chat message to a specific AI Assistant. The assistant processes the message and returns a relevant reply based on the current conversation context.
+
+`client.ai.assistants.chat()` — `POST /ai/assistants/{assistant_id}/chat`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `content` | string | Yes | The message content sent by the client to the assistant |
+| `conversation_id` | string (UUID) | Yes | A unique identifier for the conversation thread, used to mai... |
+| `assistant_id` | string (UUID) | Yes |  |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
+
+```python
+response = client.ai.assistants.chat(
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
+    content="Tell me a joke about cats",
+    conversation_id="42b20469-1215-4a9a-8964-c36f66b406f4",
+)
+print(response.content)
+```
+
+Key response fields: `response.data.content`
+
 ## List assistants
 
 Retrieve a list of all AI Assistants configured by the user.
 
-`GET /ai/assistants`
+`client.ai.assistants.list()` — `GET /ai/assistants`
 
 ```python
 assistants_list = client.ai.assistants.list()
 print(assistants_list.data)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
-
-## Create an assistant
-
-Create a new AI Assistant.
-
-`POST /ai/assistants` — Required: `name`, `model`, `instructions`
-
-Optional: `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `insight_settings` (object), `llm_api_key_ref` (string), `messaging_settings` (object), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
-
-```python
-assistant = client.ai.assistants.create(
-    instructions="instructions",
-    model="model",
-    name="name",
-)
-print(assistant.id)
-```
-
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Import assistants from external provider
 
 Import assistants from external providers. Any assistant that has already been imported will be overwritten with its latest version from the importing provider.
 
-`POST /ai/assistants/import` — Required: `provider`, `api_key_ref`
+`client.ai.assistants.imports()` — `POST /ai/assistants/import`
 
-Optional: `import_ids` (array[string])
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `provider` | enum (elevenlabs, vapi, retell) | Yes | The external provider to import assistants from. |
+| `api_key_ref` | string | Yes | Integration secret pointer that refers to the API key for th... |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 assistants_list = client.ai.assistants.imports(
-    api_key_ref="api_key_ref",
+    api_key_ref="my-openai-key",
     provider="elevenlabs",
 )
 print(assistants_list.data)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Get All Tags
 
-`GET /ai/assistants/tags`
+`client.ai.assistants.tags.list()` — `GET /ai/assistants/tags`
 
 ```python
 tags = client.ai.assistants.tags.list()
 print(tags.tags)
 ```
 
-Returns: `tags` (array[string])
+Key response fields: `response.data.tags`
 
 ## List assistant tests with pagination
 
 Retrieves a paginated list of assistant tests with optional filtering capabilities
 
-`GET /ai/assistants/tests`
+`client.ai.assistants.tests.list()` — `GET /ai/assistants/tests`
 
 ```python
 page = client.ai.assistants.tests.list()
@@ -137,15 +236,21 @@ page = page.data[0]
 print(page.test_id)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (object), `test_id` (uuid), `test_suite` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.description`
 
 ## Create a new assistant test
 
 Creates a comprehensive test configuration for evaluating AI assistant performance
 
-`POST /ai/assistants/tests` — Required: `name`, `destination`, `instructions`, `rubric`
+`client.ai.assistants.tests.create()` — `POST /ai/assistants/tests`
 
-Optional: `description` (string), `max_duration_seconds` (integer), `telnyx_conversation_channel` (object), `test_suite` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | A descriptive name for the assistant test. |
+| `destination` | string | Yes | The target destination for the test conversation. |
+| `instructions` | string | Yes | Detailed instructions that define the test scenario and what... |
+| `rubric` | array[object] | Yes | Evaluation criteria used to assess the assistant's performan... |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 assistant_test = client.ai.assistants.tests.create(
@@ -163,48 +268,55 @@ assistant_test = client.ai.assistants.tests.create(
 print(assistant_test.test_id)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (object), `test_id` (uuid), `test_suite` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.description`
 
 ## Get all test suite names
 
 Retrieves a list of all distinct test suite names available to the current user
 
-`GET /ai/assistants/tests/test-suites`
+`client.ai.assistants.tests.test_suites.list()` — `GET /ai/assistants/tests/test-suites`
 
 ```python
 test_suites = client.ai.assistants.tests.test_suites.list()
 print(test_suites.data)
 ```
 
-Returns: `data` (array[string])
+Key response fields: `response.data.data`
 
 ## Get test suite run history
 
 Retrieves paginated history of test runs for a specific test suite with filtering options
 
-`GET /ai/assistants/tests/test-suites/{suite_name}/runs`
+`client.ai.assistants.tests.test_suites.runs.list()` — `GET /ai/assistants/tests/test-suites/{suite_name}/runs`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `suite_name` | string | Yes |  |
 
 ```python
 page = client.ai.assistants.tests.test_suites.runs.list(
-    suite_name="suite_name",
+    suite_name="my-test-suite",
 )
 page = page.data[0]
 print(page.run_id)
 ```
 
-Returns: `completed_at` (date-time), `conversation_id` (string), `conversation_insights_id` (string), `created_at` (date-time), `detail_status` (array[object]), `logs` (string), `run_id` (uuid), `status` (enum: pending, starting, running, passed, failed, error), `test_id` (uuid), `test_suite_run_id` (uuid), `triggered_by` (string), `updated_at` (date-time)
+Key response fields: `response.data.status, response.data.created_at, response.data.updated_at`
 
 ## Trigger test suite execution
 
 Executes all tests within a specific test suite as a batch operation
 
-`POST /ai/assistants/tests/test-suites/{suite_name}/runs`
+`client.ai.assistants.tests.test_suites.runs.trigger()` — `POST /ai/assistants/tests/test-suites/{suite_name}/runs`
 
-Optional: `destination_version_id` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `suite_name` | string | Yes |  |
+| `destination_version_id` | string (UUID) | No | Optional assistant version ID to use for all test runs in th... |
 
 ```python
 test_run_responses = client.ai.assistants.tests.test_suites.runs.trigger(
-    suite_name="suite_name",
+    suite_name="my-test-suite",
 )
 print(test_run_responses)
 ```
@@ -213,7 +325,11 @@ print(test_run_responses)
 
 Retrieves detailed information about a specific assistant test
 
-`GET /ai/assistants/tests/{test_id}`
+`client.ai.assistants.tests.retrieve()` — `GET /ai/assistants/tests/{test_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `test_id` | string (UUID) | Yes |  |
 
 ```python
 assistant_test = client.ai.assistants.tests.retrieve(
@@ -222,30 +338,38 @@ assistant_test = client.ai.assistants.tests.retrieve(
 print(assistant_test.test_id)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (object), `test_id` (uuid), `test_suite` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.description`
 
 ## Update an assistant test
 
 Updates an existing assistant test configuration with new settings
 
-`PUT /ai/assistants/tests/{test_id}`
+`client.ai.assistants.tests.update()` — `PUT /ai/assistants/tests/{test_id}`
 
-Optional: `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (enum: phone_call, web_call, sms_chat, web_chat), `test_suite` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `test_id` | string (UUID) | Yes |  |
+| `telnyx_conversation_channel` | enum (phone_call, web_call, sms_chat, web_chat) | No |  |
+| ... | | | +7 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 assistant_test = client.ai.assistants.tests.update(
-    test_id="test_id",
+    test_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(assistant_test.test_id)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (object), `test_id` (uuid), `test_suite` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.description`
 
 ## Delete an assistant test
 
 Permanently removes an assistant test and all associated data
 
-`DELETE /ai/assistants/tests/{test_id}`
+`client.ai.assistants.tests.delete()` — `DELETE /ai/assistants/tests/{test_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `test_id` | string (UUID) | Yes |  |
 
 ```python
 client.ai.assistants.tests.delete(
@@ -257,86 +381,72 @@ client.ai.assistants.tests.delete(
 
 Retrieves paginated execution history for a specific assistant test with filtering options
 
-`GET /ai/assistants/tests/{test_id}/runs`
+`client.ai.assistants.tests.runs.list()` — `GET /ai/assistants/tests/{test_id}/runs`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `test_id` | string (UUID) | Yes |  |
 
 ```python
 page = client.ai.assistants.tests.runs.list(
-    test_id="test_id",
+    test_id="550e8400-e29b-41d4-a716-446655440000",
 )
 page = page.data[0]
 print(page.run_id)
 ```
 
-Returns: `completed_at` (date-time), `conversation_id` (string), `conversation_insights_id` (string), `created_at` (date-time), `detail_status` (array[object]), `logs` (string), `run_id` (uuid), `status` (enum: pending, starting, running, passed, failed, error), `test_id` (uuid), `test_suite_run_id` (uuid), `triggered_by` (string), `updated_at` (date-time)
+Key response fields: `response.data.status, response.data.created_at, response.data.updated_at`
 
 ## Trigger a manual test run
 
 Initiates immediate execution of a specific assistant test
 
-`POST /ai/assistants/tests/{test_id}/runs`
+`client.ai.assistants.tests.runs.trigger()` — `POST /ai/assistants/tests/{test_id}/runs`
 
-Optional: `destination_version_id` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `test_id` | string (UUID) | Yes |  |
+| `destination_version_id` | string (UUID) | No | Optional assistant version ID to use for this test run. |
 
 ```python
 test_run_response = client.ai.assistants.tests.runs.trigger(
-    test_id="test_id",
+    test_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(test_run_response.run_id)
 ```
 
-Returns: `completed_at` (date-time), `conversation_id` (string), `conversation_insights_id` (string), `created_at` (date-time), `detail_status` (array[object]), `logs` (string), `run_id` (uuid), `status` (enum: pending, starting, running, passed, failed, error), `test_id` (uuid), `test_suite_run_id` (uuid), `triggered_by` (string), `updated_at` (date-time)
+Key response fields: `response.data.status, response.data.created_at, response.data.updated_at`
 
 ## Get specific test run details
 
 Retrieves detailed information about a specific test run execution
 
-`GET /ai/assistants/tests/{test_id}/runs/{run_id}`
+`client.ai.assistants.tests.runs.retrieve()` — `GET /ai/assistants/tests/{test_id}/runs/{run_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `test_id` | string (UUID) | Yes |  |
+| `run_id` | string (UUID) | Yes |  |
 
 ```python
 test_run_response = client.ai.assistants.tests.runs.retrieve(
-    run_id="run_id",
-    test_id="test_id",
+    run_id="550e8400-e29b-41d4-a716-446655440000",
+    test_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(test_run_response.run_id)
 ```
 
-Returns: `completed_at` (date-time), `conversation_id` (string), `conversation_insights_id` (string), `created_at` (date-time), `detail_status` (array[object]), `logs` (string), `run_id` (uuid), `status` (enum: pending, starting, running, passed, failed, error), `test_id` (uuid), `test_suite_run_id` (uuid), `triggered_by` (string), `updated_at` (date-time)
-
-## Get an assistant
-
-Retrieve an AI Assistant configuration by `assistant_id`.
-
-`GET /ai/assistants/{assistant_id}`
-
-```python
-assistant = client.ai.assistants.retrieve(
-    assistant_id="assistant_id",
-)
-print(assistant.id)
-```
-
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
-
-## Update an assistant
-
-Update an AI Assistant's attributes.
-
-`POST /ai/assistants/{assistant_id}`
-
-```python
-assistant = client.ai.assistants.update(
-    assistant_id="assistant_id",
-)
-print(assistant.id)
-```
-
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.status, response.data.created_at, response.data.updated_at`
 
 ## Delete an assistant
 
 Delete an AI Assistant by `assistant_id`.
 
-`DELETE /ai/assistants/{assistant_id}`
+`client.ai.assistants.delete()` — `DELETE /ai/assistants/{assistant_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 assistant = client.ai.assistants.delete(
@@ -345,14 +455,18 @@ assistant = client.ai.assistants.delete(
 print(assistant.id)
 ```
 
-Returns: `deleted` (boolean), `id` (string), `object` (string)
+Key response fields: `response.data.id, response.data.deleted, response.data.object`
 
 ## Get Canary Deploy
 
 Endpoint to get a canary deploy configuration for an assistant. Retrieves the current canary deploy configuration with all version IDs and their
 traffic percentages for the specified assistant.
 
-`GET /ai/assistants/{assistant_id}/canary-deploys`
+`client.ai.assistants.canary_deploys.retrieve()` — `GET /ai/assistants/{assistant_id}/canary-deploys`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 canary_deploy_response = client.ai.assistants.canary_deploys.retrieve(
@@ -361,18 +475,23 @@ canary_deploy_response = client.ai.assistants.canary_deploys.retrieve(
 print(canary_deploy_response.assistant_id)
 ```
 
-Returns: `assistant_id` (string), `created_at` (date-time), `updated_at` (date-time), `versions` (array[object])
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.assistant_id`
 
 ## Create Canary Deploy
 
 Endpoint to create a canary deploy configuration for an assistant. Creates a new canary deploy configuration with multiple version IDs and their traffic
 percentages for A/B testing or gradual rollouts of assistant versions.
 
-`POST /ai/assistants/{assistant_id}/canary-deploys` — Required: `versions`
+`client.ai.assistants.canary_deploys.create()` — `POST /ai/assistants/{assistant_id}/canary-deploys`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `versions` | array[object] | Yes | List of version configurations |
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 canary_deploy_response = client.ai.assistants.canary_deploys.create(
-    assistant_id="assistant_id",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
     versions=[{
         "percentage": 1,
         "version_id": "version_id",
@@ -381,17 +500,22 @@ canary_deploy_response = client.ai.assistants.canary_deploys.create(
 print(canary_deploy_response.assistant_id)
 ```
 
-Returns: `assistant_id` (string), `created_at` (date-time), `updated_at` (date-time), `versions` (array[object])
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.assistant_id`
 
 ## Update Canary Deploy
 
 Endpoint to update a canary deploy configuration for an assistant. Updates the existing canary deploy configuration with new version IDs and percentages. All old versions and percentages are replaces by new ones from this request.
 
-`PUT /ai/assistants/{assistant_id}/canary-deploys` — Required: `versions`
+`client.ai.assistants.canary_deploys.update()` — `PUT /ai/assistants/{assistant_id}/canary-deploys`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `versions` | array[object] | Yes | List of version configurations |
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 canary_deploy_response = client.ai.assistants.canary_deploys.update(
-    assistant_id="assistant_id",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
     versions=[{
         "percentage": 1,
         "version_id": "version_id",
@@ -400,13 +524,17 @@ canary_deploy_response = client.ai.assistants.canary_deploys.update(
 print(canary_deploy_response.assistant_id)
 ```
 
-Returns: `assistant_id` (string), `created_at` (date-time), `updated_at` (date-time), `versions` (array[object])
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.assistant_id`
 
 ## Delete Canary Deploy
 
 Endpoint to delete a canary deploy configuration for an assistant. Removes all canary deploy configurations for the specified assistant.
 
-`DELETE /ai/assistants/{assistant_id}/canary-deploys`
+`client.ai.assistants.canary_deploys.delete()` — `DELETE /ai/assistants/{assistant_id}/canary-deploys`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 client.ai.assistants.canary_deploys.delete(
@@ -414,51 +542,41 @@ client.ai.assistants.canary_deploys.delete(
 )
 ```
 
-## Assistant Chat (BETA)
-
-This endpoint allows a client to send a chat message to a specific AI Assistant. The assistant processes the message and returns a relevant reply based on the current conversation context.
-
-`POST /ai/assistants/{assistant_id}/chat` — Required: `content`, `conversation_id`
-
-Optional: `name` (string)
-
-```python
-response = client.ai.assistants.chat(
-    assistant_id="assistant_id",
-    content="Tell me a joke about cats",
-    conversation_id="42b20469-1215-4a9a-8964-c36f66b406f4",
-)
-print(response.content)
-```
-
-Returns: `content` (string)
-
 ## Assistant Sms Chat
 
 Send an SMS message for an assistant. This endpoint: 
 1. Validates the assistant exists and has messaging profile configured 
 2.
 
-`POST /ai/assistants/{assistant_id}/chat/sms` — Required: `from`, `to`
+`client.ai.assistants.send_sms()` — `POST /ai/assistants/{assistant_id}/chat/sms`
 
-Optional: `conversation_metadata` (object), `should_create_conversation` (boolean), `text` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from_` | string (E.164) | Yes |  |
+| `to` | string (E.164) | Yes |  |
+| `assistant_id` | string (UUID) | Yes |  |
+| ... | | | +3 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 response = client.ai.assistants.send_sms(
-    assistant_id="assistant_id",
-    from_="from",
-    to="to",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
+    from_="+18005550101",
+    to="+13125550001",
 )
 print(response.conversation_id)
 ```
 
-Returns: `conversation_id` (string)
+Key response fields: `response.data.conversation_id`
 
 ## Clone Assistant
 
 Clone an existing assistant, excluding telephony and messaging settings.
 
-`POST /ai/assistants/{assistant_id}/clone`
+`client.ai.assistants.clone()` — `POST /ai/assistants/{assistant_id}/clone`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 assistant = client.ai.assistants.clone(
@@ -467,41 +585,52 @@ assistant = client.ai.assistants.clone(
 print(assistant.id)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List scheduled events
 
 Get scheduled events for an assistant with pagination and filtering
 
-`GET /ai/assistants/{assistant_id}/scheduled_events`
+`client.ai.assistants.scheduled_events.list()` — `GET /ai/assistants/{assistant_id}/scheduled_events`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 page = client.ai.assistants.scheduled_events.list(
-    assistant_id="assistant_id",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
 )
 page = page.data[0]
 print(page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.data, response.data.meta`
 
 ## Create a scheduled event
 
 Create a scheduled event for an assistant
 
-`POST /ai/assistants/{assistant_id}/scheduled_events` — Required: `telnyx_conversation_channel`, `telnyx_end_user_target`, `telnyx_agent_target`, `scheduled_at_fixed_datetime`
+`client.ai.assistants.scheduled_events.create()` — `POST /ai/assistants/{assistant_id}/scheduled_events`
 
-Optional: `conversation_metadata` (object), `dynamic_variables` (object), `text` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `telnyx_conversation_channel` | enum (phone_call, sms_chat) | Yes |  |
+| `telnyx_end_user_target` | string | Yes | The phone number, SIP URI, to schedule the call or text to. |
+| `telnyx_agent_target` | string | Yes | The phone number, SIP URI, to schedule the call or text from... |
+| `scheduled_at_fixed_datetime` | string (date-time) | Yes | The datetime at which the event should be scheduled. |
+| `assistant_id` | string (UUID) | Yes |  |
+| ... | | | +3 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 from datetime import datetime
 
 scheduled_event_response = client.ai.assistants.scheduled_events.create(
-    assistant_id="assistant_id",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
     scheduled_at_fixed_datetime=datetime.fromisoformat("2025-04-15T13:07:28.764"),
-    telnyx_agent_target="telnyx_agent_target",
+    telnyx_agent_target="550e8400-e29b-41d4-a716-446655440000",
     telnyx_conversation_channel="phone_call",
-    telnyx_end_user_target="telnyx_end_user_target",
+    telnyx_end_user_target="+13125550001",
 )
 print(scheduled_event_response)
 ```
@@ -510,12 +639,17 @@ print(scheduled_event_response)
 
 Retrieve a scheduled event by event ID
 
-`GET /ai/assistants/{assistant_id}/scheduled_events/{event_id}`
+`client.ai.assistants.scheduled_events.retrieve()` — `GET /ai/assistants/{assistant_id}/scheduled_events/{event_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+| `event_id` | string (UUID) | Yes |  |
 
 ```python
 scheduled_event_response = client.ai.assistants.scheduled_events.retrieve(
-    event_id="event_id",
-    assistant_id="assistant_id",
+    event_id="550e8400-e29b-41d4-a716-446655440000",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(scheduled_event_response)
 ```
@@ -524,48 +658,67 @@ print(scheduled_event_response)
 
 If the event is pending, this will cancel the event. Otherwise, this will simply remove the record of the event.
 
-`DELETE /ai/assistants/{assistant_id}/scheduled_events/{event_id}`
+`client.ai.assistants.scheduled_events.delete()` — `DELETE /ai/assistants/{assistant_id}/scheduled_events/{event_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+| `event_id` | string (UUID) | Yes |  |
 
 ```python
 client.ai.assistants.scheduled_events.delete(
-    event_id="event_id",
-    assistant_id="assistant_id",
+    event_id="550e8400-e29b-41d4-a716-446655440000",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
 )
 ```
 
 ## Add Assistant Tag
 
-`POST /ai/assistants/{assistant_id}/tags` — Required: `tag`
+`client.ai.assistants.tags.add()` — `POST /ai/assistants/{assistant_id}/tags`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tag` | string | Yes |  |
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 response = client.ai.assistants.tags.add(
-    assistant_id="assistant_id",
-    tag="tag",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
+    tag="production",
 )
 print(response.tags)
 ```
 
-Returns: `tags` (array[string])
+Key response fields: `response.data.tags`
 
 ## Remove Assistant Tag
 
-`DELETE /ai/assistants/{assistant_id}/tags/{tag}`
+`client.ai.assistants.tags.remove()` — `DELETE /ai/assistants/{assistant_id}/tags/{tag}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+| `tag` | string | Yes |  |
 
 ```python
 tag = client.ai.assistants.tags.remove(
-    tag="tag",
-    assistant_id="assistant_id",
+    tag="production",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(tag.tags)
 ```
 
-Returns: `tags` (array[string])
+Key response fields: `response.data.tags`
 
 ## Get assistant texml
 
 Get an assistant texml by `assistant_id`.
 
-`GET /ai/assistants/{assistant_id}/texml`
+`client.ai.assistants.get_texml()` — `GET /ai/assistants/{assistant_id}/texml`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 response = client.ai.assistants.get_texml(
@@ -578,25 +731,33 @@ print(response)
 
 Test a webhook tool for an assistant
 
-`POST /ai/assistants/{assistant_id}/tools/{tool_id}/test`
+`client.ai.assistants.tools.test()` — `POST /ai/assistants/{assistant_id}/tools/{tool_id}/test`
 
-Optional: `arguments` (object), `dynamic_variables` (object)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+| `tool_id` | string (UUID) | Yes |  |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 response = client.ai.assistants.tools.test(
-    tool_id="tool_id",
-    assistant_id="assistant_id",
+    tool_id="550e8400-e29b-41d4-a716-446655440000",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(response.data)
 ```
 
-Returns: `content_type` (string), `request` (object), `response` (string), `status_code` (integer), `success` (boolean)
+Key response fields: `response.data.content_type, response.data.request, response.data.response`
 
 ## Get all versions of an assistant
 
 Retrieves all versions of a specific assistant with complete configuration and metadata
 
-`GET /ai/assistants/{assistant_id}/versions`
+`client.ai.assistants.versions.list()` — `GET /ai/assistants/{assistant_id}/versions`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
 
 ```python
 assistants_list = client.ai.assistants.versions.list(
@@ -605,52 +766,66 @@ assistants_list = client.ai.assistants.versions.list(
 print(assistants_list.data)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Get a specific assistant version
 
 Retrieves a specific version of an assistant by assistant_id and version_id
 
-`GET /ai/assistants/{assistant_id}/versions/{version_id}`
+`client.ai.assistants.versions.retrieve()` — `GET /ai/assistants/{assistant_id}/versions/{version_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+| `version_id` | string (UUID) | Yes |  |
 
 ```python
 assistant = client.ai.assistants.versions.retrieve(
-    version_id="version_id",
-    assistant_id="assistant_id",
+    version_id="550e8400-e29b-41d4-a716-446655440000",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(assistant.id)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Update a specific assistant version
 
 Updates the configuration of a specific assistant version. Can not update main version
 
-`POST /ai/assistants/{assistant_id}/versions/{version_id}`
+`client.ai.assistants.versions.update()` — `POST /ai/assistants/{assistant_id}/versions/{version_id}`
 
-Optional: `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+| `version_id` | string (UUID) | Yes |  |
+| ... | | | +17 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 assistant = client.ai.assistants.versions.update(
-    version_id="version_id",
-    assistant_id="assistant_id",
+    version_id="550e8400-e29b-41d4-a716-446655440000",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(assistant.id)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Delete a specific assistant version
 
 Permanently removes a specific version of an assistant. Can not delete main version
 
-`DELETE /ai/assistants/{assistant_id}/versions/{version_id}`
+`client.ai.assistants.versions.delete()` — `DELETE /ai/assistants/{assistant_id}/versions/{version_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+| `version_id` | string (UUID) | Yes |  |
 
 ```python
 client.ai.assistants.versions.delete(
-    version_id="version_id",
-    assistant_id="assistant_id",
+    version_id="550e8400-e29b-41d4-a716-446655440000",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
 )
 ```
 
@@ -658,23 +833,28 @@ client.ai.assistants.versions.delete(
 
 Promotes a specific version to be the main/current version of the assistant. This will delete any existing canary deploy configuration and send all live production traffic to this version.
 
-`POST /ai/assistants/{assistant_id}/versions/{version_id}/promote`
+`client.ai.assistants.versions.promote()` — `POST /ai/assistants/{assistant_id}/versions/{version_id}/promote`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assistant_id` | string (UUID) | Yes |  |
+| `version_id` | string (UUID) | Yes |  |
 
 ```python
 assistant = client.ai.assistants.versions.promote(
-    version_id="version_id",
-    assistant_id="assistant_id",
+    version_id="550e8400-e29b-41d4-a716-446655440000",
+    assistant_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(assistant.id)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List MCP Servers
 
 Retrieve a list of MCP servers.
 
-`GET /ai/mcp_servers`
+`client.ai.mcp_servers.list()` — `GET /ai/mcp_servers`
 
 ```python
 page = client.ai.mcp_servers.list()
@@ -686,26 +866,35 @@ print(page.id)
 
 Create a new MCP server.
 
-`POST /ai/mcp_servers` — Required: `name`, `type`, `url`
+`client.ai.mcp_servers.create()` — `POST /ai/mcp_servers`
 
-Optional: `allowed_tools` (array | null), `api_key_ref` (string | null)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes |  |
+| `type_` | string | Yes |  |
+| `url` | string (URL) | Yes |  |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 mcp_server = client.ai.mcp_servers.create(
-    name="name",
+    name="my-resource",
     type="type",
-    url="url",
+    url="https://example.com/resource",
 )
 print(mcp_server.id)
 ```
 
-Returns: `allowed_tools` (array | null), `api_key_ref` (string | null), `created_at` (date-time), `id` (string), `name` (string), `type` (string), `url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.type`
 
 ## Get MCP Server
 
 Retrieve details for a specific MCP server.
 
-`GET /ai/mcp_servers/{mcp_server_id}`
+`client.ai.mcp_servers.retrieve()` — `GET /ai/mcp_servers/{mcp_server_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `mcp_server_id` | string (UUID) | Yes |  |
 
 ```python
 mcp_server = client.ai.mcp_servers.retrieve(
@@ -714,33 +903,45 @@ mcp_server = client.ai.mcp_servers.retrieve(
 print(mcp_server.id)
 ```
 
-Returns: `allowed_tools` (array | null), `api_key_ref` (string | null), `created_at` (date-time), `id` (string), `name` (string), `type` (string), `url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.type`
 
 ## Update MCP Server
 
 Update an existing MCP server.
 
-`PUT /ai/mcp_servers/{mcp_server_id}`
+`client.ai.mcp_servers.update()` — `PUT /ai/mcp_servers/{mcp_server_id}`
 
-Optional: `allowed_tools` (array | null), `api_key_ref` (string | null), `created_at` (date-time), `id` (string), `name` (string), `type` (string), `url` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `mcp_server_id` | string (UUID) | Yes |  |
+| `type_` | string | No |  |
+| ... | | | +6 optional params in [references/api-details.md](references/api-details.md) |
 
 ```python
 mcp_server = client.ai.mcp_servers.update(
-    mcp_server_id="mcp_server_id",
+    mcp_server_id="550e8400-e29b-41d4-a716-446655440000",
 )
 print(mcp_server.id)
 ```
 
-Returns: `allowed_tools` (array | null), `api_key_ref` (string | null), `created_at` (date-time), `id` (string), `name` (string), `type` (string), `url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.type`
 
 ## Delete MCP Server
 
 Delete a specific MCP server.
 
-`DELETE /ai/mcp_servers/{mcp_server_id}`
+`client.ai.mcp_servers.delete()` — `DELETE /ai/mcp_servers/{mcp_server_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `mcp_server_id` | string (UUID) | Yes |  |
 
 ```python
 client.ai.mcp_servers.delete(
     "mcp_server_id",
 )
 ```
+
+---
+
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**

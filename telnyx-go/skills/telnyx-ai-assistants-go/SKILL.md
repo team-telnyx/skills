@@ -1,8 +1,8 @@
 ---
 name: telnyx-ai-assistants-go
 description: >-
-  Create and manage AI voice assistants with custom personalities, knowledge
-  bases, and tool integrations. This skill provides Go SDK examples.
+  AI voice assistants with custom instructions, knowledge bases, and tool
+  integrations.
 metadata:
   author: telnyx
   product: ai-assistants
@@ -13,6 +13,31 @@ metadata:
 <!-- Auto-generated from Telnyx OpenAPI specs. Do not edit. -->
 
 # Telnyx Ai Assistants - Go
+
+## Core Workflow
+
+### Prerequisites
+
+1. Create an AI Assistant with instructions (system prompt) and greeting
+2. Select language model (e.g., gpt-4o, llama-4-maverick)
+3. Configure voice: choose TTS provider (Telnyx, AWS, Azure, ElevenLabs, Inworld) and STT provider
+4. For inbound calls: buy a phone number and assign to a Voice API Application or TeXML Application
+
+### Steps
+
+1. **Create assistant**: `client.Ai.Assistants.Create(ctx, params)`
+2. **(Optional) Attach knowledge base**: `client.Ai.Assistants.Update(ctx, params)`
+3. **(Optional) Configure tools**: `Webhook tools, transfer, DTMF, handoff, MCP servers`
+4. **Assign to phone number**: `Via connection or TeXML app`
+5. **Test**: `Call the number or use the portal test feature`
+
+### Common mistakes
+
+- NEVER use free-tier API keys for ElevenLabs or OpenAI providers — requests are rejected
+- For multilingual: MUST set STT to openai/whisper-large-v3-turbo — default is English-only
+- Only gpt-4o and llama-4-maverick support image/vision analysis — other models silently ignore images
+
+**Related skills**: telnyx-voice-go, telnyx-texml-go, telnyx-numbers-go
 
 ## Installation
 
@@ -47,7 +72,7 @@ or authentication errors (401). Always handle errors in production code:
 ```go
 import "errors"
 
-result, err := client.Messages.Send(ctx, params)
+result, err := client.Ai.Assistants.Create(ctx, params)
 if err != nil {
   var apiErr *telnyx.Error
   if errors.As(err, &apiErr) {
@@ -75,105 +100,201 @@ Common error codes: `401` invalid API key, `403` insufficient permissions,
 - **Phone numbers** must be in E.164 format (e.g., `+13125550001`). Include the `+` prefix and country code. No spaces, dashes, or parentheses.
 - **Pagination:** Use `ListAutoPaging()` for automatic iteration: `iter := client.Resource.ListAutoPaging(ctx, params); for iter.Next() { item := iter.Current() }`.
 
-## List assistants
-
-Retrieve a list of all AI Assistants configured by the user.
-
-`GET /ai/assistants`
-
-```go
-	assistantsList, err := client.AI.Assistants.List(context.TODO())
-	if err != nil {
-		panic(err.Error())
-	}
-	fmt.Printf("%+v\n", assistantsList.Data)
-```
-
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+**[references/api-details.md](references/api-details.md) has complete response schemas, all optional parameters, and webhook payload fields. You MUST read it when accessing response fields or using optional parameters not shown below.**
 
 ## Create an assistant
 
 Create a new AI Assistant.
 
-`POST /ai/assistants` — Required: `name`, `model`, `instructions`
+`client.AI.Assistants.New()` — `POST /ai/assistants`
 
-Optional: `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `insight_settings` (object), `llm_api_key_ref` (string), `messaging_settings` (object), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Name` | string | Yes |  |
+| `Model` | string | Yes | ID of the model to use. |
+| `Instructions` | string | Yes | System instructions for the assistant. |
+| ... | | | +14 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
-	assistant, err := client.AI.Assistants.New(context.TODO(), telnyx.AIAssistantNewParams{
-		Instructions: "instructions",
-		Model:        "model",
-		Name:         "name",
+	assistant, err := client.AI.Assistants.New(context.Background(), telnyx.AIAssistantNewParams{
+		Instructions: "You are a helpful assistant.",
+		Model: "meta-llama/Meta-Llama-3.1-8B-Instruct",
+		Name: "my-resource",
 	})
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistant.ID)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
+
+## Get an assistant
+
+Retrieve an AI Assistant configuration by `assistant_id`.
+
+`client.AI.Assistants.Get()` — `GET /ai/assistants/{assistant_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+
+```go
+	assistant, err := client.AI.Assistants.Get(
+		context.Background(),
+		"assistant_id",
+		telnyx.AIAssistantGetParams{},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%+v\n", assistant.ID)
+```
+
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
+
+## Update an assistant
+
+Update an AI Assistant's attributes.
+
+`client.AI.Assistants.Update()` — `POST /ai/assistants/{assistant_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+| ... | | | +18 optional params in [references/api-details.md](references/api-details.md) |
+
+```go
+	assistant, err := client.AI.Assistants.Update(
+		context.Background(),
+		"assistant_id",
+		telnyx.AIAssistantUpdateParams{},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%+v\n", assistant.ID)
+```
+
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
+
+## Assistant Chat (BETA)
+
+This endpoint allows a client to send a chat message to a specific AI Assistant. The assistant processes the message and returns a relevant reply based on the current conversation context.
+
+`client.AI.Assistants.Chat()` — `POST /ai/assistants/{assistant_id}/chat`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Content` | string | Yes | The message content sent by the client to the assistant |
+| `ConversationId` | string (UUID) | Yes | A unique identifier for the conversation thread, used to mai... |
+| `AssistantId` | string (UUID) | Yes |  |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
+
+```go
+	response, err := client.AI.Assistants.Chat(
+		context.Background(),
+		"assistant_id",
+		telnyx.AIAssistantChatParams{
+			Content:        "Tell me a joke about cats",
+			ConversationID: "42b20469-1215-4a9a-8964-c36f66b406f4",
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%+v\n", response.Content)
+```
+
+Key response fields: `response.data.content`
+
+## List assistants
+
+Retrieve a list of all AI Assistants configured by the user.
+
+`client.AI.Assistants.List()` — `GET /ai/assistants`
+
+```go
+	assistantsList, err := client.AI.Assistants.List(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%+v\n", assistantsList.Data)
+```
+
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Import assistants from external provider
 
 Import assistants from external providers. Any assistant that has already been imported will be overwritten with its latest version from the importing provider.
 
-`POST /ai/assistants/import` — Required: `provider`, `api_key_ref`
+`client.AI.Assistants.Imports()` — `POST /ai/assistants/import`
 
-Optional: `import_ids` (array[string])
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Provider` | enum (elevenlabs, vapi, retell) | Yes | The external provider to import assistants from. |
+| `ApiKeyRef` | string | Yes | Integration secret pointer that refers to the API key for th... |
+| ... | | | +1 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
-	assistantsList, err := client.AI.Assistants.Imports(context.TODO(), telnyx.AIAssistantImportsParams{
+	assistantsList, err := client.AI.Assistants.Imports(context.Background(), telnyx.AIAssistantImportsParams{
 		APIKeyRef: "api_key_ref",
 		Provider:  telnyx.AIAssistantImportsParamsProviderElevenlabs,
 	})
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistantsList.Data)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Get All Tags
 
-`GET /ai/assistants/tags`
+`client.AI.Assistants.Tags.List()` — `GET /ai/assistants/tags`
 
 ```go
-	tags, err := client.AI.Assistants.Tags.List(context.TODO())
+	tags, err := client.AI.Assistants.Tags.List(context.Background())
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", tags.Tags)
 ```
 
-Returns: `tags` (array[string])
+Key response fields: `response.data.tags`
 
 ## List assistant tests with pagination
 
 Retrieves a paginated list of assistant tests with optional filtering capabilities
 
-`GET /ai/assistants/tests`
+`client.AI.Assistants.Tests.List()` — `GET /ai/assistants/tests`
 
 ```go
-	page, err := client.AI.Assistants.Tests.List(context.TODO(), telnyx.AIAssistantTestListParams{})
+	page, err := client.AI.Assistants.Tests.List(context.Background(), telnyx.AIAssistantTestListParams{})
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", page)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (object), `test_id` (uuid), `test_suite` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.description`
 
 ## Create a new assistant test
 
 Creates a comprehensive test configuration for evaluating AI assistant performance
 
-`POST /ai/assistants/tests` — Required: `name`, `destination`, `instructions`, `rubric`
+`client.AI.Assistants.Tests.New()` — `POST /ai/assistants/tests`
 
-Optional: `description` (string), `max_duration_seconds` (integer), `telnyx_conversation_channel` (object), `test_suite` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Name` | string | Yes | A descriptive name for the assistant test. |
+| `Destination` | string | Yes | The target destination for the test conversation. |
+| `Instructions` | string | Yes | Detailed instructions that define the test scenario and what... |
+| `Rubric` | array[object] | Yes | Evaluation criteria used to assess the assistant's performan... |
+| ... | | | +4 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
-	assistantTest, err := client.AI.Assistants.Tests.New(context.TODO(), telnyx.AIAssistantTestNewParams{
+	assistantTest, err := client.AI.Assistants.Tests.New(context.Background(), telnyx.AIAssistantTestNewParams{
 		Destination:  "+15551234567",
 		Instructions: "Act as a frustrated customer who received a damaged product. Ask for a refund and escalate if not satisfied with the initial response.",
 		Name:         "Customer Support Bot Test",
@@ -186,65 +307,72 @@ Optional: `description` (string), `max_duration_seconds` (integer), `telnyx_conv
 		}},
 	})
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistantTest.TestID)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (object), `test_id` (uuid), `test_suite` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.description`
 
 ## Get all test suite names
 
 Retrieves a list of all distinct test suite names available to the current user
 
-`GET /ai/assistants/tests/test-suites`
+`client.AI.Assistants.Tests.TestSuites.List()` — `GET /ai/assistants/tests/test-suites`
 
 ```go
-	testSuites, err := client.AI.Assistants.Tests.TestSuites.List(context.TODO())
+	testSuites, err := client.AI.Assistants.Tests.TestSuites.List(context.Background())
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", testSuites.Data)
 ```
 
-Returns: `data` (array[string])
+Key response fields: `response.data.data`
 
 ## Get test suite run history
 
 Retrieves paginated history of test runs for a specific test suite with filtering options
 
-`GET /ai/assistants/tests/test-suites/{suite_name}/runs`
+`client.AI.Assistants.Tests.TestSuites.Runs.List()` — `GET /ai/assistants/tests/test-suites/{suite_name}/runs`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `SuiteName` | string | Yes |  |
 
 ```go
 	page, err := client.AI.Assistants.Tests.TestSuites.Runs.List(
-		context.TODO(),
+		context.Background(),
 		"suite_name",
 		telnyx.AIAssistantTestTestSuiteRunListParams{},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", page)
 ```
 
-Returns: `completed_at` (date-time), `conversation_id` (string), `conversation_insights_id` (string), `created_at` (date-time), `detail_status` (array[object]), `logs` (string), `run_id` (uuid), `status` (enum: pending, starting, running, passed, failed, error), `test_id` (uuid), `test_suite_run_id` (uuid), `triggered_by` (string), `updated_at` (date-time)
+Key response fields: `response.data.status, response.data.created_at, response.data.updated_at`
 
 ## Trigger test suite execution
 
 Executes all tests within a specific test suite as a batch operation
 
-`POST /ai/assistants/tests/test-suites/{suite_name}/runs`
+`client.AI.Assistants.Tests.TestSuites.Runs.Trigger()` — `POST /ai/assistants/tests/test-suites/{suite_name}/runs`
 
-Optional: `destination_version_id` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `SuiteName` | string | Yes |  |
+| `DestinationVersionId` | string (UUID) | No | Optional assistant version ID to use for all test runs in th... |
 
 ```go
 	testRunResponses, err := client.AI.Assistants.Tests.TestSuites.Runs.Trigger(
-		context.TODO(),
+		context.Background(),
 		"suite_name",
 		telnyx.AIAssistantTestTestSuiteRunTriggerParams{},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", testRunResponses)
 ```
@@ -253,50 +381,62 @@ Optional: `destination_version_id` (string)
 
 Retrieves detailed information about a specific assistant test
 
-`GET /ai/assistants/tests/{test_id}`
+`client.AI.Assistants.Tests.Get()` — `GET /ai/assistants/tests/{test_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TestId` | string (UUID) | Yes |  |
 
 ```go
-	assistantTest, err := client.AI.Assistants.Tests.Get(context.TODO(), "test_id")
+	assistantTest, err := client.AI.Assistants.Tests.Get(context.Background(), "test_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistantTest.TestID)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (object), `test_id` (uuid), `test_suite` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.description`
 
 ## Update an assistant test
 
 Updates an existing assistant test configuration with new settings
 
-`PUT /ai/assistants/tests/{test_id}`
+`client.AI.Assistants.Tests.Update()` — `PUT /ai/assistants/tests/{test_id}`
 
-Optional: `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (enum: phone_call, web_call, sms_chat, web_chat), `test_suite` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TestId` | string (UUID) | Yes |  |
+| `TelnyxConversationChannel` | enum (phone_call, web_call, sms_chat, web_chat) | No |  |
+| ... | | | +7 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
 	assistantTest, err := client.AI.Assistants.Tests.Update(
-		context.TODO(),
+		context.Background(),
 		"test_id",
 		telnyx.AIAssistantTestUpdateParams{},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistantTest.TestID)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `destination` (string), `instructions` (string), `max_duration_seconds` (integer), `name` (string), `rubric` (array[object]), `telnyx_conversation_channel` (object), `test_id` (uuid), `test_suite` (string)
+Key response fields: `response.data.name, response.data.created_at, response.data.description`
 
 ## Delete an assistant test
 
 Permanently removes an assistant test and all associated data
 
-`DELETE /ai/assistants/tests/{test_id}`
+`client.AI.Assistants.Tests.Delete()` — `DELETE /ai/assistants/tests/{test_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TestId` | string (UUID) | Yes |  |
 
 ```go
-	err := client.AI.Assistants.Tests.Delete(context.TODO(), "test_id")
+	err := client.AI.Assistants.Tests.Delete(context.Background(), "test_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 ```
 
@@ -304,231 +444,200 @@ Permanently removes an assistant test and all associated data
 
 Retrieves paginated execution history for a specific assistant test with filtering options
 
-`GET /ai/assistants/tests/{test_id}/runs`
+`client.AI.Assistants.Tests.Runs.List()` — `GET /ai/assistants/tests/{test_id}/runs`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TestId` | string (UUID) | Yes |  |
 
 ```go
 	page, err := client.AI.Assistants.Tests.Runs.List(
-		context.TODO(),
+		context.Background(),
 		"test_id",
 		telnyx.AIAssistantTestRunListParams{},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", page)
 ```
 
-Returns: `completed_at` (date-time), `conversation_id` (string), `conversation_insights_id` (string), `created_at` (date-time), `detail_status` (array[object]), `logs` (string), `run_id` (uuid), `status` (enum: pending, starting, running, passed, failed, error), `test_id` (uuid), `test_suite_run_id` (uuid), `triggered_by` (string), `updated_at` (date-time)
+Key response fields: `response.data.status, response.data.created_at, response.data.updated_at`
 
 ## Trigger a manual test run
 
 Initiates immediate execution of a specific assistant test
 
-`POST /ai/assistants/tests/{test_id}/runs`
+`client.AI.Assistants.Tests.Runs.Trigger()` — `POST /ai/assistants/tests/{test_id}/runs`
 
-Optional: `destination_version_id` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TestId` | string (UUID) | Yes |  |
+| `DestinationVersionId` | string (UUID) | No | Optional assistant version ID to use for this test run. |
 
 ```go
 	testRunResponse, err := client.AI.Assistants.Tests.Runs.Trigger(
-		context.TODO(),
+		context.Background(),
 		"test_id",
 		telnyx.AIAssistantTestRunTriggerParams{},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", testRunResponse.RunID)
 ```
 
-Returns: `completed_at` (date-time), `conversation_id` (string), `conversation_insights_id` (string), `created_at` (date-time), `detail_status` (array[object]), `logs` (string), `run_id` (uuid), `status` (enum: pending, starting, running, passed, failed, error), `test_id` (uuid), `test_suite_run_id` (uuid), `triggered_by` (string), `updated_at` (date-time)
+Key response fields: `response.data.status, response.data.created_at, response.data.updated_at`
 
 ## Get specific test run details
 
 Retrieves detailed information about a specific test run execution
 
-`GET /ai/assistants/tests/{test_id}/runs/{run_id}`
+`client.AI.Assistants.Tests.Runs.Get()` — `GET /ai/assistants/tests/{test_id}/runs/{run_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TestId` | string (UUID) | Yes |  |
+| `RunId` | string (UUID) | Yes |  |
 
 ```go
 	testRunResponse, err := client.AI.Assistants.Tests.Runs.Get(
-		context.TODO(),
+		context.Background(),
 		"run_id",
 		telnyx.AIAssistantTestRunGetParams{
-			TestID: "test_id",
+			TestID: "550e8400-e29b-41d4-a716-446655440000",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", testRunResponse.RunID)
 ```
 
-Returns: `completed_at` (date-time), `conversation_id` (string), `conversation_insights_id` (string), `created_at` (date-time), `detail_status` (array[object]), `logs` (string), `run_id` (uuid), `status` (enum: pending, starting, running, passed, failed, error), `test_id` (uuid), `test_suite_run_id` (uuid), `triggered_by` (string), `updated_at` (date-time)
-
-## Get an assistant
-
-Retrieve an AI Assistant configuration by `assistant_id`.
-
-`GET /ai/assistants/{assistant_id}`
-
-```go
-	assistant, err := client.AI.Assistants.Get(
-		context.TODO(),
-		"assistant_id",
-		telnyx.AIAssistantGetParams{},
-	)
-	if err != nil {
-		panic(err.Error())
-	}
-	fmt.Printf("%+v\n", assistant.ID)
-```
-
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
-
-## Update an assistant
-
-Update an AI Assistant's attributes.
-
-`POST /ai/assistants/{assistant_id}`
-
-```go
-	assistant, err := client.AI.Assistants.Update(
-		context.TODO(),
-		"assistant_id",
-		telnyx.AIAssistantUpdateParams{},
-	)
-	if err != nil {
-		panic(err.Error())
-	}
-	fmt.Printf("%+v\n", assistant.ID)
-```
-
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.status, response.data.created_at, response.data.updated_at`
 
 ## Delete an assistant
 
 Delete an AI Assistant by `assistant_id`.
 
-`DELETE /ai/assistants/{assistant_id}`
+`client.AI.Assistants.Delete()` — `DELETE /ai/assistants/{assistant_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
-	assistant, err := client.AI.Assistants.Delete(context.TODO(), "assistant_id")
+	assistant, err := client.AI.Assistants.Delete(context.Background(), "assistant_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistant.ID)
 ```
 
-Returns: `deleted` (boolean), `id` (string), `object` (string)
+Key response fields: `response.data.id, response.data.deleted, response.data.object`
 
 ## Get Canary Deploy
 
 Endpoint to get a canary deploy configuration for an assistant. Retrieves the current canary deploy configuration with all version IDs and their
 traffic percentages for the specified assistant.
 
-`GET /ai/assistants/{assistant_id}/canary-deploys`
+`client.AI.Assistants.CanaryDeploys.Get()` — `GET /ai/assistants/{assistant_id}/canary-deploys`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
-	canaryDeployResponse, err := client.AI.Assistants.CanaryDeploys.Get(context.TODO(), "assistant_id")
+	canaryDeployResponse, err := client.AI.Assistants.CanaryDeploys.Get(context.Background(), "assistant_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", canaryDeployResponse.AssistantID)
 ```
 
-Returns: `assistant_id` (string), `created_at` (date-time), `updated_at` (date-time), `versions` (array[object])
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.assistant_id`
 
 ## Create Canary Deploy
 
 Endpoint to create a canary deploy configuration for an assistant. Creates a new canary deploy configuration with multiple version IDs and their traffic
 percentages for A/B testing or gradual rollouts of assistant versions.
 
-`POST /ai/assistants/{assistant_id}/canary-deploys` — Required: `versions`
+`client.AI.Assistants.CanaryDeploys.New()` — `POST /ai/assistants/{assistant_id}/canary-deploys`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Versions` | array[object] | Yes | List of version configurations |
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
 	canaryDeployResponse, err := client.AI.Assistants.CanaryDeploys.New(
-		context.TODO(),
+		context.Background(),
 		"assistant_id",
 		telnyx.AIAssistantCanaryDeployNewParams{
 			CanaryDeploy: telnyx.CanaryDeployParam{
 				Versions: []telnyx.VersionConfigParam{{
 					Percentage: 1,
-					VersionID:  "version_id",
+					VersionID: "550e8400-e29b-41d4-a716-446655440000",
 				}},
 			},
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", canaryDeployResponse.AssistantID)
 ```
 
-Returns: `assistant_id` (string), `created_at` (date-time), `updated_at` (date-time), `versions` (array[object])
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.assistant_id`
 
 ## Update Canary Deploy
 
 Endpoint to update a canary deploy configuration for an assistant. Updates the existing canary deploy configuration with new version IDs and percentages. All old versions and percentages are replaces by new ones from this request.
 
-`PUT /ai/assistants/{assistant_id}/canary-deploys` — Required: `versions`
+`client.AI.Assistants.CanaryDeploys.Update()` — `PUT /ai/assistants/{assistant_id}/canary-deploys`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Versions` | array[object] | Yes | List of version configurations |
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
 	canaryDeployResponse, err := client.AI.Assistants.CanaryDeploys.Update(
-		context.TODO(),
+		context.Background(),
 		"assistant_id",
 		telnyx.AIAssistantCanaryDeployUpdateParams{
 			CanaryDeploy: telnyx.CanaryDeployParam{
 				Versions: []telnyx.VersionConfigParam{{
 					Percentage: 1,
-					VersionID:  "version_id",
+					VersionID: "550e8400-e29b-41d4-a716-446655440000",
 				}},
 			},
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", canaryDeployResponse.AssistantID)
 ```
 
-Returns: `assistant_id` (string), `created_at` (date-time), `updated_at` (date-time), `versions` (array[object])
+Key response fields: `response.data.created_at, response.data.updated_at, response.data.assistant_id`
 
 ## Delete Canary Deploy
 
 Endpoint to delete a canary deploy configuration for an assistant. Removes all canary deploy configurations for the specified assistant.
 
-`DELETE /ai/assistants/{assistant_id}/canary-deploys`
+`client.AI.Assistants.CanaryDeploys.Delete()` — `DELETE /ai/assistants/{assistant_id}/canary-deploys`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
-	err := client.AI.Assistants.CanaryDeploys.Delete(context.TODO(), "assistant_id")
+	err := client.AI.Assistants.CanaryDeploys.Delete(context.Background(), "assistant_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 ```
-
-## Assistant Chat (BETA)
-
-This endpoint allows a client to send a chat message to a specific AI Assistant. The assistant processes the message and returns a relevant reply based on the current conversation context.
-
-`POST /ai/assistants/{assistant_id}/chat` — Required: `content`, `conversation_id`
-
-Optional: `name` (string)
-
-```go
-	response, err := client.AI.Assistants.Chat(
-		context.TODO(),
-		"assistant_id",
-		telnyx.AIAssistantChatParams{
-			Content:        "Tell me a joke about cats",
-			ConversationID: "42b20469-1215-4a9a-8964-c36f66b406f4",
-		},
-	)
-	if err != nil {
-		panic(err.Error())
-	}
-	fmt.Printf("%+v\n", response.Content)
-```
-
-Returns: `content` (string)
 
 ## Assistant Sms Chat
 
@@ -536,84 +645,104 @@ Send an SMS message for an assistant. This endpoint:
 1. Validates the assistant exists and has messaging profile configured 
 2.
 
-`POST /ai/assistants/{assistant_id}/chat/sms` — Required: `from`, `to`
+`client.AI.Assistants.SendSMS()` — `POST /ai/assistants/{assistant_id}/chat/sms`
 
-Optional: `conversation_metadata` (object), `should_create_conversation` (boolean), `text` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `From` | string (E.164) | Yes |  |
+| `To` | string (E.164) | Yes |  |
+| `AssistantId` | string (UUID) | Yes |  |
+| ... | | | +3 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
 	response, err := client.AI.Assistants.SendSMS(
-		context.TODO(),
+		context.Background(),
 		"assistant_id",
 		telnyx.AIAssistantSendSMSParams{
-			From: "from",
-			To:   "to",
+			From: "+18005550101",
+			To: "+13125550001",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", response.ConversationID)
 ```
 
-Returns: `conversation_id` (string)
+Key response fields: `response.data.conversation_id`
 
 ## Clone Assistant
 
 Clone an existing assistant, excluding telephony and messaging settings.
 
-`POST /ai/assistants/{assistant_id}/clone`
+`client.AI.Assistants.Clone()` — `POST /ai/assistants/{assistant_id}/clone`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
-	assistant, err := client.AI.Assistants.Clone(context.TODO(), "assistant_id")
+	assistant, err := client.AI.Assistants.Clone(context.Background(), "assistant_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistant.ID)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List scheduled events
 
 Get scheduled events for an assistant with pagination and filtering
 
-`GET /ai/assistants/{assistant_id}/scheduled_events`
+`client.AI.Assistants.ScheduledEvents.List()` — `GET /ai/assistants/{assistant_id}/scheduled_events`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
 	page, err := client.AI.Assistants.ScheduledEvents.List(
-		context.TODO(),
+		context.Background(),
 		"assistant_id",
 		telnyx.AIAssistantScheduledEventListParams{},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", page)
 ```
 
-Returns: `data` (array[object]), `meta` (object)
+Key response fields: `response.data.data, response.data.meta`
 
 ## Create a scheduled event
 
 Create a scheduled event for an assistant
 
-`POST /ai/assistants/{assistant_id}/scheduled_events` — Required: `telnyx_conversation_channel`, `telnyx_end_user_target`, `telnyx_agent_target`, `scheduled_at_fixed_datetime`
+`client.AI.Assistants.ScheduledEvents.New()` — `POST /ai/assistants/{assistant_id}/scheduled_events`
 
-Optional: `conversation_metadata` (object), `dynamic_variables` (object), `text` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TelnyxConversationChannel` | enum (phone_call, sms_chat) | Yes |  |
+| `TelnyxEndUserTarget` | string | Yes | The phone number, SIP URI, to schedule the call or text to. |
+| `TelnyxAgentTarget` | string | Yes | The phone number, SIP URI, to schedule the call or text from... |
+| `ScheduledAtFixedDatetime` | string (date-time) | Yes | The datetime at which the event should be scheduled. |
+| `AssistantId` | string (UUID) | Yes |  |
+| ... | | | +3 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
 	scheduledEventResponse, err := client.AI.Assistants.ScheduledEvents.New(
-		context.TODO(),
+		context.Background(),
 		"assistant_id",
 		telnyx.AIAssistantScheduledEventNewParams{
 			ScheduledAtFixedDatetime:  time.Now(),
-			TelnyxAgentTarget:         "telnyx_agent_target",
+			TelnyxAgentTarget: "550e8400-e29b-41d4-a716-446655440000",
 			TelnyxConversationChannel: telnyx.ConversationChannelTypePhoneCall,
-			TelnyxEndUserTarget:       "telnyx_end_user_target",
+			TelnyxEndUserTarget: "+13125550001",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", scheduledEventResponse)
 ```
@@ -622,18 +751,23 @@ Optional: `conversation_metadata` (object), `dynamic_variables` (object), `text`
 
 Retrieve a scheduled event by event ID
 
-`GET /ai/assistants/{assistant_id}/scheduled_events/{event_id}`
+`client.AI.Assistants.ScheduledEvents.Get()` — `GET /ai/assistants/{assistant_id}/scheduled_events/{event_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+| `EventId` | string (UUID) | Yes |  |
 
 ```go
 	scheduledEventResponse, err := client.AI.Assistants.ScheduledEvents.Get(
-		context.TODO(),
+		context.Background(),
 		"event_id",
 		telnyx.AIAssistantScheduledEventGetParams{
-			AssistantID: "assistant_id",
+			AssistantID: "550e8400-e29b-41d4-a716-446655440000",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", scheduledEventResponse)
 ```
@@ -642,71 +776,90 @@ Retrieve a scheduled event by event ID
 
 If the event is pending, this will cancel the event. Otherwise, this will simply remove the record of the event.
 
-`DELETE /ai/assistants/{assistant_id}/scheduled_events/{event_id}`
+`client.AI.Assistants.ScheduledEvents.Delete()` — `DELETE /ai/assistants/{assistant_id}/scheduled_events/{event_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+| `EventId` | string (UUID) | Yes |  |
 
 ```go
 	err := client.AI.Assistants.ScheduledEvents.Delete(
-		context.TODO(),
+		context.Background(),
 		"event_id",
 		telnyx.AIAssistantScheduledEventDeleteParams{
-			AssistantID: "assistant_id",
+			AssistantID: "550e8400-e29b-41d4-a716-446655440000",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 ```
 
 ## Add Assistant Tag
 
-`POST /ai/assistants/{assistant_id}/tags` — Required: `tag`
+`client.AI.Assistants.Tags.Add()` — `POST /ai/assistants/{assistant_id}/tags`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Tag` | string | Yes |  |
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
 	response, err := client.AI.Assistants.Tags.Add(
-		context.TODO(),
+		context.Background(),
 		"assistant_id",
 		telnyx.AIAssistantTagAddParams{
-			Tag: "tag",
+			Tag: "production",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", response.Tags)
 ```
 
-Returns: `tags` (array[string])
+Key response fields: `response.data.tags`
 
 ## Remove Assistant Tag
 
-`DELETE /ai/assistants/{assistant_id}/tags/{tag}`
+`client.AI.Assistants.Tags.Remove()` — `DELETE /ai/assistants/{assistant_id}/tags/{tag}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+| `Tag` | string | Yes |  |
 
 ```go
 	tag, err := client.AI.Assistants.Tags.Remove(
-		context.TODO(),
+		context.Background(),
 		"tag",
 		telnyx.AIAssistantTagRemoveParams{
-			AssistantID: "assistant_id",
+			AssistantID: "550e8400-e29b-41d4-a716-446655440000",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", tag.Tags)
 ```
 
-Returns: `tags` (array[string])
+Key response fields: `response.data.tags`
 
 ## Get assistant texml
 
 Get an assistant texml by `assistant_id`.
 
-`GET /ai/assistants/{assistant_id}/texml`
+`client.AI.Assistants.GetTexml()` — `GET /ai/assistants/{assistant_id}/texml`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
-	response, err := client.AI.Assistants.GetTexml(context.TODO(), "assistant_id")
+	response, err := client.AI.Assistants.GetTexml(context.Background(), "assistant_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", response)
 ```
@@ -715,105 +868,127 @@ Get an assistant texml by `assistant_id`.
 
 Test a webhook tool for an assistant
 
-`POST /ai/assistants/{assistant_id}/tools/{tool_id}/test`
+`client.AI.Assistants.Tools.Test()` — `POST /ai/assistants/{assistant_id}/tools/{tool_id}/test`
 
-Optional: `arguments` (object), `dynamic_variables` (object)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+| `ToolId` | string (UUID) | Yes |  |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
 	response, err := client.AI.Assistants.Tools.Test(
-		context.TODO(),
+		context.Background(),
 		"tool_id",
 		telnyx.AIAssistantToolTestParams{
-			AssistantID: "assistant_id",
+			AssistantID: "550e8400-e29b-41d4-a716-446655440000",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", response.Data)
 ```
 
-Returns: `content_type` (string), `request` (object), `response` (string), `status_code` (integer), `success` (boolean)
+Key response fields: `response.data.content_type, response.data.request, response.data.response`
 
 ## Get all versions of an assistant
 
 Retrieves all versions of a specific assistant with complete configuration and metadata
 
-`GET /ai/assistants/{assistant_id}/versions`
+`client.AI.Assistants.Versions.List()` — `GET /ai/assistants/{assistant_id}/versions`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
 
 ```go
-	assistantsList, err := client.AI.Assistants.Versions.List(context.TODO(), "assistant_id")
+	assistantsList, err := client.AI.Assistants.Versions.List(context.Background(), "assistant_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistantsList.Data)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Get a specific assistant version
 
 Retrieves a specific version of an assistant by assistant_id and version_id
 
-`GET /ai/assistants/{assistant_id}/versions/{version_id}`
+`client.AI.Assistants.Versions.Get()` — `GET /ai/assistants/{assistant_id}/versions/{version_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+| `VersionId` | string (UUID) | Yes |  |
 
 ```go
 	assistant, err := client.AI.Assistants.Versions.Get(
-		context.TODO(),
+		context.Background(),
 		"version_id",
 		telnyx.AIAssistantVersionGetParams{
-			AssistantID: "assistant_id",
+			AssistantID: "550e8400-e29b-41d4-a716-446655440000",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistant.ID)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Update a specific assistant version
 
 Updates the configuration of a specific assistant version. Can not update main version
 
-`POST /ai/assistants/{assistant_id}/versions/{version_id}`
+`client.AI.Assistants.Versions.Update()` — `POST /ai/assistants/{assistant_id}/versions/{version_id}`
 
-Optional: `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+| `VersionId` | string (UUID) | Yes |  |
+| ... | | | +17 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
 	assistant, err := client.AI.Assistants.Versions.Update(
-		context.TODO(),
+		context.Background(),
 		"version_id",
 		telnyx.AIAssistantVersionUpdateParams{
-			AssistantID:     "assistant_id",
+			AssistantID: "550e8400-e29b-41d4-a716-446655440000",
 			UpdateAssistant: telnyx.UpdateAssistantParam{},
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistant.ID)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## Delete a specific assistant version
 
 Permanently removes a specific version of an assistant. Can not delete main version
 
-`DELETE /ai/assistants/{assistant_id}/versions/{version_id}`
+`client.AI.Assistants.Versions.Delete()` — `DELETE /ai/assistants/{assistant_id}/versions/{version_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+| `VersionId` | string (UUID) | Yes |  |
 
 ```go
 	err := client.AI.Assistants.Versions.Delete(
-		context.TODO(),
+		context.Background(),
 		"version_id",
 		telnyx.AIAssistantVersionDeleteParams{
-			AssistantID: "assistant_id",
+			AssistantID: "550e8400-e29b-41d4-a716-446655440000",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 ```
 
@@ -821,34 +996,39 @@ Permanently removes a specific version of an assistant. Can not delete main vers
 
 Promotes a specific version to be the main/current version of the assistant. This will delete any existing canary deploy configuration and send all live production traffic to this version.
 
-`POST /ai/assistants/{assistant_id}/versions/{version_id}/promote`
+`client.AI.Assistants.Versions.Promote()` — `POST /ai/assistants/{assistant_id}/versions/{version_id}/promote`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `AssistantId` | string (UUID) | Yes |  |
+| `VersionId` | string (UUID) | Yes |  |
 
 ```go
 	assistant, err := client.AI.Assistants.Versions.Promote(
-		context.TODO(),
+		context.Background(),
 		"version_id",
 		telnyx.AIAssistantVersionPromoteParams{
-			AssistantID: "assistant_id",
+			AssistantID: "550e8400-e29b-41d4-a716-446655440000",
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", assistant.ID)
 ```
 
-Returns: `created_at` (date-time), `description` (string), `dynamic_variables` (object), `dynamic_variables_webhook_url` (string), `enabled_features` (array[object]), `greeting` (string), `id` (string), `import_metadata` (object), `insight_settings` (object), `instructions` (string), `llm_api_key_ref` (string), `messaging_settings` (object), `model` (string), `name` (string), `privacy_settings` (object), `telephony_settings` (object), `tools` (array[object]), `transcription` (object), `voice_settings` (object), `widget_settings` (object)
+Key response fields: `response.data.id, response.data.name, response.data.created_at`
 
 ## List MCP Servers
 
 Retrieve a list of MCP servers.
 
-`GET /ai/mcp_servers`
+`client.AI.McpServers.List()` — `GET /ai/mcp_servers`
 
 ```go
-	page, err := client.AI.McpServers.List(context.TODO(), telnyx.AIMcpServerListParams{})
+	page, err := client.AI.McpServers.List(context.Background(), telnyx.AIMcpServerListParams{})
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", page)
 ```
@@ -857,71 +1037,92 @@ Retrieve a list of MCP servers.
 
 Create a new MCP server.
 
-`POST /ai/mcp_servers` — Required: `name`, `type`, `url`
+`client.AI.McpServers.New()` — `POST /ai/mcp_servers`
 
-Optional: `allowed_tools` (array | null), `api_key_ref` (string | null)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Name` | string | Yes |  |
+| `Type` | string | Yes |  |
+| `Url` | string (URL) | Yes |  |
+| ... | | | +2 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
-	mcpServer, err := client.AI.McpServers.New(context.TODO(), telnyx.AIMcpServerNewParams{
-		Name: "name",
-		Type: "type",
+	mcpServer, err := client.AI.McpServers.New(context.Background(), telnyx.AIMcpServerNewParams{
+		Name: "my-resource",
+		Type: "webhook",
 		URL:  "url",
 	})
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", mcpServer.ID)
 ```
 
-Returns: `allowed_tools` (array | null), `api_key_ref` (string | null), `created_at` (date-time), `id` (string), `name` (string), `type` (string), `url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.type`
 
 ## Get MCP Server
 
 Retrieve details for a specific MCP server.
 
-`GET /ai/mcp_servers/{mcp_server_id}`
+`client.AI.McpServers.Get()` — `GET /ai/mcp_servers/{mcp_server_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `McpServerId` | string (UUID) | Yes |  |
 
 ```go
-	mcpServer, err := client.AI.McpServers.Get(context.TODO(), "mcp_server_id")
+	mcpServer, err := client.AI.McpServers.Get(context.Background(), "mcp_server_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", mcpServer.ID)
 ```
 
-Returns: `allowed_tools` (array | null), `api_key_ref` (string | null), `created_at` (date-time), `id` (string), `name` (string), `type` (string), `url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.type`
 
 ## Update MCP Server
 
 Update an existing MCP server.
 
-`PUT /ai/mcp_servers/{mcp_server_id}`
+`client.AI.McpServers.Update()` — `PUT /ai/mcp_servers/{mcp_server_id}`
 
-Optional: `allowed_tools` (array | null), `api_key_ref` (string | null), `created_at` (date-time), `id` (string), `name` (string), `type` (string), `url` (string)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `McpServerId` | string (UUID) | Yes |  |
+| `Type` | string | No |  |
+| ... | | | +6 optional params in [references/api-details.md](references/api-details.md) |
 
 ```go
 	mcpServer, err := client.AI.McpServers.Update(
-		context.TODO(),
+		context.Background(),
 		"mcp_server_id",
 		telnyx.AIMcpServerUpdateParams{},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", mcpServer.ID)
 ```
 
-Returns: `allowed_tools` (array | null), `api_key_ref` (string | null), `created_at` (date-time), `id` (string), `name` (string), `type` (string), `url` (string)
+Key response fields: `response.data.id, response.data.name, response.data.type`
 
 ## Delete MCP Server
 
 Delete a specific MCP server.
 
-`DELETE /ai/mcp_servers/{mcp_server_id}`
+`client.AI.McpServers.Delete()` — `DELETE /ai/mcp_servers/{mcp_server_id}`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `McpServerId` | string (UUID) | Yes |  |
 
 ```go
-	err := client.AI.McpServers.Delete(context.TODO(), "mcp_server_id")
+	err := client.AI.McpServers.Delete(context.Background(), "mcp_server_id")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 ```
+
+---
+
+**Do not guess response field names or optional parameters. Load [references/api-details.md](references/api-details.md) for complete schemas and parameter details.**
