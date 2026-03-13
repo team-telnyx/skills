@@ -4,7 +4,19 @@ Official skills for AI coding agents to integrate Telnyx APIs using the native S
 
 These skills follow the [Agent Skills specification](https://agentskills.io/specification) and can be installed in AI coding assistants like [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Cursor, Windsurf, and other compatible agents.
 
-## Quick Start (Claude Code)
+## Quick Start
+
+### Any Agent (Recommended)
+
+Install skills in any compatible agent (Claude Code, Cursor, Copilot, Codex, Windsurf, Roo Code, and 12+ more):
+
+```bash
+npx skills add team-telnyx/telnyx-skills
+```
+
+This opens an interactive picker to select the skills you need. Only selected skills are loaded into context.
+
+### Claude Code
 
 **Step 1.** Add the Telnyx skills marketplace (one-time setup):
 
@@ -194,30 +206,57 @@ Includes parameter-by-parameter mapping tables, multi-language code examples (Py
 
 ## Installation for Other Agents
 
-### Cursor
+### Any Agent via npx (Recommended)
 
-1. Open **Cursor Settings > Rules > Project Rules**
-2. Create a rule file (e.g., `.cursor/rules/telnyx.mdc`)
-3. Paste the contents of the `SKILL.md` for the product and language you need
-
-You can find skill files in this repo under `telnyx-{language}/skills/telnyx-{product}-{language}/SKILL.md`, or fetch them directly:
-
-```
-https://raw.githubusercontent.com/team-telnyx/telnyx-skills/main/telnyx-python/skills/telnyx-messaging-python/SKILL.md
+```bash
+npx skills add team-telnyx/telnyx-skills
 ```
 
-### Windsurf
+This works with Claude Code, Cursor, Copilot, Codex, Windsurf, Roo Code, and 12+ other agents. The CLI handles placing files in the correct location for each agent.
 
-1. Create a `.windsurfrules` file in your project root
-2. Paste the contents of the desired `SKILL.md` file(s) into it
+To update installed skills: `npx skills update`
 
-### Other Agents
+### Manual Installation
 
-For any agent that supports the [Agent Skills specification](https://agentskills.io/specification), point it to the skill directory or `SKILL.md` file. For agents without native skill support, copy the contents of the relevant `SKILL.md` into your agent's system prompt or rules file.
+For agents without `npx skills` support, copy the skill files directly:
+
+1. Find the skill you need in this repo: `telnyx-{language}/skills/telnyx-{product}-{language}/SKILL.md`
+2. Copy `SKILL.md` (and the `references/` directory if present) into your agent's skills directory:
+   - **Cursor**: `.cursor/skills/` or `.agents/skills/`
+   - **Windsurf**: `.windsurf/skills/` or `.agents/skills/`
+   - **Copilot / Codex / Roo Code**: `.agents/skills/`
+3. Or paste the contents into your agent's rules/prompt file
 
 ## Skill Structure
 
 Each skill contains a single `SKILL.md` file with YAML frontmatter, SDK installation instructions, client setup, code examples for every API operation, and webhook event reference tables where applicable. All code examples are generated from the official Telnyx OpenAPI specifications.
+
+The canonical artifact format is:
+
+- `SKILL.md`
+- `references/api-details.md` when overflow API detail is needed
+
+Machine-readable discovery currently lives in:
+
+- [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json)
+- [skills-index.json](skills-index.json)
+
+## Repository Boundary
+
+This repository is the public artifact and distribution repository.
+
+- `telnyx-skills`:
+  - published skill artifacts
+  - plugin metadata
+  - stable repo paths for users and integrations
+- generator repository:
+  - generation logic
+  - validation
+  - publish tooling
+
+The generator is intentionally separate so skill generation can evolve without breaking current consumers of this repo.
+
+For tool and platform usage guidance, see [Platform Distribution](docs/platform-distribution.md).
 
 ## Documentation
 
@@ -230,6 +269,12 @@ Each skill contains a single `SKILL.md` file with YAML frontmatter, SDK installa
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 **Note:** Code examples are auto-generated from Telnyx OpenAPI specs. To fix a code example, please open an issue describing the problem rather than editing the code directly.
+
+For generated skill changes:
+
+- use the generator repository as the source of truth
+- keep scoped V2 pilot PRs within the documented safety boundary
+- do not remove or overwrite unrelated existing skills
 
 ## Support
 
