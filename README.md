@@ -4,6 +4,12 @@ Official skills for AI coding agents to integrate Telnyx APIs using the native S
 
 These skills follow the [Agent Skills specification](https://agentskills.io/specification) and can be installed in AI coding assistants like [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Cursor, Windsurf, and other compatible agents.
 
+[Install with npx](#quick-start) | [Claude Code](#claude-code) | [Available Skills](#available-skills) | [Platform Distribution](docs/platform-distribution.md)
+
+> **Note**
+>
+> This repository is under active development. Skills are being expanded, updated to reflect current SDK patterns, and reviewed to reduce incorrect or hallucinated API usage by coding agents.
+
 ## Quick Start
 
 ### Any Agent (Recommended)
@@ -30,6 +36,43 @@ This opens an interactive picker to select the skills you need. Only selected sk
 /plugin install <PLUGIN>@telnyx-skills
 ```
 Replace `<PLUGIN>` with the plugin from the table below e.g `/plugin install telnyx-python@telnyx-skills` or `/plugin install telnyx-twilio-migration@telnyx-skills`
+
+## Other Agents
+
+### Install with npx
+
+```bash
+npx skills add team-telnyx/telnyx-skills
+```
+
+This is the safest default for compatible agents because the installer handles target-specific placement for you.
+
+To update installed skills:
+
+```bash
+npx skills update
+```
+
+### Manual install
+
+If your agent does not support `npx skills`, copy the skill folder directly from this repo.
+
+1. Find the skill you need, for example:
+   - `telnyx-python/skills/telnyx-messaging-python/`
+   - `telnyx-javascript/skills/telnyx-voice-javascript/`
+2. Copy the whole skill folder, including `SKILL.md` and `references/` if present, into your tool's skills directory.
+3. If your tool does not support folder-based skills, paste the contents of `SKILL.md` into the tool's instructions/rules file and keep the linked references available alongside it.
+
+Recommended manual install locations:
+
+| Agent | Project path | Personal path |
+|-------|--------------|---------------|
+| Claude Code | `.claude/skills/` | `~/.claude/skills/` |
+| Cursor | `.agents/skills/` | `~/.cursor/skills/` |
+| Codex | `.agents/skills/` | `~/.codex/skills/` |
+| GitHub Copilot | `.github/skills/` | `~/.copilot/skills/` |
+| OpenClaw | `skills/` | `~/.openclaw/skills/` |
+| Windsurf | `.windsurf/skills/` | `~/.codeium/windsurf/skills/` |
 
 <!-- BEGIN GENERATED PLUGIN_TABLE -->
 | Plugin | Language |
@@ -204,29 +247,6 @@ Includes parameter-by-parameter mapping tables, multi-language code examples (Py
 
 > **Note:** After migrating, install a language plugin (e.g. `telnyx-python`) for deeper SDK examples, and `telnyx-webrtc-client` if building a calling app.
 
-## Installation for Other Agents
-
-### Any Agent via npx (Recommended)
-
-```bash
-npx skills add team-telnyx/telnyx-skills
-```
-
-This works with Claude Code, Cursor, Copilot, Codex, Windsurf, Roo Code, and 12+ other agents. The CLI handles placing files in the correct location for each agent.
-
-To update installed skills: `npx skills update`
-
-### Manual Installation
-
-For agents without `npx skills` support, copy the skill files directly:
-
-1. Find the skill you need in this repo: `telnyx-{language}/skills/telnyx-{product}-{language}/SKILL.md`
-2. Copy `SKILL.md` (and the `references/` directory if present) into your agent's skills directory:
-   - **Cursor**: `.cursor/skills/` or `.agents/skills/`
-   - **Windsurf**: `.windsurf/skills/` or `.agents/skills/`
-   - **Copilot / Codex / Roo Code**: `.agents/skills/`
-3. Or paste the contents into your agent's rules/prompt file
-
 ## Skill Structure
 
 Each skill contains a single `SKILL.md` file with YAML frontmatter, SDK installation instructions, client setup, code examples for every API operation, and webhook event reference tables where applicable. All code examples are generated from the official Telnyx OpenAPI specifications.
@@ -241,22 +261,7 @@ Machine-readable discovery currently lives in:
 - [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json)
 - [skills-index.json](skills-index.json)
 
-## Repository Boundary
-
-This repository is the public artifact and distribution repository.
-
-- `telnyx-skills`:
-  - published skill artifacts
-  - plugin metadata
-  - stable repo paths for users and integrations
-- generator repository:
-  - generation logic
-  - validation
-  - publish tooling
-
-The generator is intentionally separate so skill generation can evolve without breaking current consumers of this repo.
-
-For tool and platform usage guidance, see [Platform Distribution](docs/platform-distribution.md).
+Skill generation and publishing logic live in the separate `telnyx-ext-skills-generator` repository. For platform-specific usage guidance, see [Platform Distribution](docs/platform-distribution.md).
 
 ## Documentation
 
