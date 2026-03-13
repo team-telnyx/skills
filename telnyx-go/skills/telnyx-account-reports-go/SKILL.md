@@ -4,7 +4,6 @@ description: >-
   Generate and retrieve usage reports for billing, analytics, and
   reconciliation. This skill provides Go SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: account-reports
   language: go

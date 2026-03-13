@@ -6,7 +6,6 @@ description: >-
   call quality metrics, and AI Agent integration. Use when implementing real-time
   voice communication on iOS.
 metadata:
-  internal: true
   author: telnyx
   product: webrtc
   language: swift

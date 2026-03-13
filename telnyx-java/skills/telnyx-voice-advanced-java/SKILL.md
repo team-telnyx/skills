@@ -5,7 +5,6 @@ description: >-
   suppression, client state, and supervisor controls. This skill provides Java
   SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: voice-advanced
   language: java

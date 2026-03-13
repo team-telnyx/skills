@@ -5,7 +5,6 @@ description: >-
   connecting PBX systems or managing SIP infrastructure. This skill provides
   Ruby SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: sip
   language: ruby

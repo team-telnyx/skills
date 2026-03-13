@@ -4,7 +4,6 @@ description: >-
   Configure notification channels and settings for account alerts and events.
   This skill provides Java SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: account-notifications
   language: java

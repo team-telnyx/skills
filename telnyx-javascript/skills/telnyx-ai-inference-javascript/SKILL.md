@@ -4,7 +4,6 @@ description: >-
   Access Telnyx LLM inference APIs, embeddings, and AI analytics for call
   insights and summaries. This skill provides JavaScript SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: ai-inference
   language: javascript

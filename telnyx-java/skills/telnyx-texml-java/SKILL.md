@@ -5,7 +5,6 @@ description: >-
   Manage applications, calls, conferences, recordings, queues, and streams. This
   skill provides Java SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: texml
   language: java

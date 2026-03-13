@@ -4,7 +4,6 @@ description: >-
   Manage regulatory requirements, number bundles, supporting documents, and
   verified numbers for compliance. This skill provides Java SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: numbers-compliance
   language: java

@@ -4,7 +4,6 @@ description: >-
   Send and receive faxes programmatically. Manage fax applications and media.
   This skill provides JavaScript SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: fax
   language: javascript

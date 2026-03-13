@@ -4,7 +4,6 @@ description: >-
   Configure voicemail, voice channels, and emergency (E911) services for your
   phone numbers. This skill provides Go SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: numbers-services
   language: go

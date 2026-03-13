@@ -4,7 +4,6 @@ description: >-
   Manage IoT SIM cards, eSIMs, data plans, and wireless connectivity. Use when
   building IoT/M2M solutions. This skill provides Python SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: iot
   language: python

@@ -5,7 +5,6 @@ description: >-
   LOA documents, and track porting status. This skill provides Ruby SDK
   examples.
 metadata:
-  internal: true
   author: telnyx
   product: porting-in
   language: ruby

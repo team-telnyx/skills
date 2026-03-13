@@ -4,7 +4,6 @@ description: >-
   Configure private networks, WireGuard VPN gateways, internet gateways, and
   virtual cross connects. This skill provides JavaScript SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: networking
   language: javascript

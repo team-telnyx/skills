@@ -4,7 +4,6 @@ description: >-
   Send and receive SMS/MMS, handle opt-outs and delivery webhooks. Use for
   notifications, 2FA, or messaging apps.
 metadata:
-  internal: true
   author: telnyx
   product: messaging
   language: java

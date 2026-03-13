@@ -4,7 +4,6 @@ description: >-
   Manage sub-accounts for reseller and enterprise scenarios. This skill provides
   REST API (curl) examples.
 metadata:
-  internal: true
   author: telnyx
   product: account-management
   language: curl

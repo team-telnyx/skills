@@ -5,7 +5,6 @@ description: >-
   gather. Build interactive voice menus and AI voice assistants. This skill
   provides Python SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: voice-gather
   language: python

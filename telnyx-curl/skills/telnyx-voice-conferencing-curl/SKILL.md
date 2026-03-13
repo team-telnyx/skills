@@ -5,7 +5,6 @@ description: >-
   building call centers or conferencing applications. This skill provides REST
   API (curl) examples.
 metadata:
-  internal: true
   author: telnyx
   product: voice-conferencing
   language: curl

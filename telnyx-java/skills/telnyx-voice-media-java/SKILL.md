@@ -5,7 +5,6 @@ description: >-
   systems, playing announcements, or recording conversations. This skill
   provides Java SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: voice-media
   language: java

@@ -5,7 +5,6 @@ description: >-
   geomatch features. Configure short codes for high-volume messaging. This skill
   provides REST API (curl) examples.
 metadata:
-  internal: true
   author: telnyx
   product: messaging-profiles
   language: curl

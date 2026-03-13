@@ -4,7 +4,6 @@ description: >-
   Port phone numbers into Telnyx. Check portability, create port orders, upload
   LOA documents, and track porting status. This skill provides Go SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: porting-in
   language: go

@@ -4,7 +4,6 @@ description: >-
   Manage cloud storage buckets and objects using the S3-compatible Telnyx
   Storage API. This skill provides Go SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: storage
   language: go

@@ -5,7 +5,6 @@ description: >-
   building browser-based or mobile softphone applications. This skill provides
   REST API (curl) examples.
 metadata:
-  internal: true
   author: telnyx
   product: webrtc
   language: curl

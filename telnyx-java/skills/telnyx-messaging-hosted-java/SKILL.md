@@ -5,7 +5,6 @@ description: >-
   migrating numbers or enabling rich messaging features. This skill provides
   Java SDK examples.
 metadata:
-  internal: true
   author: telnyx
   product: messaging-hosted
   language: java
