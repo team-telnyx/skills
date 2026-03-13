@@ -25,25 +25,6 @@ ALLOWED_VERSION_PLUGINS = {
 }
 
 
-def normalize_plugin_skill_paths(plugin: dict) -> dict:
-    """Normalize plugin skill paths relative to plugin.source for comparison."""
-    normalized = dict(plugin)
-    source = normalized.get("source")
-    skills = normalized.get("skills")
-    if not isinstance(source, str) or not isinstance(skills, list):
-        return normalized
-
-    prefix = source.rstrip("/") + "/skills/"
-    normalized_skills = []
-    for skill in skills:
-        if isinstance(skill, str) and skill.startswith(prefix):
-            normalized_skills.append("./skills/" + skill.rsplit("/", 1)[-1])
-        else:
-            normalized_skills.append(skill)
-    normalized["skills"] = normalized_skills
-    return normalized
-
-
 def run(*args: str) -> str:
     return subprocess.check_output(args, cwd=REPO_ROOT, text=True)
 
@@ -144,8 +125,8 @@ def validate_marketplace(base_ref: str, changed: list[tuple[str, str]]) -> list[
         if name in ALLOWED_VERSION_PLUGINS:
             before_version = before_plugin.get("version")
             after_version = after_plugin.get("version")
-            before_copy = normalize_plugin_skill_paths(before_plugin)
-            after_copy = normalize_plugin_skill_paths(after_plugin)
+            before_copy = dict(before_plugin)
+            after_copy = dict(after_plugin)
             before_copy.pop("version", None)
             after_copy.pop("version", None)
             if before_copy != after_copy:
