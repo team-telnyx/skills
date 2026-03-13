@@ -9,8 +9,6 @@ These skills follow the [Agent Skills specification](https://agentskills.io/spec
 
 ## Quick Start
 
-### Any Agent
-
 Install skills in any compatible agent that supports the `skills` installer, including Claude Code, Cursor, Copilot, Codex, Windsurf, Roo Code, and other compatible tools:
 
 ```bash
