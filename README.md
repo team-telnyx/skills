@@ -1,58 +1,38 @@
 # Telnyx Agent Skills
 
-Official skills for AI coding agents to integrate Telnyx APIs using the native SDKs.
+Official Agent skills that enable AI coding agents to write production-ready code by correctly integrating Telnyx with up-to-date SDKs patterns and API information.
 
-These skills follow the [Agent Skills specification](https://agentskills.io/specification) and can be installed in AI coding assistants like Claude Code, Cursor, Windsurf, and other compatible agents.
+These skills follow the [Agent Skills specification](https://agentskills.io/specification) and can be installed for use by AI coding agents like Claude Code, Cursor, Windsurf, and other compatible agents.
 
 > [!NOTE]
-> This repository is under active development. Skills are being expanded, updated to reflect current SDK patterns, and reviewed to reduce incorrect or hallucinated API usage by coding agents.
+> This repository is a work in progress under active development. Skills are being continuously improved based on testing and feedback, and updated to reflect the latest APIs and SDK patterns. Contributions and feedback encouraged!
 
 ## Quick Start
-
-Install Telnyx Agent Skills by selecting the skills you need from the wizard. Skills are installed to your chosen agent's directory:
 
 ```bash
 npx skills add team-telnyx/telnyx-skills
 ```
 
-This opens an interactive picker to select the skills you need. Only selected skills are loaded into context.
+This opens an interactive wizard to select the skills you need. Skills are installed to your chosen agent's directory.
 
-To update installed skills:
-
-```bash
-npx skills update
-```
-
-If your agent does not support `npx skills`, copy the skill folder directly from this repo:
-
-1. Find the skill you need, for example:
-   - `telnyx-python/skills/telnyx-messaging-python/`
-   - `telnyx-javascript/skills/telnyx-voice-javascript/`
-2. Copy the whole skill folder, including `SKILL.md` and `references/` if present, into your tool's skills directory.
-
-If your tool does not support `npx skills`, copy the skill folder into that tool's configured skills directory. If your tool does not support folder-based skills, paste the contents of `SKILL.md` into the tool's instructions or rules file and keep the linked references available alongside it.
-
-Verified manual install locations from current tool docs:
-
-- GitHub Copilot: `.github/skills/` or `~/.copilot/skills/`
-- Windsurf: `.windsurf/skills/` or `~/.codeium/windsurf/skills/`
-
-Other agents vary by tool and version. Use the tool's own skills documentation for the exact manual path.
-
-For Git-based/manual workflows, you can also clone this repo and copy a specific skill folder:
+#### Alternative (manual) installation - clone and copy specific skills
 
 ```bash
-# Example: copy one skill into the directory your tool documents for skills
+
 git clone https://github.com/team-telnyx/telnyx-skills.git
-cp -r telnyx-skills/telnyx-python/skills/telnyx-messaging-python /path/to/your-tool-skills-dir/
-```
 
-Use this approach only after confirming the destination path your tool expects from that tool's own documentation.
+# Copy the skill into your agent's skills directory
+mkdir -p .github/skills
+
+# Example:
+cp -r telnyx-skills/telnyx-python/skills/telnyx-messaging-python .github/skills/
+```
 
 > [!IMPORTANT]
-> Install only the skills your project actually needs. Loading too many skills at once dilutes context and makes it easier for an agent to mix unrelated API patterns.
+> Use only the skills your project actually needs. Loading too many skills wastes tokens, dilutes context, and makes it easier for an agent to confuse SDK patterns.
 
-### Claude Code
+## Install Skills via Plugins
+Plugins are installable packages containing curated sets of skills. Install for with Claude Code marketplace and more.
 
 **Step 1.** Add the Telnyx skills marketplace (one-time setup):
 
@@ -84,25 +64,6 @@ Replace `<PLUGIN>` with the plugin from the table below e.g `/plugin install tel
 Each language plugin includes all <!-- PRODUCT_COUNT -->36<!-- /PRODUCT_COUNT --> Telnyx products (messaging, voice, numbers, IoT, AI, and more).
 
 The WebRTC client plugin covers building VoIP calling apps — see [WebRTC Client SDKs](#webrtc-client-sdks) for details.
-
-## Example
-
-After installing, your AI agent knows how to write correct Telnyx SDK code:
-
-```python
-import os
-from telnyx import Telnyx
-
-client = Telnyx(api_key=os.environ.get("TELNYX_API_KEY"))
-
-# Send an SMS
-response = client.messages.send(
-    from_="+15550001234",
-    to="+18445550001",
-    text="Hello from Telnyx!",
-)
-print(response.data)
-```
 
 ## Available Skills
 
@@ -205,7 +166,7 @@ Each skill covers authentication, making/receiving calls, call controls (hold, m
 
 ## Twilio Migration
 
-A comprehensive migration guide for moving from Twilio to Telnyx across all product areas.
+A comprehensive 6-phase orchestrated agent workflow for moving apps from Twilio to Telnyx across all product areas.
 
 ```bash
 /plugin install telnyx-twilio-migration@telnyx-skills
@@ -254,7 +215,8 @@ Machine-readable discovery currently lives in:
 - [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json)
 - [skills-index.json](skills-index.json)
 
-Skill generation and publishing logic live in the separate `telnyx-ext-skills-generator` repository. For platform-specific usage guidance, see [Platform Distribution](docs/platform-distribution.md).
+**Note:** Skill generation and publishing logic live in the separate internal repository. If you discover an error, please open an issue on this repo describing the problem.
+
 
 ## Documentation
 
@@ -265,14 +227,6 @@ Skill generation and publishing logic live in the separate `telnyx-ext-skills-ge
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-**Note:** Code examples are auto-generated from Telnyx OpenAPI specs. To fix a code example, please open an issue describing the problem rather than editing the code directly.
-
-For generated skill changes:
-
-- use the generator repository as the source of truth
-- keep scoped V2 pilot PRs within the documented safety boundary
-- do not remove or overwrite unrelated existing skills
 
 ## Support
 
