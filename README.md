@@ -9,62 +9,9 @@ These skills follow the [Agent Skills specification](https://agentskills.io/spec
 
 ## Quick Start
 
-Install one skill to one target agent:
-
-```bash
-npx skills add team-telnyx/telnyx-skills --skill telnyx-messaging-python --agent codex
-```
-
-Install a full Telnyx bundle for one target agent:
-
-```bash
-npx skills add team-telnyx/telnyx-skills --skill '*' --agent codex
-```
-
-If your agent does not support repo installs directly, copy one skill folder:
-
-```bash
-git clone https://github.com/team-telnyx/telnyx-skills.git /tmp/telnyx-skills
-mkdir -p .agents/skills
-cp -r /tmp/telnyx-skills/telnyx-python/skills/telnyx-messaging-python .agents/skills/
-```
-
-Use the native Codex projection:
-
-```bash
-git clone --depth 1 https://github.com/team-telnyx/telnyx-skills.git /tmp/telnyx-skills
-cp -r /tmp/telnyx-skills/codex .
-```
-
-- `codex/AGENTS.md` as a Telnyx router
-- `codex/skills/` as the generated Codex-ready skill tree
-
-Use the native Cursor projection:
-
-```bash
-git clone --depth 1 https://github.com/team-telnyx/telnyx-skills.git /tmp/telnyx-skills
-mkdir -p .cursor/rules
-cp -r /tmp/telnyx-skills/cursor/rules/. .cursor/rules/
-```
-
-> [!IMPORTANT]
-> Use only the skills your project actually needs. Loading too many skills wastes tokens, dilutes context, and makes it easier for an agent to confuse SDK patterns.
-
-### Installation Guidance
-
-Recommended order:
-
-- `npx skills add ... --agent <agent>` for direct repo installs
-- copy one skill folder manually when repo installs are not supported
-- use `codex/` and `cursor/` for native platform installs
-
-Do not recommend bare `npx skills add team-telnyx/telnyx-skills` as the default public path. The upstream CLI will often prompt across dozens of agents, which is noisy for customers installing a single Telnyx skill.
-
-## Platform-Specific Installs
+Choose the install path for your agent.
 
 ### Claude Code
-
-Install a Telnyx plugin:
 
 ```bash
 /plugin marketplace add team-telnyx/telnyx-skills
@@ -73,8 +20,6 @@ Install a Telnyx plugin:
 
 ### Codex
 
-Install the generated `codex/` projection:
-
 ```bash
 git clone --depth 1 https://github.com/team-telnyx/telnyx-skills.git /tmp/telnyx-skills
 cp -r /tmp/telnyx-skills/codex .
@@ -82,29 +27,67 @@ cp -r /tmp/telnyx-skills/codex .
 
 ### Cursor
 
-Install the generated `cursor/` projection:
-
 ```bash
 git clone --depth 1 https://github.com/team-telnyx/telnyx-skills.git /tmp/telnyx-skills
 mkdir -p .cursor/rules
 cp -r /tmp/telnyx-skills/cursor/rules/. .cursor/rules/
 ```
 
+### Other Compatible Agents
+
+Install one skill:
+
+```bash
+npx skills add team-telnyx/telnyx-skills --skill <SKILL_ID> --agent <AGENT>
+```
+
+Install a full bundle:
+
+```bash
+npx skills add team-telnyx/telnyx-skills --skill '*' --agent <AGENT>
+```
+
+Examples:
+
+```bash
+npx skills add team-telnyx/telnyx-skills --skill telnyx-messaging-python --agent codex
+```
+
+```bash
+npx skills add team-telnyx/telnyx-skills --skill '*' --agent codex
+```
+
+Always include `--agent`. Do not use bare `npx skills add team-telnyx/telnyx-skills`, which often triggers an unnecessary multi-agent prompt.
+
+### Manual Copy
+
+If your agent does not support repo installs, copy one skill folder directly:
+
+```bash
+git clone https://github.com/team-telnyx/telnyx-skills.git /tmp/telnyx-skills
+mkdir -p .agents/skills
+cp -r /tmp/telnyx-skills/telnyx-python/skills/telnyx-messaging-python .agents/skills/
+```
+
+> [!IMPORTANT]
+> Use only the skills your project actually needs. Loading too many skills wastes tokens, dilutes context, and makes it easier for an agent to confuse SDK patterns.
+
 ## Install Skills via Plugins
+
 Plugins are curated Telnyx bundles.
 
-**Step 1.** Add the Telnyx skills marketplace (one-time setup):
+Add the marketplace once:
 
 ```bash
 /plugin marketplace add team-telnyx/telnyx-skills
 ```
 
-**Step 2.** Install a plugin — pick a plugin from table below:
+Install a bundle:
 
 ```bash
 /plugin install <PLUGIN>@telnyx-skills
 ```
-Replace `<PLUGIN>` with the plugin from the table below e.g `/plugin install telnyx-python@telnyx-skills` or `/plugin install telnyx-twilio-migration@telnyx-skills`
+Replace `<PLUGIN>` with one of the bundles below.
 
 <!-- BEGIN GENERATED PLUGIN_TABLE -->
 | Plugin | Language |
