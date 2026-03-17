@@ -1,0 +1,28 @@
+---
+description: Use for telnyx-go tasks.
+alwaysApply: false
+---
+# telnyx-go
+
+Use this bundle when: Telnyx Go SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Go projects.
+
+Available skills in this bundle include:
+- `telnyx-10dlc-go`
+- `telnyx-account-access-go`
+- `telnyx-account-go`
+- `telnyx-account-management-go`
+- `telnyx-account-notifications-go`
+- `telnyx-account-reports-go`
+- `telnyx-ai-assistants-go`
+- `telnyx-ai-inference-go`
+- `telnyx-fax-go`
+- `telnyx-iot-go`
+- `telnyx-messaging-go`
+- `telnyx-messaging-hosted-go`
+- ... plus 24 more skills in this bundle
+
+Selection rules:
+
+- Load only the exact skill IDs needed for the current task.
+- Prefer product-specific skills such as `telnyx-messaging-python` over broad bundle context.
+- Fall back to adjacent skills in this bundle only when the task clearly spans multiple Telnyx products.

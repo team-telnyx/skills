@@ -1,0 +1,28 @@
+---
+description: Use for telnyx-python tasks.
+alwaysApply: false
+---
+# telnyx-python
+
+Use this bundle when: Telnyx Python SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Python projects.
+
+Available skills in this bundle include:
+- `telnyx-10dlc-python`
+- `telnyx-account-access-python`
+- `telnyx-account-management-python`
+- `telnyx-account-notifications-python`
+- `telnyx-account-python`
+- `telnyx-account-reports-python`
+- `telnyx-ai-assistants-python`
+- `telnyx-ai-inference-python`
+- `telnyx-fax-python`
+- `telnyx-iot-python`
+- `telnyx-messaging-hosted-python`
+- `telnyx-messaging-profiles-python`
+- ... plus 24 more skills in this bundle
+
+Selection rules:
+
+- Load only the exact skill IDs needed for the current task.
+- Prefer product-specific skills such as `telnyx-messaging-python` over broad bundle context.
+- Fall back to adjacent skills in this bundle only when the task clearly spans multiple Telnyx products.

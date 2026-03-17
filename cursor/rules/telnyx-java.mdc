@@ -1,0 +1,28 @@
+---
+description: Use for telnyx-java tasks.
+alwaysApply: false
+---
+# telnyx-java
+
+Use this bundle when: Telnyx Java SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Java projects.
+
+Available skills in this bundle include:
+- `telnyx-10dlc-java`
+- `telnyx-account-access-java`
+- `telnyx-account-java`
+- `telnyx-account-management-java`
+- `telnyx-account-notifications-java`
+- `telnyx-account-reports-java`
+- `telnyx-ai-assistants-java`
+- `telnyx-ai-inference-java`
+- `telnyx-fax-java`
+- `telnyx-iot-java`
+- `telnyx-messaging-hosted-java`
+- `telnyx-messaging-java`
+- ... plus 24 more skills in this bundle
+
+Selection rules:
+
+- Load only the exact skill IDs needed for the current task.
+- Prefer product-specific skills such as `telnyx-messaging-python` over broad bundle context.
+- Fall back to adjacent skills in this bundle only when the task clearly spans multiple Telnyx products.

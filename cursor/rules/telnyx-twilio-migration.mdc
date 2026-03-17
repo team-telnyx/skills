@@ -1,0 +1,16 @@
+---
+description: Use for telnyx-twilio-migration tasks.
+alwaysApply: false
+---
+# telnyx-twilio-migration
+
+Use this bundle when: Twilio-to-Telnyx migration bundle covering discovery, planning, implementation, validation, and product-specific migration guidance across voice, messaging, WebRTC, SIP, and more.
+
+Available skills in this bundle include:
+- `telnyx-twilio-migration`
+
+Selection rules:
+
+- Load only the exact skill IDs needed for the current task.
+- Prefer product-specific skills such as `telnyx-messaging-python` over broad bundle context.
+- Fall back to adjacent skills in this bundle only when the task clearly spans multiple Telnyx products.

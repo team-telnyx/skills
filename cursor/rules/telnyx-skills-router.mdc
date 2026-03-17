@@ -1,0 +1,32 @@
+---
+description: Router for Telnyx skills. Chooses the right Telnyx bundle and scope for the task.
+alwaysApply: true
+---
+# Telnyx Router
+
+Use these rules when the task involves Telnyx APIs, SDKs, WebRTC client SDKs, or Twilio-to-Telnyx migration.
+
+Choose one bundle first:
+- `telnyx-curl`: Telnyx REST API bundle for language-agnostic HTTP examples across messaging, voice, numbers, networking, AI, and account workflows.
+- `telnyx-go`: Telnyx Go SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Go projects.
+- `telnyx-java`: Telnyx Java SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Java projects.
+- `telnyx-javascript`: Telnyx JavaScript and Node.js SDK bundle for messaging, voice, numbers, networking, AI, and account workflows.
+- `telnyx-python`: Telnyx Python SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Python projects.
+- `telnyx-ruby`: Telnyx Ruby SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Ruby projects.
+- `telnyx-webrtc-client`: Telnyx WebRTC client bundle for browser, iOS, Android, Flutter, and React Native calling apps, including auth, call controls, push, and client-side setup.
+- `telnyx-twilio-migration`: Twilio-to-Telnyx migration bundle covering discovery, planning, implementation, validation, and product-specific migration guidance across voice, messaging, WebRTC, SIP, and more.
+- `telnyx-cli`: Telnyx CLI bundle for terminal-driven API workflows such as messaging, voice, number management, and account operations.
+
+Selection rules:
+
+- Match the bundle to the user's stack before loading more context.
+- Prefer the narrowest product skill inside that bundle.
+- Use `telnyx-curl` for REST-first examples or when no SDK language is fixed.
+- Use `telnyx-webrtc-client` for device-side calling apps.
+- Use `telnyx-twilio-migration` for migration planning or execution.
+- Use `telnyx-cli` only for Telnyx CLI tasks.
+
+Generated file:
+
+- Do not edit `cursor/rules/*.mdc` by hand.
+- Edit the canonical root plugin directories and regenerate this projection instead.

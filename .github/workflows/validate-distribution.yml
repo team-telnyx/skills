@@ -1,0 +1,25 @@
+name: Validate Distribution Artifacts
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-distribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Codex projection
+        run: python3 scripts/validate_codex_projection.py
+
+      - name: Validate Cursor projection
+        run: python3 scripts/validate_cursor_projection.py

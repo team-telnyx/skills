@@ -1,0 +1,28 @@
+---
+description: Use for telnyx-javascript tasks.
+alwaysApply: false
+---
+# telnyx-javascript
+
+Use this bundle when: Telnyx JavaScript and Node.js SDK bundle for messaging, voice, numbers, networking, AI, and account workflows.
+
+Available skills in this bundle include:
+- `telnyx-10dlc-javascript`
+- `telnyx-account-access-javascript`
+- `telnyx-account-javascript`
+- `telnyx-account-management-javascript`
+- `telnyx-account-notifications-javascript`
+- `telnyx-account-reports-javascript`
+- `telnyx-ai-assistants-javascript`
+- `telnyx-ai-inference-javascript`
+- `telnyx-fax-javascript`
+- `telnyx-iot-javascript`
+- `telnyx-messaging-hosted-javascript`
+- `telnyx-messaging-javascript`
+- ... plus 24 more skills in this bundle
+
+Selection rules:
+
+- Load only the exact skill IDs needed for the current task.
+- Prefer product-specific skills such as `telnyx-messaging-python` over broad bundle context.
+- Fall back to adjacent skills in this bundle only when the task clearly spans multiple Telnyx products.

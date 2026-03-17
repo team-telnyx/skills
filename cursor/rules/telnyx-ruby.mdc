@@ -1,0 +1,28 @@
+---
+description: Use for telnyx-ruby tasks.
+alwaysApply: false
+---
+# telnyx-ruby
+
+Use this bundle when: Telnyx Ruby SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Ruby projects.
+
+Available skills in this bundle include:
+- `telnyx-10dlc-ruby`
+- `telnyx-account-access-ruby`
+- `telnyx-account-management-ruby`
+- `telnyx-account-notifications-ruby`
+- `telnyx-account-reports-ruby`
+- `telnyx-account-ruby`
+- `telnyx-ai-assistants-ruby`
+- `telnyx-ai-inference-ruby`
+- `telnyx-fax-ruby`
+- `telnyx-iot-ruby`
+- `telnyx-messaging-hosted-ruby`
+- `telnyx-messaging-profiles-ruby`
+- ... plus 24 more skills in this bundle
+
+Selection rules:
+
+- Load only the exact skill IDs needed for the current task.
+- Prefer product-specific skills such as `telnyx-messaging-python` over broad bundle context.
+- Fall back to adjacent skills in this bundle only when the task clearly spans multiple Telnyx products.

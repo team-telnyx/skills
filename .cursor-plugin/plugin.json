@@ -1,0 +1,12 @@
+{
+  "name": "telnyx-skills",
+  "version": "1.0.0",
+  "description": "Official Telnyx Cursor rules for API, SDK, WebRTC, and migration workflows.",
+  "author": {
+    "name": "Telnyx",
+    "email": "support@telnyx.com"
+  },
+  "homepage": "https://github.com/team-telnyx/telnyx-skills",
+  "repository": "https://github.com/team-telnyx/telnyx-skills",
+  "rules": "cursor/rules"
+}

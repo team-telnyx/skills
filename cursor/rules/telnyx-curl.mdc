@@ -1,0 +1,28 @@
+---
+description: Use for telnyx-curl tasks.
+alwaysApply: false
+---
+# telnyx-curl
+
+Use this bundle when: Telnyx REST API bundle for language-agnostic HTTP examples across messaging, voice, numbers, networking, AI, and account workflows.
+
+Available skills in this bundle include:
+- `telnyx-10dlc-curl`
+- `telnyx-account-access-curl`
+- `telnyx-account-curl`
+- `telnyx-account-management-curl`
+- `telnyx-account-notifications-curl`
+- `telnyx-account-reports-curl`
+- `telnyx-ai-assistants-curl`
+- `telnyx-ai-inference-curl`
+- `telnyx-fax-curl`
+- `telnyx-iot-curl`
+- `telnyx-messaging-curl`
+- `telnyx-messaging-hosted-curl`
+- ... plus 24 more skills in this bundle
+
+Selection rules:
+
+- Load only the exact skill IDs needed for the current task.
+- Prefer product-specific skills such as `telnyx-messaging-python` over broad bundle context.
+- Fall back to adjacent skills in this bundle only when the task clearly spans multiple Telnyx products.

@@ -1,0 +1,16 @@
+---
+description: Use for telnyx-cli tasks.
+alwaysApply: false
+---
+# telnyx-cli
+
+Use this bundle when: Telnyx CLI bundle for terminal-driven API workflows such as messaging, voice, number management, and account operations.
+
+Available skills in this bundle include:
+- `telnyx-cli`
+
+Selection rules:
+
+- Load only the exact skill IDs needed for the current task.
+- Prefer product-specific skills such as `telnyx-messaging-python` over broad bundle context.
+- Fall back to adjacent skills in this bundle only when the task clearly spans multiple Telnyx products.

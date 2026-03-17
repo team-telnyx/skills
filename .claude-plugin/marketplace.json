@@ -12,7 +12,7 @@
     {
       "name": "telnyx-curl",
       "version": "1.0.3",
-      "description": "Official Telnyx REST API (curl) skills \u2014 messaging, voice, numbers, IoT, AI, and more. Language-agnostic HTTP examples for any language or framework.",
+      "description": "Telnyx REST API bundle for language-agnostic HTTP examples across messaging, voice, numbers, networking, AI, and account workflows.",
       "source": "./telnyx-curl",
       "skills": [
         "./skills/telnyx-10dlc-curl",
@@ -56,7 +56,7 @@
     {
       "name": "telnyx-go",
       "version": "1.0.3",
-      "description": "Official Telnyx Go SDK skills \u2014 messaging, voice, numbers, IoT, AI, and more. Install this plugin to give your agent Telnyx API expertise in Go.",
+      "description": "Telnyx Go SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Go projects.",
       "source": "./telnyx-go",
       "skills": [
         "./skills/telnyx-10dlc-go",
@@ -100,7 +100,7 @@
     {
       "name": "telnyx-java",
       "version": "1.0.3",
-      "description": "Official Telnyx Java SDK skills \u2014 messaging, voice, numbers, IoT, AI, and more. Install this plugin to give your agent Telnyx API expertise in Java.",
+      "description": "Telnyx Java SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Java projects.",
       "source": "./telnyx-java",
       "skills": [
         "./skills/telnyx-10dlc-java",
@@ -144,7 +144,7 @@
     {
       "name": "telnyx-javascript",
       "version": "1.0.3",
-      "description": "Official Telnyx Node.js/JavaScript SDK skills \u2014 messaging, voice, numbers, IoT, AI, and more. Install this plugin to give your agent Telnyx API expertise in JavaScript.",
+      "description": "Telnyx JavaScript and Node.js SDK bundle for messaging, voice, numbers, networking, AI, and account workflows.",
       "source": "./telnyx-javascript",
       "skills": [
         "./skills/telnyx-10dlc-javascript",
@@ -188,7 +188,7 @@
     {
       "name": "telnyx-python",
       "version": "1.0.3",
-      "description": "Official Telnyx Python SDK skills \u2014 messaging, voice, numbers, IoT, AI, and more. Install this plugin to give your agent Telnyx API expertise in Python.",
+      "description": "Telnyx Python SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Python projects.",
       "source": "./telnyx-python",
       "skills": [
         "./skills/telnyx-10dlc-python",
@@ -232,7 +232,7 @@
     {
       "name": "telnyx-ruby",
       "version": "1.0.3",
-      "description": "Official Telnyx Ruby SDK skills \u2014 messaging, voice, numbers, IoT, AI, and more. Install this plugin to give your agent Telnyx API expertise in Ruby.",
+      "description": "Telnyx Ruby SDK bundle for messaging, voice, numbers, networking, AI, and account workflows in Ruby projects.",
       "source": "./telnyx-ruby",
       "skills": [
         "./skills/telnyx-10dlc-ruby",
@@ -276,7 +276,7 @@
     {
       "name": "telnyx-webrtc-client",
       "version": "1.0.0",
-      "description": "Telnyx WebRTC client SDK skills \u2014 build VoIP calling apps on web, iOS, Android, Flutter, and React Native. Covers authentication, call controls, push notifications, call quality metrics, and AI Agent integration.",
+      "description": "Telnyx WebRTC client bundle for browser, iOS, Android, Flutter, and React Native calling apps, including auth, call controls, push, and client-side setup.",
       "source": "./telnyx-webrtc-client",
       "skills": [
         "./telnyx-webrtc-client/skills/telnyx-webrtc-client-js",
@@ -290,7 +290,7 @@
     {
       "name": "telnyx-twilio-migration",
       "version": "1.0.0",
-      "description": "Migrate from Twilio to Telnyx \u2014 6-phase orchestrated workflow covering voice (TwiML \u2192 TeXML + Call Control), messaging, WebRTC, SIP trunking, number porting, Verify, fax, IoT, and more. Includes automated scanning, linting, validation, and integration test scripts.",
+      "description": "Twilio-to-Telnyx migration bundle covering discovery, planning, implementation, validation, and product-specific migration guidance across voice, messaging, WebRTC, SIP, and more.",
       "source": "./telnyx-twilio-migration",
       "skills": [
         "./skills/telnyx-twilio-migration"
@@ -299,7 +299,7 @@
     {
       "name": "telnyx-cli",
       "version": "1.0.0",
-      "description": "Telnyx CLI \u2014 manage phone numbers, send messages, make calls, and access all Telnyx APIs from the terminal. 946 commands auto-generated from the OpenAPI spec.",
+      "description": "Telnyx CLI bundle for terminal-driven API workflows such as messaging, voice, number management, and account operations.",
       "source": "./telnyx-cli",
       "skills": [
         "./telnyx-cli/skills/telnyx-cli"

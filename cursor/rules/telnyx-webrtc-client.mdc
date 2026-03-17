@@ -1,0 +1,21 @@
+---
+description: Use for telnyx-webrtc-client tasks.
+alwaysApply: false
+---
+# telnyx-webrtc-client
+
+Use this bundle when: Telnyx WebRTC client bundle for browser, iOS, Android, Flutter, and React Native calling apps, including auth, call controls, push, and client-side setup.
+
+Available skills in this bundle include:
+- `push-notification-tester`
+- `telnyx-webrtc-client-android`
+- `telnyx-webrtc-client-flutter`
+- `telnyx-webrtc-client-ios`
+- `telnyx-webrtc-client-js`
+- `telnyx-webrtc-client-react-native`
+
+Selection rules:
+
+- Load only the exact skill IDs needed for the current task.
+- Prefer product-specific skills such as `telnyx-messaging-python` over broad bundle context.
+- Fall back to adjacent skills in this bundle only when the task clearly spans multiple Telnyx products.
