@@ -92,12 +92,18 @@ Telnyx skills work with all agents supported by the Skills CLI.
 
 ## Available Skills
 
-**(Values in the "Skill" column below can be used for `<SKILL>`)** in the install command: 
+Skills are organized by product and language. Each product skill is available in **Curl**, **JavaScript**, **Python**, **Go**, **Java**, and **Ruby** .
+
+**(Values in the "Skill" column in the tables below can be used for `<SKILL>`)** in the install command. Append the language suffix to replace * , e.g. `telnyx-voice-go` : 
 
 ```bash
 npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent <AGENT>
 ```
-Skills are organized by product and language. Each product is available in **JavaScript**, **Python**, **Go**, **Java**, and **Ruby** (append the language suffix, e.g. `telnyx-messaging-python`).
+
+Example:
+```bash
+npx skills add team-telnyx/telnyx-skills --skill telnyx-messaging-python --agent cursor
+```
 
 <!-- BEGIN GENERATED SKILLS_TABLE -->
 #### Messaging
