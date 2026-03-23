@@ -1,0 +1,65 @@
+# Telnyx
+
+> Cloud communications platform: programmable voice, messaging, numbers, IoT, AI, and networking APIs.
+
+Telnyx provides telecom infrastructure as a service. Build voice calling, SMS/MMS messaging, phone number management, IoT connectivity, and AI-powered communication applications.
+
+## Documentation
+
+- [Developer Docs](https://developers.telnyx.com): Guides, tutorials, quickstarts
+- [API Reference](https://developers.telnyx.com/api): Full REST API documentation
+- [Messaging API](https://developers.telnyx.com/docs/messaging): Send/receive SMS and MMS
+- [Voice API](https://developers.telnyx.com/docs/voice): Call Control, TeXML, conferencing
+- [Numbers API](https://developers.telnyx.com/docs/numbers): Search, purchase, configure phone numbers
+- [10DLC Registration](https://developers.telnyx.com/docs/10dlc): A2P messaging compliance
+- [Verify API](https://developers.telnyx.com/docs/verify): Phone verification, OTP, 2FA
+- [AI Assistants](https://developers.telnyx.com/docs/ai): Voice AI agents, inference, embeddings
+- [IoT / Wireless](https://developers.telnyx.com/docs/iot): SIM cards, eSIMs, data plans
+- [SIP Trunking](https://developers.telnyx.com/docs/sip-trunking): SIP connections, outbound voice profiles
+- [WebRTC](https://developers.telnyx.com/docs/webrtc): Browser and mobile VoIP calling
+- [Storage](https://developers.telnyx.com/docs/storage): S3-compatible cloud storage
+- [Fax](https://developers.telnyx.com/docs/fax): Programmable fax
+
+## SDKs
+
+- [Python SDK](https://pypi.org/project/telnyx/): `pip install telnyx`
+- [Node.js SDK](https://www.npmjs.com/package/telnyx): `npm install telnyx`
+- [Go SDK](https://pkg.go.dev/github.com/team-telnyx/telnyx-go): `go get github.com/team-telnyx/telnyx-go`
+- [Java SDK](https://central.sonatype.com/artifact/com.telnyx.sdk/telnyx-java): Maven/Gradle
+- [Ruby SDK](https://rubygems.org/gems/telnyx): `gem install telnyx`
+
+## Agent Skills
+
+AI coding agent skills for Claude Code, Cursor, Copilot, Codex, Windsurf, and 12+ more:
+
+```bash
+npx skills add team-telnyx/skills
+```
+
+Or for Claude Code: `/plugin marketplace add team-telnyx/skills`
+
+## Authentication
+
+All API requests use Bearer token authentication:
+
+```
+Authorization: Bearer YOUR_API_KEY
+```
+
+Get your API key at https://portal.telnyx.com
+
+## Base URL
+
+```
+https://api.telnyx.com/v2
+```
+
+## Webhooks
+
+Telnyx signs all webhooks with Ed25519. Verify using `telnyx-signature-ed25519` and `telnyx-timestamp` headers. Use `client.webhooks.unwrap()` in any SDK.
+
+## Support
+
+- [Support Center](https://support.telnyx.com)
+- [Status Page](https://status.telnyx.com)
+- [GitHub](https://github.com/team-telnyx)

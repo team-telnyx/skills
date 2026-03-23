@@ -1,124 +1,23 @@
 # Telnyx Agent Skills
 
-Official Agent Skills for building on Telnyx.
+Official skills for AI coding agents to integrate Telnyx APIs using the native SDKs.
 
-These skills give coding agents structured, up-to-date context to generate correct, production-ready code without relying on pre-training or fragile doc retrieval.
-
-They include accurate schemas, SDK patterns, workflows, and API references, so agents can implement Telnyx APIs reliably in real-world applications.
-
-Telnyx Agent Skills follow the [Agent Skills specification](https://agentskills.io/specification) and are compatible with coding agents like Claude Code, Cursor, Windsurf, and others.
-
-> [!NOTE]
-> This repository is a work in progress under active development. Skills are being continuously improved based on testing and feedback, and updated to reflect the latest APIs and SDK patterns. Contributions and feedback encouraged!
-
-## Table of contents
-
-- [Installation Quickstart](#installation-quickstart)
-- [Skills CLI installation](#skills-cli-installation)
-- [Claude Code plugins installation](#install-claude-code-plugins)
-- [Telnyx API and SDKs](#available-skills)
-- [WebRTC client SDKs](#webrtc-client-sdks)
-- [Twilio Migration](#twilio-migration)
-
-## Installation Quickstart
-
-Choose your setup:
-
-- [Skills CLI (Codex, Cursor, etc.)](#skills-cli-installation)
-- [Claude Code plugins](#install-claude-code-plugins)
-
-### Skills CLI installation
-
-Install a skill for your agent:
-
-```bash
-npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent <AGENT>
-```
-
-**Example:**
-```bash
-npx skills add team-telnyx/telnyx-skills --skill telnyx-voice-python --agent codex
-```
-
-A comprehensive list of available skills **(values for `<SKILL>`)** can be found in the [Available Skills](#available-skills) section.
-
-A comprehensive list of supported agents **(values for `<AGENT>`)** can be found [here](https://github.com/vercel-labs/skills#supported-agents).
-
-#### Codex
-```bash
-npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent codex
-```
-
-#### Claude Code
-```bash
-npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent claude-code
-```
-
-#### Cursor
-```bash
-npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent cursor
-```
-
-#### OpenClaw
-```bash
-npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent openclaw
-```
-
-#### Gemini CLI
-```bash
-npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent gemini-cli
-```
-
-#### GitHub Copilot
-```bash
-npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent github-copilot
-```
-
-#### OpenCode
-```bash
-npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent opencode
-```
-
-### Other supported agents
-
-Telnyx skills work with all agents supported by the Skills CLI.
-
-[See full list of supported agents](https://github.com/vercel-labs/skills#supported-agents)
-
-> Agents automatically use installed skills when generating code. No additional configuration required.
-
-> [!IMPORTANT]
-> Use only the skills your project actually needs. Loading too many skills wastes tokens, dilutes context, and makes it easier for an agent to confuse SDK patterns.
+These skills follow the [Agent Skills specification](https://agentskills.io/specification) and can be installed in AI coding assistants like [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Cursor, Windsurf, and other compatible agents.
 
 ## Available Skills
 
-Skills are organized by product and language. Each product skill is available in **Curl**, **JavaScript**, **Python**, **Go**, **Java**, and **Ruby** .
+Skills are organized by product and language. Each skill teaches an AI agent how to use Telnyx SDKs correctly with production-ready code examples.
 
-**(Values in the "Skill" column in the tables below can be used for `<SKILL>`)** in the install command. Append the language suffix to replace * , e.g. `telnyx-voice-go` : 
+### Products
 
-```bash
-npx skills add team-telnyx/telnyx-skills --skill <SKILL> --agent <AGENT>
-```
-
-Example:
-```bash
-npx skills add team-telnyx/telnyx-skills --skill telnyx-messaging-python --agent cursor
-```
-
-<!-- BEGIN GENERATED SKILLS_TABLE -->
-#### Messaging
-
-| Skill | Description |
-|-------|-------------|
+| Product | Description |
+|---------|-------------|
+| **Messaging** | |
 | `telnyx-messaging-*` | Send/receive SMS/MMS, manage messaging numbers, handle opt-outs |
 | `telnyx-messaging-profiles-*` | Messaging profiles, number pools, short codes |
 | `telnyx-messaging-hosted-*` | Hosted SMS numbers, toll-free verification, RCS |
 | `telnyx-10dlc-*` | 10DLC brand/campaign registration for A2P compliance |
-
-#### Voice & Communications
-
-| Skill | Description |
-|-------|-------------|
+| **Voice** | |
 | `telnyx-voice-*` | Call control: dial, answer, hangup, transfer, bridge |
 | `telnyx-voice-media-*` | Audio playback, text-to-speech, call recording |
 | `telnyx-voice-gather-*` | DTMF/speech input collection, AI-powered gather |
@@ -126,192 +25,131 @@ npx skills add team-telnyx/telnyx-skills --skill telnyx-messaging-python --agent
 | `telnyx-voice-conferencing-*` | Conference calls, queues, multi-party sessions |
 | `telnyx-voice-advanced-*` | DTMF sending, SIPREC, noise suppression, supervisor |
 | `telnyx-texml-*` | TeXML (TwiML-compatible) voice applications |
+| **Connectivity** | |
 | `telnyx-sip-*` | SIP trunking connections, outbound voice profiles |
 | `telnyx-sip-integrations-*` | Call recordings, media storage, Dialogflow integration |
-| `telnyx-webrtc-*` | WebRTC credentials and push notification setup (server-side — see [Client SDKs](#webrtc-client-sdks) for the calling UI) |
-
-#### Numbers
-
-| Skill | Description |
-|-------|-------------|
+| `telnyx-webrtc-*` | WebRTC credentials and mobile push notifications |
+| **Phone Numbers** | |
 | `telnyx-numbers-*` | Search, order, and manage phone numbers |
 | `telnyx-numbers-config-*` | Phone number configuration and settings |
 | `telnyx-numbers-compliance-*` | Regulatory requirements, bundles, documents |
 | `telnyx-numbers-services-*` | Voicemail, voice channels, E911 |
 | `telnyx-porting-in-*` | Port numbers into Telnyx |
 | `telnyx-porting-out-*` | Manage port-out requests |
+| **Identity & AI** | |
 | `telnyx-verify-*` | Phone verification, number lookup, 2FA |
-
-#### AI
-
-| Skill | Description |
-|-------|-------------|
 | `telnyx-ai-assistants-*` | AI voice assistants with knowledge bases |
 | `telnyx-ai-inference-*` | LLM inference, embeddings, AI analytics |
-| `telnyx-missions-*` | Automated AI-driven workflows and tasks |
-
-#### IoT & Networking
-
-| Skill | Description |
-|-------|-------------|
+| **Other** | |
 | `telnyx-iot-*` | IoT SIM cards, eSIMs, data plans |
 | `telnyx-networking-*` | Private networks, VPN gateways |
-
-#### Other
-
-| Skill | Description |
-|-------|-------------|
 | `telnyx-storage-*` | S3-compatible cloud storage |
 | `telnyx-video-*` | Video rooms and conferencing |
 | `telnyx-fax-*` | Programmable fax |
-| `telnyx-seti-*` | Space Exploration Telecommunications Infrastructure |
 | `telnyx-oauth-*` | OAuth 2.0 authentication flows |
-
-#### Account
-
-| Skill | Description |
-|-------|-------------|
+| **Account** | |
 | `telnyx-account-*` | Balance, payments, invoices, webhooks, audit logs |
 | `telnyx-account-access-*` | Addresses, auth providers, IP access, billing groups |
 | `telnyx-account-management-*` | Sub-account management (resellers) |
 | `telnyx-account-notifications-*` | Notification channels and settings |
 | `telnyx-account-reports-*` | Usage reports for billing and analytics |
-<!-- END GENERATED SKILLS_TABLE -->
 
-## WebRTC Client SDKs
+### Languages
 
-The skills above cover **server-side** Telnyx APIs (REST calls from your backend). If you're building a **calling app** where users make or receive VoIP calls directly from a device, you also need the client-side WebRTC SDKs.
+Each product is available for:
+- **JavaScript** (`-javascript`)
+- **Python** (`-python`)
+- **Go** (`-go`)
+- **Java** (`-java`)
+- **Ruby** (`-ruby`)
 
-These are platform-specific native libraries — separate from the server-side language plugins:
+## Installation
 
-| Skill | Platform | Language |
-|-------|----------|----------|
-| `telnyx-webrtc-client-js` | Browser | JavaScript |
-| `telnyx-webrtc-client-ios` | iOS | Swift |
-| `telnyx-webrtc-client-android` | Android | Kotlin |
-| `telnyx-webrtc-client-flutter` | Flutter (Android/iOS/Web) | Dart |
-| `telnyx-webrtc-client-react-native` | React Native (Android/iOS) | TypeScript |
+### Claude Code
 
-Each skill covers authentication, making/receiving calls, call controls (hold, mute, transfer), push notifications, call quality metrics, and AI Agent integration.
-
-> **Note:** Building a calling app typically requires multiple skills — a server-side plugin (e.g. `telnyx-voice-python`) to create WebRTC credentials and generate login tokens, and `telnyx-webrtc-client-X` for the client-side calling UI.
-
-## Twilio Migration
-
-A comprehensive 6-phase orchestrated agent workflow for moving apps from Twilio to Telnyx across all product areas.
-
-#### Install command:
-```bash
-npx skills add team-telnyx/telnyx-skills --skill telnyx-twilio-migration --agent <AGENT>
-```
-
-**What's covered:**
-
-| Area | Description |
-|------|-------------|
-| Voice (TwiML → TeXML + Call Control) | Near drop-in XML compatibility (15 verbs, 8 nouns) plus Call Control API for real-time call manipulation |
-| Messaging (SMS/MMS) | Parameter mapping, messaging profiles, 10DLC registration |
-| WebRTC / Client SDKs | Architecture differences, endpoint migration, mobile SDK guides (iOS, Android, Flutter, React Native) |
-| Number Porting | FastPort API for same-day US/Canada activation |
-| Verify (2FA) | SMS, voice, flash calling, and PSD2 verification |
-| SIP Trunking | Connection setup, credential auth, FQDN migration |
-| Fax / IoT / Video | Product-specific migration guides with API mapping |
-| Lookup | Number lookup and carrier data migration |
-| Universal Changes | Auth (Basic → Bearer), webhook signatures (HMAC-SHA1 → Ed25519), `client.webhooks.unwrap()` verification |
-
-**6-phase orchestrated workflow** — Discovery → Planning → Core Migration → Webhook/Auth → Testing → Validation → Cleanup — with automated scripts:
-
-| Script | Purpose |
-|--------|---------|
-| `preflight-check.sh` | Pre-migration environment and dependency validation |
-| `scan-twilio-usage.sh` | Detect all Twilio usage across the codebase |
-| `lint-telnyx-correctness.sh` | Static analysis for common Telnyx SDK mistakes |
-| `validate-migration.sh` | Post-migration validation (webhooks, env vars, API patterns) |
-| `smoke-test.sh` | Runtime smoke tests against the live Telnyx API |
-| `test-*.sh` | Product-specific integration tests (messaging, voice, verify, SIP, WebRTC, fax, lookup) |
-
-Includes parameter-by-parameter mapping tables, multi-language code examples (Python, Node, Go, Java, Ruby, curl), error code mapping, and migration plan/report templates.
-
-> **Note:** After migrating, install a language plugin (e.g. `telnyx-python`) for deeper SDK examples, and `telnyx-webrtc-client` if building a calling app.
-
-## Install Claude Code Plugins
-Plugins are installable packages containing curated bundles of related Telnyx Agent skills. Install with Claude Code marketplace:
-
-**Step 1.** Add the Telnyx skills marketplace (one-time setup):
+First, add the Telnyx skills marketplace:
 
 ```bash
-/plugin marketplace add team-telnyx/telnyx-skills
+/plugin marketplace add team-telnyx/skills
 ```
 
-**Step 2.** Install a plugin — pick a plugin from table below:
+Then install the plugin for your language. Each plugin includes all 35 Telnyx products (messaging, voice, numbers, IoT, AI, and more):
 
+#### Python
 ```bash
-/plugin install <PLUGIN>@telnyx-skills
+/plugin install telnyx-python@team-telnyx/skills
 ```
-Replace `<PLUGIN>` with the plugin from the table below:
 
-**Examples:**
+#### JavaScript / Node.js
 ```bash
-/plugin install telnyx-python@telnyx-skills
-/plugin install telnyx-twilio-migration@telnyx-skills
+/plugin install telnyx-javascript@team-telnyx/skills
 ```
 
-<!-- BEGIN GENERATED PLUGIN_TABLE -->
-| Plugin | Language |
-|--------|----------|
-| `telnyx-curl` | curl (REST API) |
-| `telnyx-go` | Go |
-| `telnyx-java` | Java |
-| `telnyx-javascript` | JavaScript / Node.js |
-| `telnyx-python` | Python |
-| `telnyx-ruby` | Ruby |
-| `telnyx-webrtc-client` | WebRTC client SDKs (JS, iOS, Android, Flutter, React Native) |
-| `telnyx-twilio-migration` | Migrate from Twilio to Telnyx |
-| `telnyx-cli` | Telnyx CLI |
-<!-- END GENERATED PLUGIN_TABLE -->
+#### Go
+```bash
+/plugin install telnyx-go@team-telnyx/skills
+```
 
-Each language plugin includes all <!-- PRODUCT_COUNT -->36<!-- /PRODUCT_COUNT --> Telnyx products (messaging, voice, numbers, IoT, AI, and more).
+#### Java
+```bash
+/plugin install telnyx-java@team-telnyx/skills
+```
 
-The WebRTC client plugin covers building VoIP calling apps — see [WebRTC Client SDKs](#webrtc-client-sdks) for details.
+#### Ruby
+```bash
+/plugin install telnyx-ruby@team-telnyx/skills
+```
 
-The Twilio Migration plugin is a comprehensive 6-phase orchestrated agent workflow for moving apps from Twilio to Telnyx across all product areas — see [Twilio Migration](#twilio-migration) for details.
+### Other Agents
+
+For Cursor, Windsurf, and other agents that support the [Agent Skills specification](https://agentskills.io/specification), copy the desired skill directory to your agent's skills location or reference the `SKILL.md` file directly.
 
 ## Skill Structure
 
-Each skill contains a single `SKILL.md` file with YAML frontmatter, SDK installation instructions, client setup, code examples for every API operation, and webhook event reference tables where applicable. All code examples are generated from the official Telnyx OpenAPI specifications.
+Each skill contains a single `SKILL.md` file with:
+- YAML frontmatter (name, description, metadata)
+- Installation instructions for the SDK
+- A setup section with client initialization (shown once)
+- Concise code examples for every API operation
+- Webhook event reference tables where applicable
 
-The canonical artifact format is:
+All code examples are extracted directly from Telnyx OpenAPI specifications and are guaranteed to work with the latest SDK versions.
 
-- `SKILL.md`
-- `references/api-details.md` when overflow API detail is needed
+## Example
 
-**Note:** Skill generation and publishing logic live in the separate internal repository. If you discover an error, please open an issue on this repo describing the problem.
+After installing `telnyx-messaging-python`, your AI agent will know how to:
 
-#### Alternative (manual) skill installation - clone and copy specific skills
+```python
+# Setup (shown once at top of skill)
+from telnyx import Telnyx
+client = Telnyx()
 
-```bash
-
-git clone https://github.com/team-telnyx/telnyx-skills.git
-
-# Copy the skill into your agent's skills directory
-mkdir -p .github/skills
-
-# Example:
-cp -r telnyx-skills/telnyx-python/skills/telnyx-messaging-python .github/skills/
+# Send an SMS
+response = client.messages.send(
+    from_="+15551234567",
+    to="+15559876543",
+    text="Hello from Telnyx!",
+)
 ```
+
+## Documentation
+
+- [Telnyx Developer Docs](https://developers.telnyx.com)
+- [Telnyx API Reference](https://developers.telnyx.com/api)
+- [Agent Skills Specification](https://agentskills.io/specification)
 
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+**Note:** Code examples are auto-generated from Telnyx OpenAPI specs. To fix a code example, please open an issue describing the problem rather than editing the code directly.
+
 ## Support
 
-For issues with these skills, please [open an issue](https://github.com/team-telnyx/telnyx-skills/issues) in this repository.
+For issues with these skills, please [open an issue](https://github.com/team-telnyx/skills/issues) in this repository.
 
 For Telnyx API support, visit [support.telnyx.com](https://support.telnyx.com).
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
-Maintained by [@aisling404](https://github.com/aisling404) (Telnyx)
