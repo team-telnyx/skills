@@ -275,7 +275,7 @@
     },
     {
       "name": "telnyx-webrtc-client",
-      "version": "1.0.1",
+      "version": "1.0.0",
       "description": "Telnyx WebRTC client SDK skills \u2014 build VoIP calling apps on web, iOS, Android, Flutter, and React Native. Covers authentication, call controls, push notifications, call quality metrics, and AI Agent integration.",
       "source": "./telnyx-webrtc-client",
       "skills": [
