@@ -1,0 +1,37 @@
+{
+  "name": "@telnyx/mcp",
+  "version": "0.1.0",
+  "description": "Telnyx MCP server — proxies to the remote Telnyx MCP endpoint for use with Claude Desktop, Cursor, and other MCP clients",
+  "main": "dist/index.js",
+  "bin": {
+    "telnyx-mcp": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "npx tsx src/cli.ts"
+  },
+  "keywords": [
+    "telnyx",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "agent"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/team-telnyx/ai",
+    "directory": "tools/mcp"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.8.0"
+  }
+}
