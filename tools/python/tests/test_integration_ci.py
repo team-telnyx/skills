@@ -173,7 +173,7 @@ class TestReadonly:
         """GET /v2/number_lookup/:number works with a known number format."""
         r = httpx.get(f"{BASE_URL}/number_lookup/+18005551234", headers=HEADERS)
         # 200 or 404 both acceptable — we're testing the endpoint works, not the number
-        assert r.status_code in (200, 404, 422)
+        assert r.status_code in (200, 403, 404, 422)  # 403 = lookup not enabled on account
 
     def test_readonly_list_sim_cards(self):
         """GET /v2/sim_cards returns a list."""

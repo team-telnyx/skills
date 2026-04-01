@@ -1,8 +1,9 @@
 /**
  * telnyx-agent status — Account health at a glance.
+ * All queries via telnyx CLI.
  */
 
-import { TelnyxClient, TelnyxAPIError } from "../client.ts";
+import { telnyxCli, TelnyxCLIError } from "../telnyx-cli.ts";
 import { outputJson, printWarning } from "../utils/output.ts";
 
 interface StatusResult {
@@ -15,7 +16,6 @@ interface StatusResult {
 }
 
 export async function statusCommand(flags: Record<string, string | boolean>): Promise<void> {
-  const client = new TelnyxClient();
   const jsonOutput = flags.json === true;
 
   const results: StatusResult = {
@@ -27,13 +27,13 @@ export async function statusCommand(flags: Record<string, string | boolean>): Pr
     warnings: [],
   };
 
-  // Run all queries concurrently
+  // Run all queries concurrently via CLI
   const [balanceRes, numbersRes, profilesRes, connectionsRes, assistantsRes] = await Promise.allSettled([
-    client.get("/balance"),
-    client.get("/phone_numbers", { "page[size]": 1 }),
-    client.get("/messaging_profiles", { "page[size]": 1 }),
-    client.get("/credential_connections", { "page[size]": 1 }),
-    client.get("/ai/assistants", { "page[size]": 1 }),
+    telnyxCli(["billing", "balance"]),
+    telnyxCli(["number", "list", "--limit", "1"]),
+    telnyxCli(["messaging-profile", "list", "--limit", "1"]),
+    telnyxCli(["connection", "list", "--limit", "1", "--type", "credential"]),
+    telnyxCli(["assistant", "list", "--limit", "1"]),
   ]);
 
   // Balance
@@ -54,7 +54,7 @@ export async function statusCommand(flags: Record<string, string | boolean>): Pr
   if (numbersRes.status === "fulfilled") {
     const meta = numbersRes.value.meta as Record<string, unknown> | undefined;
     results.phone_numbers.total = Number(meta?.total_results ?? 0);
-    results.phone_numbers.active = results.phone_numbers.total; // Approximate; filtered query would be more precise
+    results.phone_numbers.active = results.phone_numbers.total; // Approximate
   } else {
     results.warnings.push(`Could not fetch phone numbers: ${errorMsg(numbersRes.reason)}`);
   }
@@ -110,7 +110,7 @@ export async function statusCommand(flags: Record<string, string | boolean>): Pr
 }
 
 function errorMsg(err: unknown): string {
-  if (err instanceof TelnyxAPIError) return err.detail;
+  if (err instanceof TelnyxCLIError) return err.stderr || err.message;
   if (err instanceof Error) return err.message;
   return String(err);
 }

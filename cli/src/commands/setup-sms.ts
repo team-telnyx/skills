@@ -2,13 +2,14 @@
  * telnyx-agent setup-sms — Zero to sending SMS in one command.
  *
  * Steps:
- * 1. Create a messaging profile
- * 2. Search for a phone number with SMS capability
- * 3. Buy the number
- * 4. Assign number to the messaging profile
+ * 1. Create a messaging profile (via telnyx CLI)
+ * 2. Search for a phone number with SMS capability (via telnyx CLI)
+ * 3. Buy the number (via telnyx CLI)
+ * 4. Assign number to the messaging profile (via telnyx CLI)
  */
 
-import { TelnyxClient, TelnyxAPIError } from "../client.ts";
+import { telnyxCli, TelnyxCLIError } from "../telnyx-cli.ts";
+import { TelnyxClient } from "../client.ts";
 import { printStep, printSuccess, printError, outputJson, type StepResult } from "../utils/output.ts";
 import { searchAndBuyNumber } from "../utils/number-order.ts";
 
@@ -22,7 +23,6 @@ interface SetupSmsResult {
 }
 
 export async function setupSmsCommand(flags: Record<string, string | boolean>): Promise<void> {
-  const client = new TelnyxClient();
   const jsonOutput = flags.json === true;
   const country = (flags.country as string) || "US";
   const totalSteps = 4;
@@ -35,18 +35,23 @@ export async function setupSmsCommand(flags: Record<string, string | boolean>): 
   let phoneNumberId = "";
 
   try {
-    // Step 1: Create messaging profile
+    // Step 1: Create messaging profile via direct API
+    // (CLI doesn't support --whitelisted-destinations which the API requires)
     const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
     profileName = `Agent SMS Profile - ${ts}`;
     if (!jsonOutput) console.log("\n🚀 Setting up SMS...\n");
+
+    const apiKey = process.env.TELNYX_API_KEY;
+    if (!apiKey) throw new Error("TELNYX_API_KEY environment variable is required");
+    const client = new TelnyxClient(apiKey);
 
     const step1Start = Date.now();
     try {
       const profileRes = await client.post("/messaging_profiles", {
         name: profileName,
-        whitelisted_destinations: [country],
+        whitelisted_destinations: ["US"],
       });
-      const profileData = profileRes.data as Record<string, unknown>;
+      const profileData = (profileRes.data ?? profileRes) as Record<string, unknown>;
       profileId = String(profileData.id);
       steps.push({ step: 1, name: "Create messaging profile", status: "completed", resourceId: profileId, detail: profileName, elapsedMs: Date.now() - step1Start });
     } catch (err) {
@@ -55,14 +60,14 @@ export async function setupSmsCommand(flags: Record<string, string | boolean>): 
     }
     if (!jsonOutput) printStep(steps[steps.length - 1], totalSteps);
 
-    // Steps 2+3: Search and buy number (handles 409 retries automatically)
+    // Steps 2+3: Search and buy number via CLI (handles 409 retries automatically)
     const step2Start = Date.now();
     try {
-      const result = await searchAndBuyNumber(
-        client,
-        { "filter[country_code]": country, "filter[features][]": "sms", "filter[phone_number_type]": "local" },
-        { messaging_profile_id: profileId },
-      );
+      const result = await searchAndBuyNumber(country, {
+        features: "sms",
+        type: "local",
+        messagingProfileId: profileId,
+      });
       phoneNumber = result.phoneNumber;
       phoneNumberId = result.phoneNumberId;
       steps.push({ step: 2, name: "Search for number", status: "completed", detail: phoneNumber, elapsedMs: Date.now() - step2Start });
@@ -76,14 +81,15 @@ export async function setupSmsCommand(flags: Record<string, string | boolean>): 
       printStep(steps[steps.length - 1], totalSteps);
     }
 
-    // Step 4: Assign number to messaging profile
-    // Must use the messaging-specific endpoint, not the general phone_numbers endpoint
+    // Step 4: Assign number to messaging profile via CLI
     const step4Start = Date.now();
     try {
-      if (phoneNumberId) {
-        await client.patch(`/phone_numbers/${phoneNumberId}/messaging`, {
-          messaging_profile_id: profileId,
-        });
+      if (phoneNumber) {
+        await telnyxCli([
+          "number", "update", phoneNumber,
+          "--messaging-profile-id", profileId,
+          "--force",
+        ]);
       }
       steps.push({ step: 4, name: "Assign number to profile", status: "completed", elapsedMs: Date.now() - step4Start });
     } catch (err) {
@@ -136,7 +142,7 @@ export async function setupSmsCommand(flags: Record<string, string | boolean>): 
 }
 
 function errorMsg(err: unknown): string {
-  if (err instanceof TelnyxAPIError) return `${err.detail} (HTTP ${err.statusCode})`;
+  if (err instanceof TelnyxCLIError) return err.stderr || err.message;
   if (err instanceof Error) return err.message;
   return String(err);
 }

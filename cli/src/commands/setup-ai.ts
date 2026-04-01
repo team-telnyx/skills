@@ -2,13 +2,14 @@
  * telnyx-agent setup-ai — Zero to AI assistant on a phone number.
  *
  * Steps:
- * 1. Create an AI assistant
- * 2. Search for a phone number
- * 3. Buy the number
- * 4. Wire assistant to the number
+ * 1. Create an AI assistant (via telnyx CLI)
+ * 2. Search for a phone number (via telnyx CLI)
+ * 3. Buy the number (via telnyx CLI)
+ * 4. Wire assistant to the number (direct API — TeXML app creation has no CLI equivalent)
  */
 
 import { TelnyxClient, TelnyxAPIError } from "../client.ts";
+import { telnyxCli, TelnyxCLIError } from "../telnyx-cli.ts";
 import { printStep, printSuccess, printError, outputJson, type StepResult } from "../utils/output.ts";
 import { searchAndBuyNumber } from "../utils/number-order.ts";
 
@@ -40,15 +41,17 @@ export async function setupAiCommand(flags: Record<string, string | boolean>): P
   try {
     if (!jsonOutput) console.log("\n🚀 Setting up AI Assistant...\n");
 
-    // Step 1: Create AI assistant
+    // Step 1: Create AI assistant via CLI
     const step1Start = Date.now();
     try {
-      const assistantRes = await client.post("/ai/assistants", {
-        name: assistantName,
-        instructions,
-        model: "Qwen/Qwen3-235B-A22B",
-      });
-      // AI assistants API returns data at the top level (not nested under .data)
+      const assistantRes = await telnyxCli([
+        "assistant", "create",
+        "--name", assistantName,
+        "--instructions", instructions,
+        "--model", "Qwen/Qwen3-235B-A22B",
+        "--voice", "",  // Override CLI default 'Telnyx.Cove' which is invalid
+      ]);
+      // AI assistants API returns data at the top level or nested under .data
       const assistantData = (assistantRes.data ?? assistantRes) as Record<string, unknown>;
       assistantId = String(assistantData.id);
       steps.push({ step: 1, name: "Create AI assistant", status: "completed", resourceId: assistantId, detail: assistantName, elapsedMs: Date.now() - step1Start });
@@ -58,13 +61,13 @@ export async function setupAiCommand(flags: Record<string, string | boolean>): P
     }
     if (!jsonOutput) printStep(steps[steps.length - 1], totalSteps);
 
-    // Steps 2+3: Search and buy number (handles 409 retries automatically)
+    // Steps 2+3: Search and buy number via CLI (handles 409 retries automatically)
     const step2Start = Date.now();
     try {
-      const result = await searchAndBuyNumber(
-        client,
-        { "filter[country_code]": country, "filter[features][]": "voice", "filter[phone_number_type]": "local" },
-      );
+      const result = await searchAndBuyNumber(country, {
+        features: "voice",
+        type: "local",
+      });
       phoneNumber = result.phoneNumber;
       phoneNumberId = result.phoneNumberId;
       steps.push({ step: 2, name: "Search for number", status: "completed", detail: phoneNumber, elapsedMs: Date.now() - step2Start });
@@ -78,8 +81,7 @@ export async function setupAiCommand(flags: Record<string, string | boolean>): P
       printStep(steps[steps.length - 1], totalSteps);
     }
 
-    // Step 4: Wire assistant to the number
-    // Create a TeXML application for the assistant and assign it to the phone number
+    // Step 4: Wire assistant to the number (direct API — no CLI equivalent for TeXML apps)
     const step4Start = Date.now();
     try {
       // Create a TeXML app that routes to the AI assistant
@@ -93,11 +95,13 @@ export async function setupAiCommand(flags: Record<string, string | boolean>): P
       const texmlData = texmlRes.data as Record<string, unknown>;
       const texmlAppId = String(texmlData.id ?? "");
 
-      // Assign the TeXML app to the phone number via voice settings
-      if (phoneNumberId && texmlAppId) {
-        await client.patch(`/phone_numbers/${phoneNumberId}/voice`, {
-          connection_id: texmlAppId,
-        });
+      // Assign the TeXML app to the phone number via CLI
+      if (phoneNumber && texmlAppId) {
+        await telnyxCli([
+          "number", "update", phoneNumber,
+          "--connection-id", texmlAppId,
+          "--force",
+        ]);
       }
       steps.push({ step: 4, name: "Wire assistant to number", status: "completed", detail: `TeXML app: ${texmlAppId}`, elapsedMs: Date.now() - step4Start });
     } catch (err) {
@@ -153,6 +157,7 @@ export async function setupAiCommand(flags: Record<string, string | boolean>): P
 
 function errorMsg(err: unknown): string {
   if (err instanceof TelnyxAPIError) return `${err.detail} (HTTP ${err.statusCode})`;
+  if (err instanceof TelnyxCLIError) return err.stderr || err.message;
   if (err instanceof Error) return err.message;
   return String(err);
 }

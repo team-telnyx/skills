@@ -1,7 +1,17 @@
 /**
- * Telnyx API client for the agent CLI.
- * Uses native fetch() — no external HTTP dependencies.
- * Reuses the pattern from packages/typescript/src/shared/api-client.ts.
+ * Telnyx API client — ONLY for operations with no CLI equivalent.
+ *
+ * The following 8 operations have no `telnyx` CLI command and must use direct API calls:
+ * 1. POST /texml_applications (setup-ai)
+ * 2. POST /sim_card_groups (setup-iot)
+ * 3. PATCH /sim_cards/:id (setup-iot)
+ * 4. POST /networks (setup-wireguard)
+ * 5. POST /wireguard_interfaces (setup-wireguard)
+ * 6. POST /wireguard_peers (setup-wireguard)
+ * 7. POST /x402/credit_account/quote (fund-account)
+ * 8. POST /x402/credit_account (fund-account)
+ *
+ * All other operations go through the telnyx CLI wrapper (see telnyx-cli.ts).
  */
 
 import { readFileSync } from "node:fs";

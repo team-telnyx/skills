@@ -2,13 +2,14 @@
  * telnyx-agent setup-voice — Zero to making/receiving calls in one command.
  *
  * Steps:
- * 1. Create a credential connection
- * 2. Search for a phone number with voice capability
- * 3. Buy the number
- * 4. Assign number to connection
+ * 1. Create a credential connection (direct API — CLI doesn't expose user_name/password for SIP creds)
+ * 2. Search for a phone number with voice capability (via telnyx CLI)
+ * 3. Buy the number (via telnyx CLI)
+ * 4. Assign number to connection (via telnyx CLI)
  */
 
 import { TelnyxClient, TelnyxAPIError } from "../client.ts";
+import { telnyxCli, TelnyxCLIError } from "../telnyx-cli.ts";
 import { printStep, printSuccess, printError, outputJson, type StepResult } from "../utils/output.ts";
 import { searchAndBuyNumber } from "../utils/number-order.ts";
 
@@ -41,7 +42,7 @@ export async function setupVoiceCommand(flags: Record<string, string | boolean>)
   let sipPassword = "";
 
   try {
-    // Step 1: Create credential connection
+    // Step 1: Create credential connection (direct API — need SIP username/password)
     const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
     connectionName = `Agent Voice Connection - ${ts}`;
     if (!jsonOutput) console.log("\n🚀 Setting up Voice...\n");
@@ -72,14 +73,14 @@ export async function setupVoiceCommand(flags: Record<string, string | boolean>)
     }
     if (!jsonOutput) printStep(steps[steps.length - 1], totalSteps);
 
-    // Steps 2+3: Search and buy number (handles 409 retries automatically)
+    // Steps 2+3: Search and buy number via CLI (handles 409 retries automatically)
     const step2Start = Date.now();
     try {
-      const result = await searchAndBuyNumber(
-        client,
-        { "filter[country_code]": country, "filter[features][]": "voice", "filter[phone_number_type]": "local" },
-        { connection_id: connectionId },
-      );
+      const result = await searchAndBuyNumber(country, {
+        features: "voice",
+        type: "local",
+        connectionId: connectionId,
+      });
       phoneNumber = result.phoneNumber;
       phoneNumberId = result.phoneNumberId;
       steps.push({ step: 2, name: "Search for number", status: "completed", detail: phoneNumber, elapsedMs: Date.now() - step2Start });
@@ -93,14 +94,15 @@ export async function setupVoiceCommand(flags: Record<string, string | boolean>)
       printStep(steps[steps.length - 1], totalSteps);
     }
 
-    // Step 4: Assign number to connection
-    // Must use the voice-specific endpoint for connection_id assignment
+    // Step 4: Assign number to connection via CLI
     const step4Start = Date.now();
     try {
-      if (phoneNumberId) {
-        await client.patch(`/phone_numbers/${phoneNumberId}/voice`, {
-          connection_id: connectionId,
-        });
+      if (phoneNumber) {
+        await telnyxCli([
+          "number", "update", phoneNumber,
+          "--connection-id", connectionId,
+          "--force",
+        ]);
       }
       steps.push({ step: 4, name: "Assign number to connection", status: "completed", elapsedMs: Date.now() - step4Start });
     } catch (err) {
@@ -160,6 +162,7 @@ export async function setupVoiceCommand(flags: Record<string, string | boolean>)
 
 function errorMsg(err: unknown): string {
   if (err instanceof TelnyxAPIError) return `${err.detail} (HTTP ${err.statusCode})`;
+  if (err instanceof TelnyxCLIError) return err.stderr || err.message;
   if (err instanceof Error) return err.message;
   return String(err);
 }

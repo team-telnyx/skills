@@ -15,6 +15,14 @@
     "ethers": "^6.16.0",
     "tsx": "^4.19.0"
   },
+  "peerDependencies": {
+    "@telnyx/api-cli": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@telnyx/api-cli": {
+      "optional": false
+    }
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0"

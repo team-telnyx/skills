@@ -79,8 +79,6 @@ jobs:
           echo "✅ Python and TypeScript SDKs have identical tool sets"
 
       # Guide structural tests
-      - name: Install root deps
-        run: npm ci
       - name: Guide structural tests
         run: npx tsx --test tests/guides.test.ts
 
@@ -125,8 +123,6 @@ jobs:
         run: npx tsx tests/integration-ci.test.ts
 
       # Guide API smoke tests
-      - name: Install root deps
-        run: npm ci
       - name: Guide API smoke tests
         run: npx tsx --test tests/guides-api.test.ts
         env:
@@ -177,3 +173,5 @@ jobs:
         continue-on-error: true
         working-directory: cli
         run: RUN_WRITE_TESTS=true npx tsx tests/integration-ci-write.test.ts
+
+

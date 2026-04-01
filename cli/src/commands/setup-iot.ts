@@ -2,13 +2,14 @@
  * telnyx-agent setup-iot — Zero to connected SIM in one command.
  *
  * Steps:
- * 1. List existing SIM cards
- * 2. Create a SIM card group
- * 3. Activate first available SIM
- * 4. Assign SIM to group
+ * 1. List existing SIM cards (via telnyx CLI)
+ * 2. Create a SIM card group (direct API — no CLI equivalent)
+ * 3. Activate first available SIM (via telnyx CLI)
+ * 4. Assign SIM to group (direct API — no CLI equivalent)
  */
 
 import { TelnyxClient, TelnyxAPIError } from "../client.ts";
+import { telnyxCli, TelnyxCLIError } from "../telnyx-cli.ts";
 import { printStep, printSuccess, printError, printWarning, outputJson, type StepResult } from "../utils/output.ts";
 
 interface SetupIotResult {
@@ -38,11 +39,11 @@ export async function setupIotCommand(flags: Record<string, string | boolean>): 
   try {
     if (!jsonOutput) console.log("\n🚀 Setting up IoT...\n");
 
-    // Step 1: List existing SIMs
+    // Step 1: List existing SIMs via CLI
     const step1Start = Date.now();
     let availableSim: Record<string, unknown> | null = null;
     try {
-      const simsRes = await client.get("/sim_cards", { "page[size]": 25 });
+      const simsRes = await telnyxCli(["sim", "list", "--limit", "25"]);
       const sims = simsRes.data as Record<string, unknown>[];
 
       // Find a disabled/standby SIM that can be activated
@@ -80,7 +81,7 @@ export async function setupIotCommand(flags: Record<string, string | boolean>): 
     simId = String(availableSim.id);
     simIccid = String(availableSim.iccid ?? "");
 
-    // Step 2: Create SIM card group
+    // Step 2: Create SIM card group (direct API — no CLI equivalent)
     const step2Start = Date.now();
     const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
     groupName = `Agent IoT Group - ${ts}`;
@@ -95,15 +96,15 @@ export async function setupIotCommand(flags: Record<string, string | boolean>): 
     }
     if (!jsonOutput) printStep(steps[steps.length - 1], totalSteps);
 
-    // Step 3: Activate the SIM
+    // Step 3: Activate the SIM via CLI
     const step3Start = Date.now();
     try {
-      await client.post(`/sim_cards/${simId}/actions/enable`);
+      await telnyxCli(["sim", "enable", simId]);
       simStatus = "enabled";
       steps.push({ step: 3, name: "Activate SIM", status: "completed", resourceId: simId, detail: `ICCID: ${simIccid}`, elapsedMs: Date.now() - step3Start });
     } catch (err) {
-      // SIM might already be enabled
-      if (err instanceof TelnyxAPIError && err.statusCode === 422) {
+      // SIM might already be enabled — CLI returns error for 422
+      if (err instanceof TelnyxCLIError && (err.stderr.includes("422") || err.stderr.includes("already"))) {
         simStatus = "already_enabled";
         steps.push({ step: 3, name: "Activate SIM", status: "completed", resourceId: simId, detail: "Already enabled", elapsedMs: Date.now() - step3Start });
       } else {
@@ -113,7 +114,7 @@ export async function setupIotCommand(flags: Record<string, string | boolean>): 
     }
     if (!jsonOutput) printStep(steps[steps.length - 1], totalSteps);
 
-    // Step 4: Assign SIM to group
+    // Step 4: Assign SIM to group (direct API — no CLI equivalent)
     const step4Start = Date.now();
     try {
       await client.patch(`/sim_cards/${simId}`, { sim_card_group_id: groupId });
@@ -173,6 +174,7 @@ export async function setupIotCommand(flags: Record<string, string | boolean>): 
 
 function errorMsg(err: unknown): string {
   if (err instanceof TelnyxAPIError) return `${err.detail} (HTTP ${err.statusCode})`;
+  if (err instanceof TelnyxCLIError) return err.stderr || err.message;
   if (err instanceof Error) return err.message;
   return String(err);
 }

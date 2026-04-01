@@ -2,12 +2,12 @@
  * telnyx-agent setup-10dlc — Zero to compliant US A2P messaging in one command.
  *
  * Steps:
- * 1. Create a 10DLC brand (sole proprietor)
- * 2. Create a campaign
- * 3. Assign a phone number to the campaign (optional, if --phone-number-id provided)
+ * 1. Create a 10DLC brand (via telnyx CLI)
+ * 2. Create a campaign (via telnyx CLI)
+ * 3. Assign a phone number to the campaign (via telnyx CLI, optional)
  */
 
-import { TelnyxClient, TelnyxAPIError } from "../client.ts";
+import { telnyxCli, TelnyxCLIError } from "../telnyx-cli.ts";
 import { printStep, printSuccess, printError, outputJson, type StepResult } from "../utils/output.ts";
 
 interface Setup10dlcResult {
@@ -24,7 +24,6 @@ interface Setup10dlcResult {
 }
 
 export async function setup10dlcCommand(flags: Record<string, string | boolean>): Promise<void> {
-  const client = new TelnyxClient();
   const jsonOutput = flags.json === true;
   const phone = flags.phone as string;
   const email = flags.email as string;
@@ -50,22 +49,22 @@ export async function setup10dlcCommand(flags: Record<string, string | boolean>)
   try {
     const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
     brandName = (flags["brand-name"] as string) || `Agent Brand - ${ts}`;
-    const companyName = (flags["company-name"] as string) || brandName;
     const vertical = (flags.vertical as string) || "TECHNOLOGY";
     if (!jsonOutput) console.log("\n🚀 Setting up 10DLC A2P Messaging...\n");
 
-    // Step 1: Create 10DLC brand
+    // Step 1: Create 10DLC brand via CLI
     const step1Start = Date.now();
     try {
-      const brandRes = await client.post("/10dlc/brands", {
-        entity_type: "SOLE_PROPRIETOR",
-        display_name: brandName,
-        company_name: companyName,
-        phone,
-        email,
-        vertical,
-        country: "US",
-      });
+      const brandArgs = [
+        "10dlc", "brand", "create",
+        "--display-name", brandName,
+        "--email", email,
+        "--vertical", vertical,
+        "--phone", phone,
+        "--sole-prop",
+        "--country", "US",
+      ];
+      const brandRes = await telnyxCli(brandArgs);
       const brandData = brandRes.data as Record<string, unknown>;
       brandId = String(brandData.id);
       brandStatus = String(brandData.status ?? "PENDING");
@@ -76,21 +75,20 @@ export async function setup10dlcCommand(flags: Record<string, string | boolean>)
     }
     if (!jsonOutput) printStep(steps[steps.length - 1], totalSteps);
 
-    // Step 2: Create campaign
+    // Step 2: Create campaign via CLI
     const description = (flags.description as string) || "Agent-provisioned campaign for customer communications";
     const sampleMessage = (flags["sample-message"] as string) || "Your verification code is {code}. Reply STOP to opt out.";
     const step2Start = Date.now();
     try {
-      const campaignRes = await client.post("/10dlc/campaigns", {
-        brand_id: brandId,
-        usecase,
-        sub_usecases: [usecase],
-        description,
-        sample_message: [sampleMessage],
-        message_flow: "Customers opt in via our website by providing their phone number.",
-        help_message: "Reply HELP for support. Reply STOP to unsubscribe.",
-        opt_out_message: "You have been unsubscribed. Reply START to resubscribe.",
-      });
+      const campaignArgs = [
+        "10dlc", "campaign", "create",
+        "--brand-id", brandId,
+        "--usecase", usecase,
+        "--description", description,
+        "--sample1", sampleMessage,
+        "--message-flow", "Customers opt in via our website by providing their phone number.",
+      ];
+      const campaignRes = await telnyxCli(campaignArgs);
       const campaignData = campaignRes.data as Record<string, unknown>;
       campaignId = String(campaignData.id);
       campaignStatus = String(campaignData.status ?? "PENDING");
@@ -101,15 +99,14 @@ export async function setup10dlcCommand(flags: Record<string, string | boolean>)
     }
     if (!jsonOutput) printStep(steps[steps.length - 1], totalSteps);
 
-    // Step 3: Assign phone number to campaign (optional)
+    // Step 3: Assign phone number to campaign via CLI (optional)
     if (phoneNumberId) {
       const step3Start = Date.now();
       try {
-        const assignRes = await client.post("/10dlc/phone_number_campaigns", {
-          phone_number_id: phoneNumberId,
-          campaign_id: campaignId,
-        });
-        const assignData = assignRes.data as Record<string, unknown>;
+        const assignRes = await telnyxCli([
+          "10dlc", "assign", phoneNumberId, campaignId,
+        ]);
+        const assignData = (assignRes.data ?? assignRes) as Record<string, unknown>;
         assignedNumber = String(assignData.phone_number ?? phoneNumberId);
         steps.push({ step: 3, name: "Assign number to campaign", status: "completed", detail: assignedNumber, elapsedMs: Date.now() - step3Start });
       } catch (err) {
@@ -174,7 +171,7 @@ export async function setup10dlcCommand(flags: Record<string, string | boolean>)
 }
 
 function errorMsg(err: unknown): string {
-  if (err instanceof TelnyxAPIError) return `${err.detail} (HTTP ${err.statusCode})`;
+  if (err instanceof TelnyxCLIError) return err.stderr || err.message;
   if (err instanceof Error) return err.message;
   return String(err);
 }
