@@ -1,0 +1,9 @@
+{
+  "name": "telnyx",
+  "version": "0.1.0",
+  "mcpServers": {
+    "telnyx": {
+      "httpUrl": "https://api.telnyx.com/v2/mcp"
+    }
+  }
+}
