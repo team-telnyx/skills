@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.team-telnyx/telnyx-mcp",
+  "description": "Telnyx MCP proxy — connects your IDE to the remote Telnyx MCP server for AI-powered telecom tools",
+  "repository": {
+    "url": "https://github.com/team-telnyx/skills",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@telnyx/mcp",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "TELNYX_API_KEY",
+          "description": "Your Telnyx API key for authentication",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
