@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Publish @telnyx/agent-toolkit and @telnyx/agent-cli to npm using OIDC.
+# Called from the publish-npm.yml workflow — no NPM_TOKEN needed.
+# Adapted from team-telnyx/telnyx-node/bin/publish-npm.
+
+set -eux
+
+PACKAGE_DIR="${1:-.}"
+
+cd "$PACKAGE_DIR"
+
+# Authenticate — prefer OIDC, fall back to NPM_TOKEN
+if [[ ${NPM_TOKEN:-} ]]; then
+  npm config set '//registry.npmjs.org/:_authToken' "$NPM_TOKEN"
+elif [[ ! ${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-} ]]; then
+  echo "ERROR: NPM_TOKEN must be set if not running in a GitHub Action with id-token permission"
+  exit 1
+fi
+
+# Build (CLI has a no-op build, TS SDK compiles)
+npm run build
+
+# Get package info
+PACKAGE_NAME="$(jq -r -e '.name' ./package.json)"
+VERSION="$(jq -r -e '.version' ./package.json)"
+
+echo "Publishing $PACKAGE_NAME@$VERSION"
+
+# Get latest version from npm
+NPM_INFO="$(npm view "$PACKAGE_NAME" version --json 2>/dev/null || true)"
+
+LAST_VERSION=""
+if echo "$NPM_INFO" | jq -e '.error.code == "E404"' > /dev/null 2>&1; then
+  echo "Package doesn't exist yet on npm — first publish"
+elif echo "$NPM_INFO" | jq -e '.error' > /dev/null 2>&1; then
+  echo "WARNING: npm returned unexpected data:"
+  echo "$NPM_INFO"
+else
+  LAST_VERSION=$(echo "$NPM_INFO" | jq -r '.')
+  echo "Last published version: $LAST_VERSION"
+fi
+
+# Determine tag (pre-release gets alpha/beta tag, stable gets latest)
+TAG="latest"
+if [[ "$VERSION" =~ -([a-zA-Z]+) ]]; then
+  CURRENT_TAG="${BASH_REMATCH[1]}"
+  if [[ -n "$LAST_VERSION" && ! "$LAST_VERSION" =~ -([a-zA-Z]+) ]]; then
+    TAG="$CURRENT_TAG"
+  fi
+fi
+
+# Install OIDC-compatible npm version for provenance
+npm install --prefix /tmp/oidc-npm/ npm@11.6.2
+
+# Publish with provenance
+npx --prefix /tmp/oidc-npm/ npm publish --access public --no-git-checks --tag "$TAG"

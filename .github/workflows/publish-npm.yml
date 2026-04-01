@@ -1,0 +1,75 @@
+# Publish @telnyx/agent-toolkit and @telnyx/agent-cli to npm using OIDC.
+# Triggered by GitHub Release or manual dispatch.
+#
+# npm setup required (one-time, by someone with @telnyx npm org access):
+#   1. Create packages on npm (if they don't exist):
+#      - @telnyx/agent-toolkit
+#      - @telnyx/agent-cli
+#   2. For each package, go to Settings → Provenance and link:
+#      - Repository: https://github.com/team-telnyx/skills
+#      - Workflow: publish-npm.yml
+#   3. Ensure publishConfig.access is "public" in each package.json
+#
+name: Publish npm
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Which package to publish'
+        required: true
+        type: choice
+        options:
+          - all
+          - typescript
+          - cli
+  release:
+    types: [published]
+
+jobs:
+  publish-typescript:
+    name: publish @telnyx/agent-toolkit
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository == 'team-telnyx/skills' &&
+      (github.event_name == 'release' || github.event.inputs.package == 'all' || github.event.inputs.package == 'typescript')
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: tools/typescript
+        run: npm ci
+
+      - name: Publish @telnyx/agent-toolkit
+        run: bash ./bin/publish-npm tools/typescript
+
+  publish-cli:
+    name: publish @telnyx/agent-cli
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository == 'team-telnyx/skills' &&
+      (github.event_name == 'release' || github.event.inputs.package == 'all' || github.event.inputs.package == 'cli')
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: cli
+        run: npm ci
+
+      - name: Publish @telnyx/agent-cli
+        run: bash ./bin/publish-npm cli

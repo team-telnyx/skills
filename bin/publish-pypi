@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Publish telnyx-agent-toolkit to PyPI using OIDC trusted publishing.
+# Called from the publish-pypi.yml workflow — no PYPI_TOKEN needed.
+
+set -eux
+
+cd "$(dirname "$0")/../tools/python"
+
+# Clean previous builds
+rm -rf dist
+
+# Install uv if not available
+if ! command -v uv &> /dev/null; then
+  pip install uv
+fi
+
+# Build
+uv build
+
+# Publish — uses OIDC trusted publishing when PYPI_TOKEN is not set
+if [ -n "${PYPI_TOKEN:-}" ]; then
+  uv publish --token="$PYPI_TOKEN"
+else
+  uv publish
+fi

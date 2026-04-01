@@ -61,10 +61,18 @@
     "@langchain/core": ">=0.2.0"
   },
   "peerDependenciesMeta": {
-    "openai": { "optional": true },
-    "ai": { "optional": true },
-    "zod": { "optional": true },
-    "@langchain/core": { "optional": true }
+    "openai": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    },
+    "@langchain/core": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "typescript": "^5.4.0",
@@ -73,5 +81,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

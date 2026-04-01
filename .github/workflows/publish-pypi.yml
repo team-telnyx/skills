@@ -1,0 +1,38 @@
+# Publish telnyx-agent-toolkit to PyPI using OIDC trusted publishing.
+# Triggered by GitHub Release or manual dispatch.
+#
+# PyPI setup required (one-time, by someone with PyPI access):
+#   1. Go to https://pypi.org/manage/project/telnyx-agent-toolkit/settings/publishing/
+#      (or create the project first if it doesn't exist)
+#   2. Add a new "Trusted Publisher":
+#      - Owner: team-telnyx
+#      - Repository: skills
+#      - Workflow: publish-pypi.yml
+#      - Environment: (leave blank)
+#
+name: Publish PyPI
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: publish to PyPI
+    runs-on: ubuntu-latest
+    # Only run from the canonical repo
+    if: github.repository == 'team-telnyx/skills'
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: '0.9.13'
+
+      - name: Publish to PyPI
+        run: bash ./bin/publish-pypi

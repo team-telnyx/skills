@@ -56,5 +56,8 @@
     "bin",
     "src",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

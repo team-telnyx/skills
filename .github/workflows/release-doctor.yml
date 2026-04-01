@@ -1,0 +1,30 @@
+# Pre-release sanity checks — runs on PRs to main.
+# Mirrors the pattern from telnyx-python and telnyx-node.
+name: Release Doctor
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  release_doctor:
+    name: release doctor
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository == 'team-telnyx/skills' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release'))
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check release environment
+        run: bash ./bin/check-release-environment
