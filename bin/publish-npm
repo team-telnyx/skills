@@ -49,8 +49,5 @@ if [[ "$VERSION" =~ -([a-zA-Z]+) ]]; then
   fi
 fi
 
-# Install OIDC-compatible npm version for provenance
-npm install --prefix /tmp/oidc-npm/ npm@11.6.2
-
-# Publish with provenance
-npx --prefix /tmp/oidc-npm/ npm publish --access public --no-git-checks --tag "$TAG"
+# Use the system npm (Node 24 ships npm 11+) for OIDC provenance
+npm publish --access public --no-git-checks --tag "$TAG"

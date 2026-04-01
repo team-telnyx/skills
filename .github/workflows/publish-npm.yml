@@ -41,7 +41,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Install dependencies
         working-directory: tools/typescript
@@ -65,7 +65,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Install dependencies
         working-directory: cli
