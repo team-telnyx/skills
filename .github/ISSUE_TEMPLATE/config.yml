@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Telnyx support
+    url: https://support.telnyx.com/
+    about: |
+      Please only file issues here that you believe represent actual bugs or feature requests for the Telnyx AI tools.
+
+      If you're having general trouble with your Telnyx integration, please reach out to support.

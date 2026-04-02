@@ -1,16 +1,12 @@
 # Telnyx AI
 
-This repo is the one-stop shop for building AI-powered products and businesses on top of Telnyx.
-
-It contains a collection of SDKs to help you integrate Telnyx with LLMs and agent frameworks, including:
-
-* [`telnyx-agent-toolkit`](/tools/python) - for integrating Telnyx APIs with popular agent frameworks through function calling—available in [Python](/tools/python) and [TypeScript](/tools/typescript).
-* [Agent Skills](/skills) - for giving coding assistants accurate, up-to-date context about Telnyx APIs and SDKs.
-* [Agent CLI](/cli) - for provisioning Telnyx infrastructure in a single command.
+Use Telnyx with AI agents and coding assistants.
 
 ## Model Context Protocol (MCP)
 
-The Telnyx Agent Toolkit exposes tools in the [Model Context Protocol (MCP)](https://modelcontextprotocol.com/) format. To run a local Telnyx MCP server using npx:
+Telnyx hosts a remote MCP server at `https://api.telnyx.com/v2/mcp`.
+
+To run a local Telnyx MCP server using npx:
 
 ```sh
 npx -y @telnyx/mcp --api-key=YOUR_TELNYX_API_KEY
@@ -18,7 +14,7 @@ npx -y @telnyx/mcp --api-key=YOUR_TELNYX_API_KEY
 
 See [MCP](/tools/mcp) for more details.
 
-## Agent toolkit
+## Agent Toolkit
 
 Telnyx's Agent Toolkit enables popular agent frameworks including OpenAI's Agent SDK, LangChain, CrewAI, and Vercel's AI SDK to integrate with Telnyx APIs through function calling. The library includes support for Python and TypeScript, and is built directly on top of the Telnyx [Python][python-sdk] and [Node][node-sdk] SDKs.
 
@@ -132,14 +128,14 @@ Install individual skills for your coding assistant via the [Skills CLI](https:/
 npx skills add team-telnyx/ai --skill telnyx-messaging-python --agent cursor
 ```
 
-Or install a full plugin via Claude Code:
+Or install the full Telnyx plugin via Claude Code:
 
 ```sh
 /plugin marketplace add team-telnyx/ai
 /plugin install telnyx@telnyx
 ```
 
-See [Skills](/skills) for the full list of available skills and plugins.
+See [Skills](/skills) for the full list of available skills.
 
 [python-sdk]: https://github.com/team-telnyx/telnyx-python
 [node-sdk]: https://github.com/team-telnyx/telnyx-node
