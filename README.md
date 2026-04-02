@@ -18,25 +18,13 @@ This repo is the one-stop shop for AI Agents and AI-first developers building wi
 
 ## Agent Toolkit
 
-Telnyx's Agent Toolkit enables popular agent frameworks including OpenAI's Agent SDK, LangChain, CrewAI, and Vercel's AI SDK to integrate with Telnyx APIs through function calling. The library includes support for Python and TypeScript.
-
-Included below are basic instructions, but refer to [Python](/tools/python) and [TypeScript](/tools/typescript) packages for more information.
+Integrate Telnyx APIs with popular agent frameworks through function calling — available in [Python](/tools/python) and [TypeScript](/tools/typescript).
 
 ### Python
-
-#### Installation
 
 ```sh
 pip install telnyx-agent-toolkit
 ```
-
-##### Requirements
-
-- Python 3.11+
-
-#### Usage
-
-The library needs to be configured with your account's API key which is available in your [Telnyx Mission Control Portal][api-keys].
 
 ```python
 from telnyx_agent_toolkit.openai.toolkit import TelnyxAgentToolkit
@@ -54,37 +42,13 @@ toolkit = TelnyxAgentToolkit(
 tools = toolkit.get_openai_tools()
 ```
 
-The toolkit works with OpenAI's Agent SDK, LangChain, and CrewAI and can be passed as a list of tools. For example:
-
-```python
-from agents import Agent
-
-toolkit = TelnyxAgentToolkit(api_key="KEY_...")
-
-agent = Agent(
-    name="Telnyx Agent",
-    instructions="You are an expert at integrating with Telnyx",
-    tools=toolkit.get_openai_tools()
-)
-```
-
-Examples for OpenAI's Agent SDK, LangChain, and CrewAI are included in [/examples](/tools/python/examples).
+Works with OpenAI's Agent SDK, LangChain, and CrewAI. See [Python docs](/tools/python) for full usage and [examples](/tools/python/examples).
 
 ### TypeScript
-
-#### Installation
 
 ```sh
 npm install @telnyx/agent-toolkit
 ```
-
-##### Requirements
-
-- Node 18+
-
-#### Usage
-
-The library needs to be configured with your account's API key which is available in your [Telnyx Mission Control Portal][api-keys].
 
 ```typescript
 import { TelnyxAgentToolkit } from "@telnyx/agent-toolkit/langchain";
@@ -101,26 +65,7 @@ const toolkit = new TelnyxAgentToolkit(process.env.TELNYX_API_KEY!, {
 const tools = toolkit.getLangChainTools();
 ```
 
-The toolkit works with LangChain and Vercel's AI SDK and can be passed as a list of tools. For example:
-
-```typescript
-import { AgentExecutor, createStructuredChatAgent } from "langchain/agents";
-import { TelnyxAgentToolkit } from "@telnyx/agent-toolkit/langchain";
-
-const toolkit = new TelnyxAgentToolkit(process.env.TELNYX_API_KEY!);
-const tools = toolkit.getLangChainTools();
-
-const agent = await createStructuredChatAgent({
-  llm,
-  tools,
-  prompt,
-});
-
-const agentExecutor = new AgentExecutor({
-  agent,
-  tools,
-});
-```
+Works with LangChain and Vercel's AI SDK. See [TypeScript docs](/tools/typescript) for full usage.
 
 ## Agent Skills
 
