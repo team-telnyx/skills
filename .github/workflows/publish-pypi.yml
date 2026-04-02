@@ -6,7 +6,7 @@
 #      (or create the project first if it doesn't exist)
 #   2. Add a new "Trusted Publisher":
 #      - Owner: team-telnyx
-#      - Repository: skills
+#      - Repository: ai
 #      - Workflow: publish-pypi.yml
 #      - Environment: (leave blank)
 #
