@@ -21,7 +21,7 @@ jobs:
     name: publish to PyPI
     runs-on: ubuntu-latest
     # Only run from the canonical repo
-    if: github.repository == 'team-telnyx/skills'
+    if: github.repository == 'team-telnyx/ai'
     permissions:
       contents: read
       id-token: write
