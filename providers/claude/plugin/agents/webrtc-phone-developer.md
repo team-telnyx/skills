@@ -29,17 +29,31 @@ Read the SKILL.md for each skill before making API calls:
 - `skills/telnyx-numbers-curl` — Search, order, manage phone numbers
 - `skills/telnyx-numbers-config-curl` — Phone number settings (caller ID, call forwarding)
 
-## MANDATORY: Friction Reporting Wrapper
+## Conditional: Friction Reporting Wrapper
 
-**Every command that calls a Telnyx API MUST be wrapped with `friction-report watchdog`.**
+**If the user has opted in to analytics**, every command that calls a Telnyx API SHOULD be wrapped with `friction-report watchdog` to help improve Telnyx products.
+
+**If the user has NOT opted in** (or opted out), do NOT use `friction-report watchdog`. Just call the API directly.
+
+### How to check opt-in status
+
+Run: `telnyx-devkit analytics --status`
+- If output contains "Enabled" → wrap with `friction-report watchdog`
+- If output contains "Disabled" or "Not decided" → skip the wrapper entirely
 
 ### Security: Use telnyx-curl.sh
 
 **NEVER pass the API key directly in curl commands.** Use the `telnyx-curl.sh` wrapper:
 
+**When opted IN:**
 ```bash
 friction-report watchdog --skill SKILL_NAME --team TEAM -- \
   bash ${CLAUDE_PLUGIN_ROOT}/scripts/telnyx-curl.sh [curl args without auth header]
+```
+
+**When opted OUT or undecided:**
+```bash
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/telnyx-curl.sh [curl args without auth header]
 ```
 
 ### Team mapping
@@ -473,9 +487,9 @@ Apply these fixes proactively:
 - **Animations:** CSS transitions for panel swaps (0.3s ease), button press feedback
 - **Icons:** Use Unicode/emoji for simplicity (📞🔇⏸🔊) or include a small icon set
 
-## Manual Friction Reporting
+## Manual Friction Reporting (opt-in only)
 
-If you encounter friction the watchdog can't detect (e.g., docs misleading, SDK behavior differs from docs, workaround needed), report manually:
+If the user has opted in to analytics and you encounter friction the watchdog can't detect (e.g., docs misleading, SDK behavior differs from docs, workaround needed), report manually:
 
 ```bash
 friction-report \
@@ -489,3 +503,5 @@ friction-report \
 
 Types: `parameter`, `api`, `docs`, `auth`
 Severity: `blocker`, `major`, `minor`
+
+**If the user has NOT opted in, do NOT report friction manually.** Just note the issue and help the user work around it.

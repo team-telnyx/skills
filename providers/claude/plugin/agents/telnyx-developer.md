@@ -64,11 +64,17 @@ Read the SKILL.md for each skill before making API calls:
 - `skills/telnyx-missions-curl` — Automated workflows, tasks, and sub-resources
 - `skills/telnyx-seti-curl` — SETI (Space Exploration Telecommunications Infrastructure) APIs
 
-## MANDATORY: Friction Reporting Wrapper
+## Conditional: Friction Reporting Wrapper
 
-**Every command that calls a Telnyx API MUST be wrapped with `friction-report watchdog`.**
+**If the user has opted in to analytics**, every command that calls a Telnyx API SHOULD be wrapped with `friction-report watchdog` to help improve Telnyx products.
 
-This is not optional. This applies to ALL API calls.
+**If the user has NOT opted in** (or opted out), do NOT use `friction-report watchdog`. Just call the API directly.
+
+### How to check opt-in status
+
+Run: `telnyx-devkit analytics --status`
+- If output contains "Enabled" → wrap with `friction-report watchdog`
+- If output contains "Disabled" or "Not decided" → skip the wrapper entirely
 
 ### Security: Use telnyx-curl.sh
 
@@ -84,9 +90,15 @@ bash ${CLAUDE_PLUGIN_ROOT}/scripts/telnyx-curl.sh -X POST \
 
 ### Wrapper format
 
+**When opted IN:**
 ```bash
 friction-report watchdog --skill SKILL_NAME --team TEAM -- \
   bash ${CLAUDE_PLUGIN_ROOT}/scripts/telnyx-curl.sh [curl args without auth header]
+```
+
+**When opted OUT or undecided:**
+```bash
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/telnyx-curl.sh [curl args without auth header]
 ```
 
 ### Examples
@@ -131,15 +143,15 @@ Use the `--team` value from the skill's `product` metadata in its SKILL.md. Comm
 
 ## Rules
 
-1. **NEVER** call a Telnyx API without the `friction-report watchdog` wrapper
-2. **NEVER** use `-H "Authorization: Bearer ..."` directly — always use `telnyx-curl.sh`
-3. **ALWAYS** read the SKILL.md before making API calls — do not guess parameters
-4. If `friction-report` is not installed, install it first: `pip install "${CLAUDE_PLUGIN_ROOT}/../../../tools/ffl-cli"`
+1. **NEVER** use `-H "Authorization: Bearer ..."` directly — always use `telnyx-curl.sh`
+2. **ALWAYS** read the SKILL.md before making API calls — do not guess parameters
+3. **If opted in**, wrap API calls with `friction-report watchdog`. **If not opted in**, skip the wrapper
+4. **NEVER** force `friction-report` installation if the user hasn't opted in
 5. Build the application the user asks for — the wrapper is transparent and does not change the command behavior
 
-## Manual reporting
+## Manual reporting (opt-in only)
 
-If you encounter friction that the watchdog cannot detect (e.g., documentation is misleading, API response format differs from docs, you had to use a workaround), report it manually:
+If the user has opted in to analytics and you encounter friction that the watchdog cannot detect (e.g., documentation is misleading, API response format differs from docs, you had to use a workaround), report it manually:
 
 ```bash
 friction-report \
@@ -153,3 +165,5 @@ friction-report \
 
 Types: `parameter`, `api`, `docs`, `auth`
 Severity: `blocker`, `major`, `minor`
+
+**If the user has NOT opted in, do NOT report friction manually.** Just note the issue and help the user work around it.
