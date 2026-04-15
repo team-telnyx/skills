@@ -28,12 +28,12 @@ class TestToolDefinitions:
             assert "category" in tool_def, f"{name} missing 'category'"
             assert tool_def["name"] == name
 
-    def test_168_tools_defined(self) -> None:
-        assert len(TOOL_DEFINITIONS) == 168
+    def test_199_tools_defined(self) -> None:
+        assert len(TOOL_DEFINITIONS) == 199
 
     def test_tool_categories(self) -> None:
         categories = {t["category"] for t in TOOL_DEFINITIONS.values()}
-        assert categories == {"messaging", "numbers", "account", "voice", "ai", "fax", "lookup", "iot", "verify", "payments", "connections", "voice_profiles", "storage", "10dlc", "porting", "e911", "billing", "webhooks", "networking", "missions", "insights", "scheduled_events", "conversations", "stt", "tts", "embeddings", "texml", "push_credentials", "mcp_servers", "call_control", "recordings", "reporting", "global_ips", "external_connections", "whatsapp"}
+        assert categories == {"messaging", "numbers", "account", "voice", "ai", "fax", "lookup", "iot", "verify", "payments", "connections", "voice_profiles", "storage", "10dlc", "porting", "portout", "e911", "billing", "webhooks", "networking", "missions", "insights", "scheduled_events", "conversations", "stt", "tts", "embeddings", "texml", "push_credentials", "mcp_servers", "call_control", "recordings", "reporting", "global_ips", "external_connections", "whatsapp"}
 
     def test_new_connection_tools(self) -> None:
         for name in ["create_credential_connection", "get_connection", "delete_connection", "update_connection"]:
@@ -96,9 +96,25 @@ class TestToolDefinitions:
             assert TOOL_DEFINITIONS[name]["category"] == "verify"
 
     def test_porting_tools(self) -> None:
-        for name in ["check_portability", "list_porting_orders", "create_porting_order"]:
+        for name in ["check_portability", "list_porting_orders", "create_porting_order",
+                      "get_porting_order", "update_porting_order", "delete_porting_order",
+                      "submit_porting_order", "cancel_porting_order", "activate_porting_order",
+                      "list_porting_phone_numbers", "list_porting_comments", "create_porting_comment",
+                      "list_porting_documents", "upload_porting_document", "list_porting_events",
+                      "list_porting_exception_types", "list_allowed_foc_windows",
+                      "list_porting_requirements", "list_porting_activation_jobs",
+                      "get_porting_activation_job", "update_porting_activation_job",
+                      "list_porting_loa_configurations", "create_porting_loa_configuration",
+                      "get_porting_loa_configuration", "list_porting_reports", "create_porting_report"]:
             assert name in TOOL_DEFINITIONS, f"Missing tool: {name}"
             assert TOOL_DEFINITIONS[name]["category"] == "porting"
+
+    def test_portout_tools(self) -> None:
+        for name in ["list_portout_orders", "get_portout_order", "list_portout_comments",
+                      "create_portout_comment", "list_portout_documents", "upload_portout_document",
+                      "list_portout_rejection_codes", "list_portout_events"]:
+            assert name in TOOL_DEFINITIONS, f"Missing tool: {name}"
+            assert TOOL_DEFINITIONS[name]["category"] == "portout"
 
     def test_e911_tools(self) -> None:
         for name in ["list_e911_addresses", "create_e911_address", "update_e911_address", "delete_e911_address"]:

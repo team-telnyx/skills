@@ -9,6 +9,7 @@ import { setupAiCommand } from "./commands/setup-ai.ts";
 import { setupWireguardCommand } from "./commands/setup-wireguard.ts";
 import { setupVerifyCommand } from "./commands/setup-verify.ts";
 import { setup10dlcCommand } from "./commands/setup-10dlc.ts";
+import { setupPortingCommand } from "./commands/setup-porting.ts";
 import { capabilitiesCommand } from "./commands/capabilities.ts";
 import { statusCommand } from "./commands/status.ts";
 import { fundAccountCommand } from "./commands/fund-account.ts";
@@ -28,6 +29,7 @@ Commands:
   setup-wireguard   Zero to VPN: create network, WireGuard interface, peer
   setup-verify      Zero to verification: create profile, buy number
   setup-10dlc       Zero to A2P: create brand, campaign, assign number
+  setup-porting     Zero to porting: check portability, create order, submit
   status            Account health overview
   capabilities      List all available API capabilities
   fund-account      Fund account via x402 USDC payment (EIP-712 signing)
@@ -51,6 +53,12 @@ Setup-specific Flags:
   --description     Campaign description (setup-10dlc)
   --sample-message  Sample message text (setup-10dlc)
   --phone-number-id Assign existing number to campaign (setup-10dlc)
+  --phone-numbers   Comma-separated E.164 numbers to port (setup-porting, required)
+  --customer-name   Customer name on the losing carrier account (setup-porting)
+  --authorized-person Authorized signer/contact name (setup-porting)
+  --billing-phone   Billing telephone number on the account (setup-porting)
+  --old-provider    Current/losing carrier name (setup-porting)
+  --submit          Submit the newly created porting order immediately (setup-porting)
 
 Fund-account Flags:
   --amount <usd>    Amount to fund in USD (required, e.g., 50.00)
@@ -66,6 +74,7 @@ Examples:
   telnyx-agent setup-sms --country US
   telnyx-agent setup-voice --webhook https://example.com/calls
   telnyx-agent setup-ai --instructions "You are a pizza ordering bot"
+  telnyx-agent setup-porting --phone-numbers +13125550001,+13125550002 --customer-name "Acme Corp"
   telnyx-agent fund-account --amount 50.00
   telnyx-agent fund-account --amount 50.00 --wallet-key 0x... --json
 `;
@@ -78,6 +87,7 @@ const COMMANDS: Record<string, (flags: Record<string, string | boolean>) => Prom
   "setup-wireguard": setupWireguardCommand,
   "setup-verify": setupVerifyCommand,
   "setup-10dlc": setup10dlcCommand,
+  "setup-porting": setupPortingCommand,
   capabilities: capabilitiesCommand,
   status: statusCommand,
   "fund-account": fundAccountCommand,

@@ -137,6 +137,16 @@
       "api": "POST /v2/x402/credit_account/quote",
       "docs": "https://developers.telnyx.com/docs/account/billing",
       "requires": []
+    },
+    {
+      "id": "porting",
+      "name": "Number Porting",
+      "description": "Check portability, create and manage port-in orders, upload LOA and supporting documents, track requirements and activation status, and monitor port-out activity.",
+      "guide": "/guides/porting-orders.md",
+      "cli": "telnyx-agent setup-porting --phone-numbers +13125550001,+13125550002 --customer-name 'Acme Corp'",
+      "api": "POST /v2/porting_orders",
+      "docs": "https://developers.telnyx.com/docs/porting",
+      "requires": []
     }
   ],
 
@@ -160,7 +170,7 @@
       "message": ["send", "get", "list"],
       "messaging-profile": ["create", "delete", "get", "list"],
       "number": ["search", "order", "get", "list", "update", "delete"],
-      "porting": ["check", "order list", "order get", "order create"],
+      "porting": ["check", "order list", "order get", "order create", "order update", "order delete", "order submit", "order cancel", "order activate", "phone-numbers", "comments", "documents", "events", "requirements"],
       "profile": ["list", "use", "delete"],
       "sim": ["enable", "disable", "get", "list"],
       "storage": ["bucket list", "bucket get", "bucket create", "bucket delete", "object list", "object get", "object put", "object delete", "presign"],
