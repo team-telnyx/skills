@@ -3948,6 +3948,202 @@ export const TOOL_DEFINITIONS: Record<string, ToolDefinition> = {
     path: "/reports/cdr_requests",
     category: "reporting",
   },
+  // ─── WhatsApp ─────────────────────────────────────────────────
+  send_whatsapp_message: {
+    name: "send_whatsapp_message",
+    description:
+      "Send a WhatsApp message (template or free-form text). Template messages can be sent anytime; free-form text requires an open 24-hour customer service window.",
+    parameters: {
+      type: "object",
+      properties: {
+        from_: {
+          type: "string",
+          description:
+            "WhatsApp-enabled phone number in E.164 format (e.g. +19452940762).",
+        },
+        to: {
+          type: "string",
+          description: "Recipient phone number in E.164 format.",
+        },
+        whatsapp_message: {
+          type: "object",
+          description:
+            "WhatsApp message object. For templates: {type: 'template', template: {name, language: {code}, components: [...]}}. For text: {type: 'text', text: {body: '...'}}. You can also use template_id instead of name+language.",
+        },
+        messaging_profile_id: {
+          type: "string",
+          description: "Optional messaging profile ID.",
+        },
+      },
+      required: ["from_", "to", "whatsapp_message"],
+    },
+    method: "POST",
+    path: "/messages/whatsapp",
+    category: "whatsapp",
+  },
+  list_whatsapp_business_accounts: {
+    name: "list_whatsapp_business_accounts",
+    description: "List WhatsApp Business Accounts (WABAs) on the account.",
+    parameters: {
+      type: "object",
+      properties: {
+        page_size: {
+          type: "integer",
+          description: "Number of results per page.",
+          default: 20,
+        },
+        page_number: {
+          type: "integer",
+          description: "Page number to retrieve.",
+          default: 1,
+        },
+      },
+      required: [],
+    },
+    method: "GET",
+    path: "/whatsapp/business_accounts",
+    category: "whatsapp",
+  },
+  list_whatsapp_templates: {
+    name: "list_whatsapp_templates",
+    description:
+      "List WhatsApp message templates. Filter by WABA, category (AUTHENTICATION, MARKETING, UTILITY), or status (APPROVED, PENDING, REJECTED, DISABLED).",
+    parameters: {
+      type: "object",
+      properties: {
+        waba_id: {
+          type: "string",
+          description: "Filter by Telnyx WABA UUID.",
+        },
+        category: {
+          type: "string",
+          description: "Filter by template category.",
+          enum: ["AUTHENTICATION", "MARKETING", "UTILITY"],
+        },
+        status: {
+          type: "string",
+          description: "Filter by template status.",
+          enum: ["APPROVED", "PENDING", "REJECTED", "DISABLED"],
+        },
+        page_size: {
+          type: "integer",
+          description: "Number of results per page.",
+          default: 20,
+        },
+        page_number: {
+          type: "integer",
+          description: "Page number to retrieve.",
+          default: 1,
+        },
+      },
+      required: [],
+    },
+    method: "GET",
+    path: "/whatsapp/message_templates",
+    category: "whatsapp",
+  },
+  create_whatsapp_template: {
+    name: "create_whatsapp_template",
+    description:
+      "Create a new WhatsApp message template for Meta review. Use lowercase names with underscores only. Provide realistic sample values in the example field.",
+    parameters: {
+      type: "object",
+      properties: {
+        waba_id: {
+          type: "string",
+          description: "Telnyx WABA UUID to create the template under.",
+        },
+        name: {
+          type: "string",
+          description:
+            "Template name (lowercase, underscores only, e.g. order_confirmation).",
+        },
+        category: {
+          type: "string",
+          description:
+            "Template category. AUTHENTICATION for OTPs, UTILITY for transactional, MARKETING for promotional.",
+          enum: ["AUTHENTICATION", "MARKETING", "UTILITY"],
+        },
+        language: {
+          type: "string",
+          description: "Language code (e.g. en_US).",
+        },
+        components: {
+          type: "array",
+          description:
+            "Template components (HEADER, BODY, FOOTER, BUTTONS). Use {{1}}, {{2}} for parameters.",
+        },
+      },
+      required: ["waba_id", "name", "category", "language", "components"],
+    },
+    method: "POST",
+    path: "/whatsapp/message_templates",
+    category: "whatsapp",
+  },
+  get_whatsapp_template: {
+    name: "get_whatsapp_template",
+    description:
+      "Get details of a specific WhatsApp message template by its Telnyx UUID.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "Telnyx template UUID.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/whatsapp_message_templates/{id}",
+    category: "whatsapp",
+  },
+  list_whatsapp_phone_numbers: {
+    name: "list_whatsapp_phone_numbers",
+    description:
+      "List WhatsApp-enabled phone numbers. Includes quality rating (GREEN/YELLOW/RED) and messaging limit tier.",
+    parameters: {
+      type: "object",
+      properties: {
+        waba_id: {
+          type: "string",
+          description: "Filter by Telnyx WABA UUID.",
+        },
+        page_size: {
+          type: "integer",
+          description: "Number of results per page.",
+          default: 20,
+        },
+        page_number: {
+          type: "integer",
+          description: "Page number to retrieve.",
+          default: 1,
+        },
+      },
+      required: [],
+    },
+    method: "GET",
+    path: "/whatsapp/phone_numbers",
+    category: "whatsapp",
+  },
+  get_whatsapp_business_profile: {
+    name: "get_whatsapp_business_profile",
+    description:
+      "Get the WhatsApp business profile for a phone number, including display name, photo, description, and contact info.",
+    parameters: {
+      type: "object",
+      properties: {
+        phone_number: {
+          type: "string",
+          description: "Phone number in E.164 format (e.g. +19452940762).",
+        },
+      },
+      required: ["phone_number"],
+    },
+    method: "GET",
+    path: "/whatsapp/phone_numbers/{phone_number}/profile",
+    category: "whatsapp",
+  },
   // ─── Audit Logs ─────────────────────────────────────────────
   list_audit_events: {
     name: "list_audit_events",
@@ -4175,4 +4371,12 @@ export const PERMISSION_MAP: Record<string, string> = {
   "messaging.create_toll_free_verification": "create_toll_free_verification",
   // Audit Logs
   "account.list_audit_events": "list_audit_events",
+  // WhatsApp
+  "whatsapp.send_whatsapp_message": "send_whatsapp_message",
+  "whatsapp.list_whatsapp_business_accounts": "list_whatsapp_business_accounts",
+  "whatsapp.list_whatsapp_templates": "list_whatsapp_templates",
+  "whatsapp.create_whatsapp_template": "create_whatsapp_template",
+  "whatsapp.get_whatsapp_template": "get_whatsapp_template",
+  "whatsapp.list_whatsapp_phone_numbers": "list_whatsapp_phone_numbers",
+  "whatsapp.get_whatsapp_business_profile": "get_whatsapp_business_profile",
 };

@@ -486,7 +486,7 @@ describe("TypeScript SDK — Toolkit Classes", () => {
       "../src/shared/constants.js"
     );
     const count = Object.keys(TOOL_DEFINITIONS).length;
-    assert.equal(count, 161, `Expected 161 tools, got ${count}`);
+    assert.equal(count, 168, `Expected 168 tools, got ${count}`);
   });
 
   it("all tool definitions have required fields", async () => {
@@ -584,14 +584,14 @@ describe("TypeScript SDK — Toolkit with Configuration", () => {
     });
     const tools = toolkit.getOpenAITools();
     assert.ok(tools.length > 0, "Should have at least one tool");
-    assert.ok(tools.length < 161, `Should have fewer than 161 tools, got ${tools.length}`);
+    assert.ok(tools.length < 168, `Should have fewer than 168 tools, got ${tools.length}`);
   });
 
   it("empty configuration returns all tools", async () => {
     const { TelnyxAgentToolkit } = await import("../src/index.js");
     const toolkit = new TelnyxAgentToolkit(API_KEY!);
     const tools = toolkit.getOpenAITools();
-    assert.equal(tools.length, 161, `Expected 161 tools, got ${tools.length}`);
+    assert.equal(tools.length, 168, `Expected 168 tools, got ${tools.length}`);
   });
 });
 

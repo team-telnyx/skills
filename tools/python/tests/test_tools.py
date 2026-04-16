@@ -28,12 +28,12 @@ class TestToolDefinitions:
             assert "category" in tool_def, f"{name} missing 'category'"
             assert tool_def["name"] == name
 
-    def test_161_tools_defined(self) -> None:
-        assert len(TOOL_DEFINITIONS) == 161
+    def test_168_tools_defined(self) -> None:
+        assert len(TOOL_DEFINITIONS) == 168
 
     def test_tool_categories(self) -> None:
         categories = {t["category"] for t in TOOL_DEFINITIONS.values()}
-        assert categories == {"messaging", "numbers", "account", "voice", "ai", "fax", "lookup", "iot", "verify", "payments", "connections", "voice_profiles", "storage", "10dlc", "porting", "e911", "billing", "webhooks", "networking", "missions", "insights", "scheduled_events", "conversations", "stt", "tts", "embeddings", "texml", "push_credentials", "mcp_servers", "call_control", "recordings", "reporting", "global_ips", "external_connections"}
+        assert categories == {"messaging", "numbers", "account", "voice", "ai", "fax", "lookup", "iot", "verify", "payments", "connections", "voice_profiles", "storage", "10dlc", "porting", "e911", "billing", "webhooks", "networking", "missions", "insights", "scheduled_events", "conversations", "stt", "tts", "embeddings", "texml", "push_credentials", "mcp_servers", "call_control", "recordings", "reporting", "global_ips", "external_connections", "whatsapp"}
 
     def test_new_connection_tools(self) -> None:
         for name in ["create_credential_connection", "get_connection", "delete_connection", "update_connection"]:
