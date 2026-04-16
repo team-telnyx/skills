@@ -80,6 +80,39 @@ class ActionPermissions(BaseModel):
     # Porting
     check_portability: bool = False
     list_porting_orders: bool = False
+    create_porting_order: bool = False
+    get_porting_order: bool = False
+    update_porting_order: bool = False
+    delete_porting_order: bool = False
+    submit_porting_order: bool = False
+    cancel_porting_order: bool = False
+    activate_porting_order: bool = False
+    list_porting_phone_numbers: bool = False
+    list_porting_comments: bool = False
+    create_porting_comment: bool = False
+    list_porting_documents: bool = False
+    upload_porting_document: bool = False
+    list_porting_events: bool = False
+    list_porting_exception_types: bool = False
+    list_allowed_foc_windows: bool = False
+    list_porting_requirements: bool = False
+    list_porting_activation_jobs: bool = False
+    get_porting_activation_job: bool = False
+    update_porting_activation_job: bool = False
+    list_porting_loa_configurations: bool = False
+    create_porting_loa_configuration: bool = False
+    get_porting_loa_configuration: bool = False
+    list_porting_reports: bool = False
+    create_porting_report: bool = False
+    # Port-out
+    list_portout_orders: bool = False
+    get_portout_order: bool = False
+    list_portout_comments: bool = False
+    create_portout_comment: bool = False
+    list_portout_documents: bool = False
+    upload_portout_document: bool = False
+    list_portout_rejection_codes: bool = False
+    list_portout_events: bool = False
     # E911
     list_e911_addresses: bool = False
     create_e911_address: bool = False
@@ -163,6 +196,39 @@ _PERMISSION_MAP: dict[tuple[str, str], str] = {
     # Porting
     ("porting", "check_portability"): "check_portability",
     ("porting", "list_porting_orders"): "list_porting_orders",
+    ("porting", "create_porting_order"): "create_porting_order",
+    ("porting", "get_porting_order"): "get_porting_order",
+    ("porting", "update_porting_order"): "update_porting_order",
+    ("porting", "delete_porting_order"): "delete_porting_order",
+    ("porting", "submit_porting_order"): "submit_porting_order",
+    ("porting", "cancel_porting_order"): "cancel_porting_order",
+    ("porting", "activate_porting_order"): "activate_porting_order",
+    ("porting", "list_porting_phone_numbers"): "list_porting_phone_numbers",
+    ("porting", "list_porting_comments"): "list_porting_comments",
+    ("porting", "create_porting_comment"): "create_porting_comment",
+    ("porting", "list_porting_documents"): "list_porting_documents",
+    ("porting", "upload_porting_document"): "upload_porting_document",
+    ("porting", "list_porting_events"): "list_porting_events",
+    ("porting", "list_porting_exception_types"): "list_porting_exception_types",
+    ("porting", "list_allowed_foc_windows"): "list_allowed_foc_windows",
+    ("porting", "list_porting_requirements"): "list_porting_requirements",
+    ("porting", "list_porting_activation_jobs"): "list_porting_activation_jobs",
+    ("porting", "get_porting_activation_job"): "get_porting_activation_job",
+    ("porting", "update_porting_activation_job"): "update_porting_activation_job",
+    ("porting", "list_porting_loa_configurations"): "list_porting_loa_configurations",
+    ("porting", "create_porting_loa_configuration"): "create_porting_loa_configuration",
+    ("porting", "get_porting_loa_configuration"): "get_porting_loa_configuration",
+    ("porting", "list_porting_reports"): "list_porting_reports",
+    ("porting", "create_porting_report"): "create_porting_report",
+    # Port-out
+    ("portout", "list_portout_orders"): "list_portout_orders",
+    ("portout", "get_portout_order"): "get_portout_order",
+    ("portout", "list_portout_comments"): "list_portout_comments",
+    ("portout", "create_portout_comment"): "create_portout_comment",
+    ("portout", "list_portout_documents"): "list_portout_documents",
+    ("portout", "upload_portout_document"): "upload_portout_document",
+    ("portout", "list_portout_rejection_codes"): "list_portout_rejection_codes",
+    ("portout", "list_portout_events"): "list_portout_events",
     # E911
     ("e911", "list_e911_addresses"): "list_e911_addresses",
     ("e911", "create_e911_address"): "create_e911_address",
