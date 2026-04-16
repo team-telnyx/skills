@@ -2078,7 +2078,11 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
 
     "upload_porting_document": {
         "name": "upload_porting_document",
-        "description": "Upload an additional document to a porting order.",
+        "description": (
+            "Upload an additional document to a porting order. "
+            "Provide the porting order ID, document type, and base64-encoded file contents. "
+            "Supported document types: loa, invoice, csr, other."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
@@ -2091,8 +2095,19 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
                     "description": "Type of document (loa, invoice, csr, other).",
                     "enum": ["loa", "invoice", "csr", "other"],
                 },
+                "file_content": {
+                    "type": "string",
+                    "description": (
+                        "Base64-encoded file contents to upload. "
+                        "For example, a PDF or PNG of the Letter of Authorization."
+                    ),
+                },
+                "filename": {
+                    "type": "string",
+                    "description": "Optional filename for the uploaded document (e.g. 'loa.pdf').",
+                },
             },
-            "required": ["id"],
+            "required": ["id", "document_type", "file_content"],
         },
         "method": "POST",
         "path": "/porting_orders/{id}/additional_documents",
@@ -2425,7 +2440,10 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
 
     "upload_portout_document": {
         "name": "upload_portout_document",
-        "description": "Upload a document to a port-out order.",
+        "description": (
+            "Upload a document to a port-out order. "
+            "Provide the port-out order ID and base64-encoded file contents."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
@@ -2433,8 +2451,16 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
                     "type": "string",
                     "description": "The ID of the port-out order.",
                 },
+                "file_content": {
+                    "type": "string",
+                    "description": "Base64-encoded file contents to upload.",
+                },
+                "filename": {
+                    "type": "string",
+                    "description": "Optional filename for the uploaded document.",
+                },
             },
-            "required": ["id"],
+            "required": ["id", "file_content"],
         },
         "method": "POST",
         "path": "/portout_orders/{id}/documents",

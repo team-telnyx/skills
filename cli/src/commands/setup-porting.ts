@@ -159,6 +159,9 @@ export async function setupPortingCommand(flags: Record<string, string | boolean
           detail: errorMsg(err),
           elapsedMs: Date.now() - step4Start,
         });
+        if (!jsonOutput) printStep(steps[steps.length - 1], totalSteps);
+        // Re-throw so the command exits with failure when submission fails
+        throw err;
       }
       if (!jsonOutput) printStep(steps[steps.length - 1], totalSteps);
     }
