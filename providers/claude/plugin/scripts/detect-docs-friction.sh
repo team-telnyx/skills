@@ -48,6 +48,11 @@ GET_COUNT=$(grep -cE '(curl.*-X GET|curl.*api\.telnyx\.com.*/v2/[^ ]*[^-]$|GET /
 POST_COUNT=$(grep -cE '(curl.*-X POST|POST /v2/)' "$TRANSCRIPT_PATH" 2>/dev/null || echo 0)
 PATCH_COUNT=$(grep -cE '(curl.*-X PATCH|PATCH /v2/)' "$TRANSCRIPT_PATH" 2>/dev/null || echo 0)
 DELETE_COUNT=$(grep -cE '(curl.*-X DELETE|DELETE /v2/)' "$TRANSCRIPT_PATH" 2>/dev/null || echo 0)
+# Sanitize to plain integers
+GET_COUNT=${GET_COUNT//[^0-9]/}; GET_COUNT=${GET_COUNT:-0}
+POST_COUNT=${POST_COUNT//[^0-9]/}; POST_COUNT=${POST_COUNT:-0}
+PATCH_COUNT=${PATCH_COUNT//[^0-9]/}; PATCH_COUNT=${PATCH_COUNT:-0}
+DELETE_COUNT=${DELETE_COUNT//[^0-9]/}; DELETE_COUNT=${DELETE_COUNT:-0}
 
 # Send session telemetry (fire-and-forget)
 if [[ $API_CALL_COUNT -gt 0 ]]; then
@@ -66,8 +71,8 @@ if [[ $API_CALL_COUNT -gt 0 ]]; then
       status: "success",
       duration_ms: 0,
       http_status: 0,
-      http_method: "",
-      api_path: "",
+      http_method: "POST",
+      api_path: "/v2/telemetry",
       sdk: $sdk,
       context: {
         session_id: $session_id,
@@ -85,6 +90,7 @@ if [[ $API_CALL_COUNT -gt 0 ]]; then
 
   curl -s -X POST "$TELEMETRY_ENDPOINT" \
     -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${TELNYX_API_KEY:-}" \
     -d "$TELEMETRY_PAYLOAD" \
     --max-time 5 >/dev/null 2>&1 &
 
@@ -184,10 +190,10 @@ if [[ $FRICTION_COUNT -gt 0 ]] || [[ $RETRY_COUNT -ge 5 ]]; then
     OUTPUT_MODE="local"
   fi
 
-  echo "[telnyx-skills:docs] FRICTION: $FRICTION_MSG" >&2
+  echo "[telnyx-ai:docs] FRICTION: $FRICTION_MSG" >&2
 
   if command -v friction-report &>/dev/null; then
-    echo "[telnyx-skills:docs] reporting: skill=$SKILL_NAME team=$SKILL_TEAM type=$FRICTION_TYPE" >&2
+    echo "[telnyx-ai:docs] reporting: skill=$SKILL_NAME team=$SKILL_TEAM type=$FRICTION_TYPE" >&2
     friction-report \
       --skill "$SKILL_NAME" \
       --team "$SKILL_TEAM" \
@@ -196,8 +202,8 @@ if [[ $FRICTION_COUNT -gt 0 ]] || [[ $RETRY_COUNT -ge 5 ]]; then
       --message "$(echo "$FRICTION_MSG" | cut -c1-180)" \
       --context "$CONTEXT_JSON" \
       --output "$OUTPUT_MODE" 2>/dev/null && \
-    echo "[telnyx-skills:docs] report sent" >&2 || \
-    echo "[telnyx-skills:docs] report failed" >&2
+    echo "[telnyx-ai:docs] report sent" >&2 || \
+    echo "[telnyx-ai:docs] report failed" >&2
   fi
 
 fi

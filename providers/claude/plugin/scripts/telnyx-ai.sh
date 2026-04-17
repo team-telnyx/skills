@@ -1,14 +1,14 @@
 #!/bin/bash
-# telnyx-devkit — CLI for managing analytics opt-in preferences
+# telnyx-ai — CLI for managing analytics opt-in preferences
 # Usage:
-#   telnyx-devkit analytics --opt-in    Enable analytics (install ffl-cli + telemetry)
-#   telnyx-devkit analytics --opt-out   Disable analytics (remove ffl-cli, stop reporting)
-#   telnyx-devkit analytics --status    Show current opt-in status
-#   telnyx-devkit analytics --reset     Reset to undecided (will prompt again next session)
+#   telnyx-ai analytics --opt-in    Enable analytics (install ffl-cli + telemetry)
+#   telnyx-ai analytics --opt-out   Disable analytics (remove ffl-cli, stop reporting)
+#   telnyx-ai analytics --status    Show current opt-in status
+#   telnyx-ai analytics --reset     Reset to undecided (will prompt again next session)
 
 set -euo pipefail
 
-CONFIG_DIR="${TELNYX_DEVKIT_HOME:-$HOME/.telnyx-devkit}"
+CONFIG_DIR="${TELNYX_AI_HOME:-$HOME/.telnyx-ai}"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION=1
 
@@ -61,14 +61,15 @@ with open('$CONFIG_FILE', 'w') as f:
 install_ffl_cli() {
   export PATH="$HOME/Library/Python/3.9/bin:$HOME/.local/bin:$PATH"
   if command -v friction-report &>/dev/null; then
-    echo "[telnyx-devkit] friction-report already installed"
+    echo "[telnyx-ai] friction-report already installed"
   else
-    echo "[telnyx-devkit] installing friction-report CLI..."
-    python3 -m pip install --user --quiet git+ssh://git@github.com/team-telnyx/aifde-ffl-cli.git 2>&1 | tail -3
+    echo "[telnyx-ai] installing friction-report CLI..."
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    python3 -m pip install --user --quiet "$SCRIPT_DIR/../../../tools/ffl-cli" 2>&1 | tail -3
     if command -v friction-report &>/dev/null; then
-      echo "[telnyx-devkit] ✅ friction-report installed"
+      echo "[telnyx-ai] ✅ friction-report installed"
     else
-      echo "[telnyx-devkit] ⚠️  failed to install friction-report"
+      echo "[telnyx-ai] ⚠️  failed to install friction-report"
     fi
   fi
 }
@@ -76,11 +77,11 @@ install_ffl_cli() {
 uninstall_ffl_cli() {
   export PATH="$HOME/Library/Python/3.9/bin:$HOME/.local/bin:$PATH"
   if command -v friction-report &>/dev/null; then
-    echo "[telnyx-devkit] removing friction-report CLI..."
+    echo "[telnyx-ai] removing friction-report CLI..."
     python3 -m pip uninstall --user --quiet aifde-ffl-cli 2>/dev/null || true
-    echo "[telnyx-devkit] ✅ friction-report removed"
+    echo "[telnyx-ai] ✅ friction-report removed"
   else
-    echo "[telnyx-devkit] friction-report not installed, nothing to remove"
+    echo "[telnyx-ai] friction-report not installed, nothing to remove"
   fi
 }
 
@@ -93,10 +94,10 @@ cmd_opt_in() {
   write_field "telemetryEnabled" "True"
   install_ffl_cli
   echo ""
-  echo "[telnyx-devkit] ✅ Analytics enabled. Thank you for helping improve Telnyx products!"
-  echo "[telnyx-devkit]    Friction reporting: ON"
-  echo "[telnyx-devkit]    Telemetry: ON"
-  echo "[telnyx-devkit]    You can opt out anytime: telnyx-devkit analytics --opt-out"
+  echo "[telnyx-ai] ✅ Analytics enabled. Thank you for helping improve Telnyx products!"
+  echo "[telnyx-ai]    Friction reporting: ON"
+  echo "[telnyx-ai]    Telemetry: ON"
+  echo "[telnyx-ai]    You can opt out anytime: telnyx-ai analytics --opt-out"
 }
 
 cmd_opt_out() {
@@ -106,9 +107,9 @@ cmd_opt_out() {
   write_field "telemetryEnabled" "False"
   uninstall_ffl_cli
   echo ""
-  echo "[telnyx-devkit] ✅ Analytics disabled. No data will be collected."
-  echo "[telnyx-devkit]    Skills work normally without analytics."
-  echo "[telnyx-devkit]    You can opt in anytime: telnyx-devkit analytics --opt-in"
+  echo "[telnyx-ai] ✅ Analytics disabled. No data will be collected."
+  echo "[telnyx-ai]    Skills work normally without analytics."
+  echo "[telnyx-ai]    You can opt in anytime: telnyx-ai analytics --opt-in"
 }
 
 cmd_status() {
@@ -116,7 +117,7 @@ cmd_status() {
   local opt_in
   opt_in=$(read_field "analyticsOptIn")
 
-  echo "[telnyx-devkit] Analytics status:"
+  echo "[telnyx-ai] Analytics status:"
   case "$opt_in" in
     "true")
       echo "  Opt-in: ✅ Enabled"
@@ -135,8 +136,8 @@ cmd_status() {
       echo "  Friction reporting: OFF (pending decision)"
       echo "  Telemetry: OFF (pending decision)"
       echo ""
-      echo "  To enable:  telnyx-devkit analytics --opt-in"
-      echo "  To disable: telnyx-devkit analytics --opt-out"
+      echo "  To enable:  telnyx-ai analytics --opt-in"
+      echo "  To disable: telnyx-ai analytics --opt-out"
       ;;
   esac
 }
@@ -146,7 +147,7 @@ cmd_reset() {
   write_field "analyticsOptIn" "None"
   write_field "frictionReportingEnabled" "False"
   write_field "telemetryEnabled" "False"
-  echo "[telnyx-devkit] ✅ Analytics preference reset. You will be prompted again next session."
+  echo "[telnyx-ai] ✅ Analytics preference reset. You will be prompted again next session."
 }
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ case "${1:-} ${2:-}" in
   "analytics --status")  cmd_status ;;
   "analytics --reset")   cmd_reset ;;
   *)
-    echo "Usage: telnyx-devkit <command>"
+    echo "Usage: telnyx-ai <command>"
     echo ""
     echo "Commands:"
     echo "  analytics --opt-in    Enable analytics (install ffl-cli + telemetry)"

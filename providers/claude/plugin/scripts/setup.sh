@@ -1,10 +1,10 @@
 #!/bin/bash
 # SessionStart hook: initialize analytics preference and install ffl-cli ONLY if opted in
 
-CONFIG_DIR="${TELNYX_DEVKIT_HOME:-$HOME/.telnyx-devkit}"
+CONFIG_DIR="${TELNYX_AI_HOME:-$HOME/.telnyx-ai}"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
-echo "[telnyx-skills:setup] initializing..." >&2
+echo "[telnyx-ai:setup] initializing..." >&2
 
 # ─── Initialize config if needed ──────────────────────────────────────────────
 
@@ -26,21 +26,21 @@ fi
 
 if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
   echo "PATH=$HOME/Library/Python/3.9/bin:$HOME/.local/bin:$PATH" >> "$CLAUDE_ENV_FILE"
-  # Also add the telnyx-devkit CLI to PATH
+  # Also add the telnyx-ai CLI to PATH
   echo "PATH=${CLAUDE_PLUGIN_ROOT:-}/scripts:$PATH" >> "$CLAUDE_ENV_FILE"
 fi
 
 # ─── Check TELNYX_API_KEY ────────────────────────────────────────────────────
 
 MISSING_KEY=false
-if [[ -z "${TELNYX_API_KEY:-}" ]]; then
-  MISSING_KEY=true
-  echo "[telnyx-skills:setup] WARNING: TELNYX_API_KEY not set." >&2
-else
-  echo "[telnyx-skills:setup] TELNYX_API_KEY found" >&2
+if [[ -n "${TELNYX_API_KEY:-}" ]]; then
+  echo "[telnyx-ai:setup] TELNYX_API_KEY found" >&2
   if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
     echo "TELNYX_API_KEY=${TELNYX_API_KEY}" >> "$CLAUDE_ENV_FILE"
   fi
+else
+  MISSING_KEY=true
+  echo "[telnyx-ai:setup] WARNING: TELNYX_API_KEY not set." >&2
 fi
 
 # ─── Check analytics opt-in preference ───────────────────────────────────────
@@ -62,25 +62,25 @@ case "$OPT_IN" in
     # User opted in — install ffl-cli
     export PATH="$HOME/Library/Python/3.9/bin:$HOME/.local/bin:$PATH"
     if command -v friction-report &>/dev/null; then
-      echo "[telnyx-skills:setup] friction-report ready" >&2
+      echo "[telnyx-ai:setup] friction-report ready" >&2
     else
-      echo "[telnyx-skills:setup] installing friction-report CLI (opted in)..." >&2
+      echo "[telnyx-ai:setup] installing friction-report CLI (opted in)..." >&2
       python3 -m pip install --user --quiet "${CLAUDE_PLUGIN_ROOT}/../../../tools/ffl-cli" 2>&1 | tail -3 >&2
       if command -v friction-report &>/dev/null; then
-        echo "[telnyx-skills:setup] friction-report installed" >&2
+        echo "[telnyx-ai:setup] friction-report installed" >&2
       else
-        echo "[telnyx-skills:setup] WARNING: failed to install friction-report" >&2
+        echo "[telnyx-ai:setup] WARNING: failed to install friction-report" >&2
       fi
     fi
-    echo "[telnyx-skills:setup] ✅ Analytics enabled — friction reporting active" >&2
+    echo "[telnyx-ai:setup] ✅ Analytics enabled — friction reporting active" >&2
     ;;
   "false")
     # User opted out — skip installation entirely
-    echo "[telnyx-skills:setup] Analytics disabled by user. Skipping ffl-cli." >&2
+    echo "[telnyx-ai:setup] Analytics disabled by user. Skipping ffl-cli." >&2
     ;;
   *)
     ANALYTICS_UNDECIDED=true
-    echo "[telnyx-skills:setup] ⏳ Analytics not yet configured." >&2
+    echo "[telnyx-ai:setup] ⏳ Analytics not yet configured." >&2
     ;;
 esac
 
@@ -123,17 +123,27 @@ if [[ "$ANALYTICS_UNDECIDED" == "true" ]]; then
 fi
 
 if [[ "$MISSING_KEY" == "true" ]]; then
+  # Detect user's shell for persistence instructions
+  USER_SHELL=$(basename "${SHELL:-/bin/bash}")
   echo ""
   echo "[telnyx-ai] SETUP STEP ${STEP} — ACTION REQUIRED before making any API calls:"
   echo ""
   echo "TELNYX_API_KEY is not set."
   echo "→ Ask the user for their Telnyx API key (portal: https://portal.telnyx.com/#/app/api-keys)."
   echo "→ WAIT for the user's response before moving to any next step."
-  echo "→ Once the user provides it, persist it by running:"
-  echo "  echo \"TELNYX_API_KEY=<the_key>\" >> \$CLAUDE_ENV_FILE"
-  echo "→ Do NOT use 'export' in a Bash call — it won't persist. Use CLAUDE_ENV_FILE."
+  echo "→ Once the user provides it, persist it as a shell environment variable AND inject it into the current session."
+  echo "→ Run BOTH commands:"
+  if [[ "$USER_SHELL" == "fish" ]]; then
+    echo "  fish -c 'set -Ux TELNYX_API_KEY <the_key>'"
+  elif [[ "$USER_SHELL" == "zsh" ]]; then
+    echo "  echo 'export TELNYX_API_KEY=<the_key>' >> ~/.zshrc"
+  else
+    echo "  echo 'export TELNYX_API_KEY=<the_key>' >> ~/.bashrc"
+  fi
+  echo "  echo 'TELNYX_API_KEY=<the_key>' >> \$CLAUDE_ENV_FILE"
+  echo "→ The first command persists it for future sessions. The second injects it into the current session."
   echo ""
 fi
 
-echo "[telnyx-skills:setup] ready" >&2
+echo "[telnyx-ai:setup] ready" >&2
 exit 0

@@ -100,12 +100,12 @@ fi
 
 # Send report
 if ! command -v friction-report &>/dev/null; then
-  echo "[telnyx-skills:failure] friction-report not installed, skipping" >&2
+  echo "[telnyx-ai:failure] friction-report not installed, skipping" >&2
   exit 0
 fi
 
-echo "[telnyx-skills:failure] reporting: skill=$SKILL_NAME team=$SKILL_TEAM type=$TYPE severity=$SEVERITY" >&2
-echo "[telnyx-skills:failure] $SHORT_ERROR" >&2
+echo "[telnyx-ai:failure] reporting: skill=$SKILL_NAME team=$SKILL_TEAM type=$TYPE severity=$SEVERITY" >&2
+echo "[telnyx-ai:failure] $SHORT_ERROR" >&2
 
 friction-report \
   --skill "$SKILL_NAME" \
@@ -115,7 +115,7 @@ friction-report \
   --message "API failed: $SHORT_ERROR" \
   --context "$CONTEXT_JSON" \
   --output "$OUTPUT_MODE" 2>/dev/null && \
-echo "[telnyx-skills:failure] report sent" >&2 || \
-echo "[telnyx-skills:failure] report failed" >&2
+echo "[telnyx-ai:failure] report sent" >&2 || \
+echo "[telnyx-ai:failure] report failed" >&2
 
 exit 0
