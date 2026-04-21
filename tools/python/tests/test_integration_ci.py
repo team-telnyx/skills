@@ -316,7 +316,8 @@ class TestReadonly:
     def test_readonly_list_webhook_deliveries(self):
         """GET /v2/webhook_deliveries returns a list or valid error."""
         r = httpx.get(
-            f"{BASE_URL}/webhook_deliveries", headers=HEADERS, params={"page[size]": 1}
+            f"{BASE_URL}/webhook_deliveries", headers=HEADERS, params={"page[size]": 1},
+            timeout=30,
         )
         assert r.status_code in (200, 401, 403, 404), (
             f"Expected 200/401/403/404, got {r.status_code}"

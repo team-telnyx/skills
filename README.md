@@ -14,6 +14,8 @@ This repo is the one-stop shop for AI Agents and AI-first developers building wi
 - [Agent Skills](#agent-skills) - give AI coding assistants accurate, up-to-date context about Telnyx APIs and SDKs.
   
 - [Agent CLI](#agent-cli) - provision and build on Telnyx infrastructure in a single command.
+
+- [Guides](#guides) - step-by-step tutorials for common workflows
  
 
 ## Plugins and Extenstion
@@ -133,6 +135,7 @@ Composite commands that reduce multi-step Telnyx workflows to a single command. 
 telnyx-agent setup-sms        # Buy number + create messaging profile + assign
 telnyx-agent setup-voice       # Create SIP connection + buy number + assign
 telnyx-agent setup-ai          # Create AI assistant + buy number + wire together
+telnyx-agent setup-porting     # Check portability + create porting order + submit
 telnyx-agent status            # Account health overview
 ```
 
@@ -155,7 +158,7 @@ See [MCP](/tools/mcp) for more details.
 
 ## Guides
 
-Curl-first operational guides for common Telnyx workflows — SMS messaging, voice call control, AI assistants, phone numbers, verification, webhooks, 10DLC registration, WireGuard networking, and x402 payments.
+Curl-first operational guides for common Telnyx workflows — SMS messaging, voice call control, AI assistants, phone numbers, porting, verification, webhooks, 10DLC registration, WireGuard networking, and x402 payments.
 
 See [Guides](/guides) for the full list.
 

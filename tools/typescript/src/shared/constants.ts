@@ -1988,6 +1988,628 @@ export const TOOL_DEFINITIONS: Record<string, ToolDefinition> = {
     category: "porting",
   },
 
+
+
+  // ─── Porting (extended CRUD + actions) ────────────────────────
+  get_porting_order: {
+    name: "get_porting_order",
+    description: "Retrieve details of a specific porting order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order to retrieve.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/porting_orders/{id}",
+    category: "porting",
+  },
+
+  update_porting_order: {
+    name: "update_porting_order",
+    description: "Update an existing porting order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order to update.",
+        },
+        customer_reference: {
+          type: "string",
+          description: "Customer reference for the porting order.",
+        },
+        description: {
+          type: "string",
+          description: "Description of the porting order.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "PATCH",
+    path: "/porting_orders/{id}",
+    category: "porting",
+  },
+
+  delete_porting_order: {
+    name: "delete_porting_order",
+    description: "Delete a porting order. Only draft orders can be deleted.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order to delete.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "DELETE",
+    path: "/porting_orders/{id}",
+    category: "porting",
+  },
+
+  submit_porting_order: {
+    name: "submit_porting_order",
+    description: "Confirm and submit a porting order for processing.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order to submit.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "POST",
+    path: "/porting_orders/{id}/actions/confirm",
+    category: "porting",
+  },
+
+  cancel_porting_order: {
+    name: "cancel_porting_order",
+    description: "Cancel a porting order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order to cancel.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "POST",
+    path: "/porting_orders/{id}/actions/cancel",
+    category: "porting",
+  },
+
+  activate_porting_order: {
+    name: "activate_porting_order",
+    description: "Activate all numbers in a porting order asynchronously. Only for US FastPort orders.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order to activate.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "POST",
+    path: "/porting_orders/{id}/actions/activate",
+    category: "porting",
+  },
+
+  list_porting_phone_numbers: {
+    name: "list_porting_phone_numbers",
+    description: "List phone numbers associated with porting orders.",
+    parameters: {
+      type: "object",
+      properties: {
+        page_size: {
+          type: "integer",
+          description: "Number of results per page.",
+          default: 20,
+        },
+        page_number: {
+          type: "integer",
+          description: "Page number to retrieve.",
+          default: 1,
+        },
+      },
+      required: [],
+    },
+    method: "GET",
+    path: "/porting_phone_numbers",
+    category: "porting",
+  },
+
+  list_porting_comments: {
+    name: "list_porting_comments",
+    description: "List comments on a specific porting order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/porting_orders/{id}/comments",
+    category: "porting",
+  },
+
+  create_porting_comment: {
+    name: "create_porting_comment",
+    description: "Add a comment to a porting order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order.",
+        },
+        body: {
+          type: "string",
+          description: "The comment text.",
+        },
+      },
+      required: ["id", "body"],
+    },
+    method: "POST",
+    path: "/porting_orders/{id}/comments",
+    category: "porting",
+  },
+
+  list_porting_documents: {
+    name: "list_porting_documents",
+    description: "List additional documents for a porting order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/porting_orders/{id}/additional_documents",
+    category: "porting",
+  },
+
+  upload_porting_document: {
+    name: "upload_porting_document",
+    description:
+      "Upload an additional document to a porting order. " +
+      "Provide the porting order ID, document type, and base64-encoded file contents. " +
+      "Supported document types: loa, invoice, csr, other.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order.",
+        },
+        document_type: {
+          type: "string",
+          description: "Type of document (loa, invoice, csr, other).",
+          enum: ["loa", "invoice", "csr", "other"],
+        },
+        file_content: {
+          type: "string",
+          description:
+            "Base64-encoded file contents to upload. " +
+            "For example, a PDF or PNG of the Letter of Authorization.",
+        },
+        filename: {
+          type: "string",
+          description: "Optional filename for the uploaded document (e.g. 'loa.pdf').",
+        },
+      },
+      required: ["id", "document_type", "file_content"],
+    },
+    method: "POST",
+    path: "/porting_orders/{id}/additional_documents",
+    category: "porting",
+  },
+
+  list_porting_events: {
+    name: "list_porting_events",
+    description: "List all porting events.",
+    parameters: {
+      type: "object",
+      properties: {
+        page_size: {
+          type: "integer",
+          description: "Number of results per page.",
+          default: 20,
+        },
+      },
+      required: [],
+    },
+    method: "GET",
+    path: "/porting/events",
+    category: "porting",
+  },
+
+  list_porting_exception_types: {
+    name: "list_porting_exception_types",
+    description: "List all possible exception types for porting orders.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+    method: "GET",
+    path: "/porting_orders/exception_types",
+    category: "porting",
+  },
+
+  list_allowed_foc_windows: {
+    name: "list_allowed_foc_windows",
+    description: "List allowed FOC (Firm Order Commitment) dates for a porting order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/porting_orders/{id}/allowed_foc_windows",
+    category: "porting",
+  },
+
+  list_porting_requirements: {
+    name: "list_porting_requirements",
+    description: "List requirements for a porting order based on country and number type.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/porting_orders/{id}/requirements",
+    category: "porting",
+  },
+
+  list_porting_activation_jobs: {
+    name: "list_porting_activation_jobs",
+    description: "List activation jobs for a porting order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/porting_orders/{id}/activation_jobs",
+    category: "porting",
+  },
+
+  get_porting_activation_job: {
+    name: "get_porting_activation_job",
+    description: "Get details of a specific porting activation job.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order.",
+        },
+        activation_job_id: {
+          type: "string",
+          description: "The ID of the activation job.",
+        },
+      },
+      required: ["id", "activation_job_id"],
+    },
+    method: "GET",
+    path: "/porting_orders/{id}/activation_jobs/{activation_job_id}",
+    category: "porting",
+  },
+
+  update_porting_activation_job: {
+    name: "update_porting_activation_job",
+    description: "Update the activation time of a porting activation job.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the porting order.",
+        },
+        activation_job_id: {
+          type: "string",
+          description: "The ID of the activation job.",
+        },
+      },
+      required: ["id", "activation_job_id"],
+    },
+    method: "PATCH",
+    path: "/porting_orders/{id}/activation_jobs/{activation_job_id}",
+    category: "porting",
+  },
+
+  list_porting_loa_configurations: {
+    name: "list_porting_loa_configurations",
+    description: "List LOA (Letter of Authorization) configurations.",
+    parameters: {
+      type: "object",
+      properties: {
+        page_size: {
+          type: "integer",
+          description: "Number of results per page.",
+          default: 20,
+        },
+      },
+      required: [],
+    },
+    method: "GET",
+    path: "/porting/loa_configurations",
+    category: "porting",
+  },
+
+  create_porting_loa_configuration: {
+    name: "create_porting_loa_configuration",
+    description: "Create a new LOA (Letter of Authorization) configuration.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Name for the LOA configuration.",
+        },
+      },
+      required: ["name"],
+    },
+    method: "POST",
+    path: "/porting/loa_configurations",
+    category: "porting",
+  },
+
+  get_porting_loa_configuration: {
+    name: "get_porting_loa_configuration",
+    description: "Retrieve a specific LOA configuration.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the LOA configuration.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/porting/loa_configurations/{id}",
+    category: "porting",
+  },
+
+  list_porting_reports: {
+    name: "list_porting_reports",
+    description: "List porting-related reports.",
+    parameters: {
+      type: "object",
+      properties: {
+        page_size: {
+          type: "integer",
+          description: "Number of results per page.",
+          default: 20,
+        },
+      },
+      required: [],
+    },
+    method: "GET",
+    path: "/porting/reports",
+    category: "porting",
+  },
+
+  create_porting_report: {
+    name: "create_porting_report",
+    description: "Generate a porting-related report.",
+    parameters: {
+      type: "object",
+      properties: {
+        report_type: {
+          type: "string",
+          description: "Type of report to generate.",
+          enum: ["export_porting_orders_csv"],
+        },
+      },
+      required: [],
+    },
+    method: "POST",
+    path: "/porting/reports",
+    category: "porting",
+  },
+
+  // ─── Port-Out ────────────────────────────────────────────────
+  list_portout_orders: {
+    name: "list_portout_orders",
+    description: "List port-out orders on the account.",
+    parameters: {
+      type: "object",
+      properties: {
+        page_size: {
+          type: "integer",
+          description: "Number of results per page.",
+          default: 20,
+        },
+        page_number: {
+          type: "integer",
+          description: "Page number to retrieve.",
+          default: 1,
+        },
+      },
+      required: [],
+    },
+    method: "GET",
+    path: "/portout_orders",
+    category: "portout",
+  },
+
+  get_portout_order: {
+    name: "get_portout_order",
+    description: "Retrieve details of a specific port-out order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the port-out order.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/portout_orders/{id}",
+    category: "portout",
+  },
+
+  list_portout_comments: {
+    name: "list_portout_comments",
+    description: "List comments on a specific port-out order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the port-out order.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/portout_orders/{id}/comments",
+    category: "portout",
+  },
+
+  create_portout_comment: {
+    name: "create_portout_comment",
+    description: "Add a comment to a port-out order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the port-out order.",
+        },
+        body: {
+          type: "string",
+          description: "The comment text.",
+        },
+      },
+      required: ["id", "body"],
+    },
+    method: "POST",
+    path: "/portout_orders/{id}/comments",
+    category: "portout",
+  },
+
+  list_portout_documents: {
+    name: "list_portout_documents",
+    description: "List documents for a specific port-out order.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the port-out order.",
+        },
+      },
+      required: ["id"],
+    },
+    method: "GET",
+    path: "/portout_orders/{id}/documents",
+    category: "portout",
+  },
+
+  upload_portout_document: {
+    name: "upload_portout_document",
+    description:
+      "Upload a document to a port-out order. " +
+      "Provide the port-out order ID and base64-encoded file contents.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the port-out order.",
+        },
+        file_content: {
+          type: "string",
+          description:
+            "Base64-encoded file contents to upload.",
+        },
+        filename: {
+          type: "string",
+          description: "Optional filename for the uploaded document.",
+        },
+      },
+      required: ["id", "file_content"],
+    },
+    method: "POST",
+    path: "/portout_orders/{id}/documents",
+    category: "portout",
+  },
+
+  list_portout_rejection_codes: {
+    name: "list_portout_rejection_codes",
+    description: "List rejection codes available for port-out orders.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+    method: "GET",
+    path: "/portout_orders/rejection_codes",
+    category: "portout",
+  },
+
+  list_portout_events: {
+    name: "list_portout_events",
+    description: "List all port-out events.",
+    parameters: {
+      type: "object",
+      properties: {
+        page_size: {
+          type: "integer",
+          description: "Number of results per page.",
+          default: 20,
+        },
+      },
+      required: [],
+    },
+    method: "GET",
+    path: "/portout/events",
+    category: "portout",
+  },
+
   // ─── E911 (update/delete) ────────────────────────────────────
   update_e911_address: {
     name: "update_e911_address",
@@ -4238,6 +4860,40 @@ export const PERMISSION_MAP: Record<string, string> = {
   // Porting
   "porting.check_portability": "check_portability",
   "porting.list_porting_orders": "list_porting_orders",
+
+  // Porting (extended)
+  "porting.get_porting_order": "get_porting_order",
+  "porting.update_porting_order": "update_porting_order",
+  "porting.delete_porting_order": "delete_porting_order",
+  "porting.submit_porting_order": "submit_porting_order",
+  "porting.cancel_porting_order": "cancel_porting_order",
+  "porting.activate_porting_order": "activate_porting_order",
+  "porting.list_porting_phone_numbers": "list_porting_phone_numbers",
+  "porting.list_porting_comments": "list_porting_comments",
+  "porting.create_porting_comment": "create_porting_comment",
+  "porting.list_porting_documents": "list_porting_documents",
+  "porting.upload_porting_document": "upload_porting_document",
+  "porting.list_porting_events": "list_porting_events",
+  "porting.list_porting_exception_types": "list_porting_exception_types",
+  "porting.list_allowed_foc_windows": "list_allowed_foc_windows",
+  "porting.list_porting_requirements": "list_porting_requirements",
+  "porting.list_porting_activation_jobs": "list_porting_activation_jobs",
+  "porting.get_porting_activation_job": "get_porting_activation_job",
+  "porting.update_porting_activation_job": "update_porting_activation_job",
+  "porting.list_porting_loa_configurations": "list_porting_loa_configurations",
+  "porting.create_porting_loa_configuration": "create_porting_loa_configuration",
+  "porting.get_porting_loa_configuration": "get_porting_loa_configuration",
+  "porting.list_porting_reports": "list_porting_reports",
+  "porting.create_porting_report": "create_porting_report",
+  // Port-Out
+  "portout.list_portout_orders": "list_portout_orders",
+  "portout.get_portout_order": "get_portout_order",
+  "portout.list_portout_comments": "list_portout_comments",
+  "portout.create_portout_comment": "create_portout_comment",
+  "portout.list_portout_documents": "list_portout_documents",
+  "portout.upload_portout_document": "upload_portout_document",
+  "portout.list_portout_rejection_codes": "list_portout_rejection_codes",
+  "portout.list_portout_events": "list_portout_events",
   // E911
   "e911.list_e911_addresses": "list_e911_addresses",
   "e911.create_e911_address": "create_e911_address",
