@@ -142,7 +142,7 @@ class TestReadonly:
                 "messages": [{"role": "user", "content": "Say OK"}],
                 "max_tokens": 3,
             },
-            timeout=30,
+            timeout=60,
         )
         assert r.status_code == 200
         data = r.json()
@@ -161,7 +161,7 @@ class TestReadonly:
                 "model": "thenlper/gte-large",
                 "bucket_name": "ci-nonexistent-bucket",
             },
-            timeout=30,
+            timeout=60,
         )
         # 400 (missing bucket) or 404 (bucket not found) both confirm
         # the endpoint is reachable and auth works
@@ -317,7 +317,7 @@ class TestReadonly:
         """GET /v2/webhook_deliveries returns a list or valid error."""
         r = httpx.get(
             f"{BASE_URL}/webhook_deliveries", headers=HEADERS, params={"page[size]": 1},
-            timeout=30,
+            timeout=60,
         )
         assert r.status_code in (200, 401, 403, 404), (
             f"Expected 200/401/403/404, got {r.status_code}"

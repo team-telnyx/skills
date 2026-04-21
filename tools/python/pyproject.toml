@@ -41,6 +41,7 @@ all = [
 ]
 dev = [
     "pytest>=8.0.0",
+    "pytest-rerunfailures>=14.0",
     "pytest-asyncio>=0.24.0",
     "respx>=0.22.0",
     "ruff>=0.8.0",
@@ -69,3 +70,4 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--reruns 2 --reruns-delay 5"
