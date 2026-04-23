@@ -2,25 +2,23 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 
-const REMOTE_MCP_URL = "https://api.telnyx.com/v2/mcp";
-
 export interface ProxyOptions {
   apiKey: string;
-  remoteUrl?: string;
+  remoteUrl: string;
 }
 
 /**
  * Creates a bidirectional proxy between a local stdio MCP transport
- * and the remote Telnyx MCP server over Streamable HTTP.
+ * and a remote Telnyx MCP server over Streamable HTTP.
  */
 export async function createProxy(options: ProxyOptions): Promise<void> {
-  const { apiKey, remoteUrl = REMOTE_MCP_URL } = options;
+  const { apiKey, remoteUrl } = options;
 
   const stdioTransport = new StdioServerTransport();
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,
-    "User-Agent": `telnyx-mcp-proxy/0.1.0`,
+    "User-Agent": `telnyx-mcp-proxy/0.2.0`,
   };
 
   const remoteTransport = new StreamableHTTPClientTransport(
@@ -60,3 +58,6 @@ export async function createProxy(options: ProxyOptions): Promise<void> {
   await stdioTransport.start();
   await remoteTransport.start();
 }
+
+export { resolveEndpoint, SHARED_MCP_URL } from "./endpoint.js";
+export type { ResolveResult } from "./endpoint.js";
