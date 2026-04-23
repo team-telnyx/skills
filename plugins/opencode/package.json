@@ -1,0 +1,58 @@
+{
+  "name": "opencode-telnyx-auth",
+  "description": "Telnyx auth and provider plugin for OpenCode",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "packageManager": "bun@1",
+  "homepage": "https://github.com/team-telnyx/opencode-telnyx-auth#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/team-telnyx/opencode-telnyx-auth.git"
+  },
+  "bugs": {
+    "url": "https://github.com/team-telnyx/opencode-telnyx-auth/issues"
+  },
+  "type": "module",
+  "exports": {
+    "./server": {
+      "import": "./src/index.ts"
+    },
+    "./tui": {
+      "import": "./src/tui.tsx"
+    }
+  },
+  "main": "./dist/index.js",
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun run test/run.ts"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.2.27"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.1.101",
+    "@opentui/solid": ">=0.1.101",
+    "solid-js": ">=1.9.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentui/core": {
+      "optional": true
+    },
+    "@opentui/solid": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@opentui/core": "^0.1.101",
+    "@opentui/solid": "^0.1.101",
+    "@types/node": "^22.0.0",
+    "solid-js": "^1.9.0",
+    "typescript": "^5.9.3"
+  }
+}
