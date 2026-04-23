@@ -39,14 +39,21 @@ Options:
   --help, -h       Show this help message
 
 Environment:
-  TELNYX_API_KEY   Telnyx API key (alternative to --api-key)
-  TELNYX_MCP_URL   Override resolved endpoint with an explicit URL (advanced)
-  TELNYX_MCP_RESET Any non-empty value acts like --reset
+  TELNYX_API_KEY                  Telnyx API key (alternative to --api-key).
+  TELNYX_MCP_ACCEPT_FULL_SCOPE    Set to 1 to opt in to per-account
+                                  provisioning. The injected secret is your
+                                  raw Telnyx API key — VM escape or prompt
+                                  injection inside the MCP func can exfiltrate
+                                  a full-scope key. Without this var, the
+                                  shim stays on the shared hosted endpoint.
+  TELNYX_MCP_URL                  Override the resolved endpoint with an
+                                  explicit URL (advanced).
+  TELNYX_MCP_RESET                Any non-empty value acts like --reset.
 
-On first run, the shim provisions an isolated MCP endpoint on Telnyx
-Edge Compute for your account and caches it at ~/.telnyx/mcp-endpoint.json.
-If provisioning is unavailable, it falls back to the shared hosted endpoint
-at https://api.telnyx.com/v2/mcp.`);
+On first run (with consent), the shim creates a secret and provisions an
+isolated MCP endpoint on Telnyx Edge Compute for your account, then caches
+the URL at ~/.telnyx/mcp-endpoint.json. If provisioning is unavailable, it
+falls back to the shared hosted endpoint at https://api.telnyx.com/v2/mcp.`);
     process.exit(0);
   }
 
@@ -54,10 +61,22 @@ at https://api.telnyx.com/v2/mcp.`);
   const apiKey = getApiKey();
   const { url, source } = await resolveEndpoint({ apiKey, reset });
 
-  if (source === "provisioned") {
-    console.error(`[telnyx-mcp] provisioned isolated endpoint: ${url}`);
-  } else if (source === "fallback") {
-    console.error(`[telnyx-mcp] using shared endpoint (provisioning unavailable)`);
+  switch (source) {
+    case "provisioned":
+      console.error(`[telnyx-mcp] provisioned isolated endpoint: ${url}`);
+      break;
+    case "fallback-no-consent":
+      console.error(
+        "[telnyx-mcp] using shared hosted endpoint. To provision an isolated " +
+          "per-account endpoint, set TELNYX_MCP_ACCEPT_FULL_SCOPE=1 (see --help)."
+      );
+      break;
+    case "fallback-error":
+      console.error(
+        "[telnyx-mcp] provisioning unavailable — falling back to shared endpoint."
+      );
+      break;
+    // "cache" and "override" stay silent.
   }
 
   await createProxy({ apiKey, remoteUrl: url });

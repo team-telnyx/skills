@@ -9,29 +9,84 @@ import { resolveEndpoint, SHARED_MCP_URL } from "../src/endpoint.js";
 const API_KEY = "KEY_test_1234";
 const PER_TENANT_URL = "https://default-mcp-acme.telnyxcompute.com/mcp";
 const FUNC_ID = "func_01HXYZ";
+const SECRET_ID = "sec_01HABC";
+
+const SECRETS_API = "https://api.telnyx.com/v2/compute/secrets";
+const DEPLOY_API = "https://api.telnyx.com/v2/compute/mcp/deploy";
 
 const originalFetch = globalThis.fetch;
 const originalHome = process.env.HOME;
 const originalMcpUrl = process.env.TELNYX_MCP_URL;
 const originalMcpReset = process.env.TELNYX_MCP_RESET;
+const originalConsent = process.env.TELNYX_MCP_ACCEPT_FULL_SCOPE;
 
 let tmpHome: string;
 
-function setFetch(impl: typeof fetch): void {
-  globalThis.fetch = impl;
+interface CapturedCall {
+  url: string;
+  init: RequestInit;
 }
 
-function cacheFile(): string {
-  return join(tmpHome, ".telnyx", "mcp-endpoint.json");
+/**
+ * Install a simple fetch stub that routes by URL prefix.
+ * Returns an array that captures every call for assertions.
+ */
+function installFetchRouter(handlers: {
+  secretsList?: (url: string, init: RequestInit) => Promise<Response>;
+  secretsCreate?: (url: string, init: RequestInit) => Promise<Response>;
+  deploy?: (url: string, init: RequestInit) => Promise<Response>;
+}): CapturedCall[] {
+  const captured: CapturedCall[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    const initOrEmpty = init ?? {};
+    captured.push({ url, init: initOrEmpty });
+    if (url.startsWith(SECRETS_API) && initOrEmpty.method === "POST") {
+      if (!handlers.secretsCreate) throw new Error(`unexpected POST ${url}`);
+      return handlers.secretsCreate(url, initOrEmpty);
+    }
+    if (url.startsWith(SECRETS_API)) {
+      if (!handlers.secretsList) throw new Error(`unexpected GET ${url}`);
+      return handlers.secretsList(url, initOrEmpty);
+    }
+    if (url.startsWith(DEPLOY_API)) {
+      if (!handlers.deploy) throw new Error(`unexpected deploy ${url}`);
+      return handlers.deploy(url, initOrEmpty);
+    }
+    throw new Error(`unexpected fetch ${url}`);
+  }) as typeof fetch;
+  return captured;
 }
 
-function successResponse(): Response {
+function secretsListEmpty(): Response {
+  return new Response(JSON.stringify({ data: [] }), { status: 200 });
+}
+
+function secretsListExisting(name: string): Response {
+  return new Response(
+    JSON.stringify({ data: [{ id: SECRET_ID, name }] }),
+    { status: 200 },
+  );
+}
+
+function secretsCreateOk(): Response {
+  return new Response(
+    JSON.stringify({ data: { id: SECRET_ID, name: "mcp-shim-xxx" } }),
+    { status: 201 },
+  );
+}
+
+function deployOk(): Response {
   return new Response(
     JSON.stringify({
       data: { url: PER_TENANT_URL, func_id: FUNC_ID, status: "ready" },
     }),
-    { status: 200, headers: { "Content-Type": "application/json" } },
+    { status: 200 },
   );
+}
+
+function cacheFile(): string {
+  return join(tmpHome, ".telnyx", "mcp-endpoint.json");
 }
 
 beforeEach(() => {
@@ -39,6 +94,7 @@ beforeEach(() => {
   process.env.HOME = tmpHome;
   delete process.env.TELNYX_MCP_URL;
   delete process.env.TELNYX_MCP_RESET;
+  process.env.TELNYX_MCP_ACCEPT_FULL_SCOPE = "1";
 });
 
 afterEach(async () => {
@@ -49,6 +105,8 @@ afterEach(async () => {
   else process.env.TELNYX_MCP_URL = originalMcpUrl;
   if (originalMcpReset === undefined) delete process.env.TELNYX_MCP_RESET;
   else process.env.TELNYX_MCP_RESET = originalMcpReset;
+  if (originalConsent === undefined) delete process.env.TELNYX_MCP_ACCEPT_FULL_SCOPE;
+  else process.env.TELNYX_MCP_ACCEPT_FULL_SCOPE = originalConsent;
   await fs.rm(tmpHome, { recursive: true, force: true });
 });
 
@@ -56,150 +114,208 @@ describe("resolveEndpoint", () => {
   describe("override", () => {
     it("TELNYX_MCP_URL wins over everything else", async () => {
       process.env.TELNYX_MCP_URL = "https://custom.example/mcp";
-      setFetch(async () => {
+      globalThis.fetch = (async () => {
         throw new Error("fetch should not be called when override is set");
-      });
+      }) as typeof fetch;
       const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
       assert.equal(url, "https://custom.example/mcp");
       assert.equal(source, "override");
     });
   });
 
-  describe("provisioning success", () => {
-    it("calls deploy API, caches, returns per-tenant URL", async () => {
-      let callCount = 0;
-      setFetch(async () => {
-        callCount++;
-        return successResponse();
+  describe("consent gate", () => {
+    it("without TELNYX_MCP_ACCEPT_FULL_SCOPE, skips provisioning", async () => {
+      delete process.env.TELNYX_MCP_ACCEPT_FULL_SCOPE;
+      globalThis.fetch = (async () => {
+        throw new Error("fetch should not be called without consent");
+      }) as typeof fetch;
+      const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
+      assert.equal(url, SHARED_MCP_URL);
+      assert.equal(source, "fallback-no-consent");
+    });
+
+    it("TELNYX_MCP_ACCEPT_FULL_SCOPE=0 is treated as no consent", async () => {
+      process.env.TELNYX_MCP_ACCEPT_FULL_SCOPE = "0";
+      const { source } = await resolveEndpoint({ apiKey: API_KEY });
+      assert.equal(source, "fallback-no-consent");
+    });
+
+    it("TELNYX_MCP_ACCEPT_FULL_SCOPE=false is treated as no consent", async () => {
+      process.env.TELNYX_MCP_ACCEPT_FULL_SCOPE = "false";
+      const { source } = await resolveEndpoint({ apiKey: API_KEY });
+      assert.equal(source, "fallback-no-consent");
+    });
+  });
+
+  describe("provisioning — new secret", () => {
+    it("creates secret when none exists, then deploys with secret id", async () => {
+      const calls = installFetchRouter({
+        secretsList: async () => secretsListEmpty(),
+        secretsCreate: async () => secretsCreateOk(),
+        deploy: async () => deployOk(),
       });
       const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
       assert.equal(url, PER_TENANT_URL);
       assert.equal(source, "provisioned");
-      assert.equal(callCount, 1);
+
+      assert.equal(calls.length, 3);
+      const [list, create, deploy] = calls;
+      assert.match(list.url, /filter\[name\]=mcp-shim-/);
+      assert.equal(create.init.method, "POST");
+      assert.equal(deploy.url, DEPLOY_API);
+
+      const deployBody = JSON.parse(String(deploy.init.body));
+      assert.equal(deployBody.name, "default-mcp");
+      assert.equal(deployBody.api_key_secret_id, SECRET_ID);
 
       const cached = JSON.parse(await fs.readFile(cacheFile(), "utf8"));
       assert.equal(cached.url, PER_TENANT_URL);
       assert.equal(cached.funcId, FUNC_ID);
-      assert.ok(cached.apiKeyFingerprint);
-      assert.ok(cached.provisionedAt);
+      assert.equal(cached.secretId, SECRET_ID);
     });
+  });
 
-    it("response missing data.url is treated as failure", async () => {
-      setFetch(async () =>
-        new Response(JSON.stringify({ data: { func_id: FUNC_ID } }), { status: 200 }),
-      );
+  describe("provisioning — existing secret", () => {
+    it("reuses secret when list returns a match, skipping create", async () => {
+      const calls = installFetchRouter({
+        secretsList: async (url) => {
+          const match = url.match(/filter\[name\]=([^&]+)/);
+          return secretsListExisting(decodeURIComponent(match![1]));
+        },
+        secretsCreate: async () => {
+          throw new Error("create should not be called when secret exists");
+        },
+        deploy: async () => deployOk(),
+      });
+      const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
+      assert.equal(source, "provisioned");
+      assert.equal(url, PER_TENANT_URL);
+      assert.equal(calls.length, 2, "only list + deploy, no create");
+    });
+  });
+
+  describe("provisioning failure modes", () => {
+    it("secret create 500 falls back", async () => {
+      installFetchRouter({
+        secretsList: async () => secretsListEmpty(),
+        secretsCreate: async () => new Response("oops", { status: 500 }),
+      });
       const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
       assert.equal(url, SHARED_MCP_URL);
-      assert.equal(source, "fallback");
+      assert.equal(source, "fallback-error");
+      await assert.rejects(fs.access(cacheFile()));
+    });
+
+    it("deploy 404 falls back", async () => {
+      installFetchRouter({
+        secretsList: async () => secretsListEmpty(),
+        secretsCreate: async () => secretsCreateOk(),
+        deploy: async () => new Response("nope", { status: 404 }),
+      });
+      const { source } = await resolveEndpoint({ apiKey: API_KEY });
+      assert.equal(source, "fallback-error");
+      await assert.rejects(fs.access(cacheFile()));
+    });
+
+    it("deploy response missing url is treated as failure", async () => {
+      installFetchRouter({
+        secretsList: async () => secretsListEmpty(),
+        secretsCreate: async () => secretsCreateOk(),
+        deploy: async () =>
+          new Response(JSON.stringify({ data: { func_id: FUNC_ID } }), {
+            status: 200,
+          }),
+      });
+      const { source } = await resolveEndpoint({ apiKey: API_KEY });
+      assert.equal(source, "fallback-error");
+    });
+
+    it("network error during secret step falls back", async () => {
+      globalThis.fetch = (async () => {
+        throw new TypeError("fetch failed");
+      }) as typeof fetch;
+      const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
+      assert.equal(url, SHARED_MCP_URL);
+      assert.equal(source, "fallback-error");
+    });
+
+    it("aborted fetch falls back", async () => {
+      globalThis.fetch = (async () => {
+        throw new DOMException("aborted", "AbortError");
+      }) as typeof fetch;
+      const { source } = await resolveEndpoint({ apiKey: API_KEY });
+      assert.equal(source, "fallback-error");
     });
   });
 
   describe("cache hits", () => {
-    it("returns cached URL without calling deploy API", async () => {
-      let callCount = 0;
-      setFetch(async () => {
-        callCount++;
-        return successResponse();
+    it("returns cached URL without any fetch calls", async () => {
+      installFetchRouter({
+        secretsList: async () => secretsListEmpty(),
+        secretsCreate: async () => secretsCreateOk(),
+        deploy: async () => deployOk(),
       });
       await resolveEndpoint({ apiKey: API_KEY });
+
+      // Fail any further fetch call — second resolve should not need fetch.
+      globalThis.fetch = (async () => {
+        throw new Error("cache hit should not call fetch");
+      }) as typeof fetch;
       const second = await resolveEndpoint({ apiKey: API_KEY });
-      assert.equal(callCount, 1, "deploy API should be called exactly once");
-      assert.equal(second.url, PER_TENANT_URL);
       assert.equal(second.source, "cache");
+      assert.equal(second.url, PER_TENANT_URL);
     });
 
-    it("re-provisions when API key changes (fingerprint mismatch)", async () => {
-      let callCount = 0;
-      setFetch(async () => {
-        callCount++;
-        return successResponse();
+    it("different API key invalidates cache and re-provisions", async () => {
+      installFetchRouter({
+        secretsList: async () => secretsListEmpty(),
+        secretsCreate: async () => secretsCreateOk(),
+        deploy: async () => deployOk(),
       });
       await resolveEndpoint({ apiKey: API_KEY });
-      const rotated = await resolveEndpoint({ apiKey: "KEY_different_key" });
-      assert.equal(callCount, 2);
+      const rotated = await resolveEndpoint({ apiKey: "KEY_rotated_9999" });
       assert.equal(rotated.source, "provisioned");
     });
   });
 
   describe("reset", () => {
-    it("--reset flag clears cache and re-provisions", async () => {
-      let callCount = 0;
-      setFetch(async () => {
-        callCount++;
-        return successResponse();
+    it("--reset clears cache and re-provisions", async () => {
+      installFetchRouter({
+        secretsList: async () => secretsListEmpty(),
+        secretsCreate: async () => secretsCreateOk(),
+        deploy: async () => deployOk(),
       });
       await resolveEndpoint({ apiKey: API_KEY });
       const reset = await resolveEndpoint({ apiKey: API_KEY, reset: true });
-      assert.equal(callCount, 2);
       assert.equal(reset.source, "provisioned");
     });
 
     it("TELNYX_MCP_RESET env var clears cache", async () => {
-      let callCount = 0;
-      setFetch(async () => {
-        callCount++;
-        return successResponse();
+      installFetchRouter({
+        secretsList: async () => secretsListEmpty(),
+        secretsCreate: async () => secretsCreateOk(),
+        deploy: async () => deployOk(),
       });
       await resolveEndpoint({ apiKey: API_KEY });
       process.env.TELNYX_MCP_RESET = "1";
       const reset = await resolveEndpoint({ apiKey: API_KEY });
-      assert.equal(callCount, 2);
       assert.equal(reset.source, "provisioned");
     });
   });
 
-  describe("fallback paths", () => {
-    it("404 falls back to shared URL, no cache write", async () => {
-      setFetch(async () => new Response("Not Found", { status: 404 }));
-      const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
-      assert.equal(url, SHARED_MCP_URL);
-      assert.equal(source, "fallback");
-      await assert.rejects(fs.access(cacheFile()));
-    });
-
-    it("500 falls back to shared URL, no cache write", async () => {
-      setFetch(async () => new Response("Internal Server Error", { status: 500 }));
-      const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
-      assert.equal(url, SHARED_MCP_URL);
-      assert.equal(source, "fallback");
-      await assert.rejects(fs.access(cacheFile()));
-    });
-
-    it("network error falls back to shared URL", async () => {
-      setFetch(async () => {
-        throw new TypeError("fetch failed");
-      });
-      const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
-      assert.equal(url, SHARED_MCP_URL);
-      assert.equal(source, "fallback");
-    });
-
-    it("aborted fetch falls back to shared URL", async () => {
-      setFetch(async () => {
-        throw new DOMException("aborted", "AbortError");
-      });
-      const { url, source } = await resolveEndpoint({ apiKey: API_KEY });
-      assert.equal(url, SHARED_MCP_URL);
-      assert.equal(source, "fallback");
-    });
-  });
-
-  describe("request shape", () => {
-    it("sends Bearer auth and JSON body to deploy endpoint", async () => {
-      let captured: { url: string; init: RequestInit } | null = null;
-      setFetch(async (input, init) => {
-        captured = { url: String(input), init: init! };
-        return successResponse();
+  describe("request headers", () => {
+    it("sends Bearer auth and JSON content-type to both endpoints", async () => {
+      const calls = installFetchRouter({
+        secretsList: async () => secretsListEmpty(),
+        secretsCreate: async () => secretsCreateOk(),
+        deploy: async () => deployOk(),
       });
       await resolveEndpoint({ apiKey: API_KEY });
-      assert.ok(captured, "fetch should have been called");
-      assert.equal(captured!.url, "https://api.telnyx.com/v2/compute/mcp/deploy");
-      assert.equal(captured!.init.method, "POST");
-      const headers = captured!.init.headers as Record<string, string>;
-      assert.equal(headers.Authorization, `Bearer ${API_KEY}`);
-      assert.equal(headers["Content-Type"], "application/json");
-      const body = JSON.parse(String(captured!.init.body));
-      assert.equal(body.name, "default-mcp");
+      for (const c of calls) {
+        const headers = c.init.headers as Record<string, string>;
+        assert.equal(headers.Authorization, `Bearer ${API_KEY}`);
+        assert.equal(headers["Content-Type"], "application/json");
+      }
     });
   });
 });
