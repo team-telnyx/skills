@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import type { TuiPlugin, TuiPluginModule, TuiPluginApi } from "@opencode-ai/plugin/tui"
-import { DEFAULT_ENABLED_MODELS, loadEnabledModels, persistEnabledModels } from "./models-config"
+import { loadEnabledModels, persistEnabledModels } from "./models-config"
 
 const PROVIDER_ID = "telnyx"
 const API_BASE = "https://api.telnyx.com/v2/ai"
@@ -76,21 +76,20 @@ async function fetchHostedModels(key: string | undefined): Promise<Array<{ id: s
   }
 }
 
-function providerModels(models: Array<{ id: string; name: string; context: number; vision: boolean }>, enabled: Set<string>) {
-  return Object.fromEntries(
-    models.flatMap((model) => {
-      if (!enabled.has(model.id)) return []
-      const entry: Record<string, unknown> = {
-        name: model.name,
-        limit: { context: model.context },
-      }
-      if (model.vision) {
-        entry.attachment = true
-        entry.modalities = { input: ["text", "image"], output: ["text"] }
-      }
-      return [[model.id, entry] as const]
-    }),
-  )
+function providerModelEntry(model: { id: string; name: string; context: number; vision: boolean }) {
+  const entry: Record<string, unknown> = {
+    name: model.name,
+    limit: { context: model.context },
+  }
+  if (model.vision) {
+    entry.attachment = true
+    entry.modalities = { input: ["text", "image"], output: ["text"] }
+  }
+  return entry
+}
+
+function providerModels(models: Array<{ id: string; name: string; context: number; vision: boolean }>) {
+  return Object.fromEntries(models.map((model) => [model.id, providerModelEntry(model)] as const))
 }
 
 async function openManager(api: TuiPluginApi): Promise<void> {
@@ -126,7 +125,10 @@ async function openManager(api: TuiPluginApi): Promise<void> {
         if (next.has(option.value)) next.delete(option.value)
         else next.add(option.value)
         const persisted = [...next].sort((left, right) => left.localeCompare(right))
-        const modelsMap = providerModels(models, next)
+        const modelsMap = providerModels(models)
+        const disabledModels = models
+          .map((model) => model.id)
+          .filter((modelID) => !next.has(modelID))
         try {
           await api.client.config.update({
             config: {
@@ -139,6 +141,7 @@ async function openManager(api: TuiPluginApi): Promise<void> {
                     apiKey: key,
                   },
                   models: modelsMap,
+                  blacklist: disabledModels,
                 },
               },
             },
