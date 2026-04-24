@@ -122,7 +122,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: plugins/opencode
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Publish @telnyx/opencode
         run: bash ./.github/bin/publish-npm plugins/opencode
