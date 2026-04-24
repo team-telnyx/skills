@@ -411,6 +411,45 @@ if product_applies "verify"; then
 fi
 
 # ============================================================
+# HALLUCINATED TELNYX METHOD NAMES (all products)
+# ============================================================
+# Catches common agent hallucinations — methods that don't exist in the Telnyx
+# SDKs but look plausible by analogy to Twilio, Stripe, or older Telnyx APIs.
+# Keep entries high-confidence (zero false-positive risk).
+if product_applies "all"; then
+  section_header "Hallucinated Method Names"
+
+  # Entries must be high-confidence: the pattern should be something a user is
+  # extremely unlikely to write for a legitimate non-Telnyx reason. Plain
+  # `messages.create(` is intentionally NOT here — it's already covered by the
+  # Twilio-pattern check in the Messaging section above, and matching it at
+  # file-scope here produces false positives against internal app code that
+  # happens to have a `messages` service/model.
+  HALLUCINATED_METHODS=(
+    'verifications\.submitVerification'   # correct: verifications.byPhoneNumber.actions.verify
+    'verifications\.checkVerification'    # correct: verifications.byPhoneNumber.actions.verify
+    'new TelnyxWebhook\('                 # not a real class — use client.webhooks.unwrap()
+    'telnyx\.Webhook\.construct'          # Stripe-style, not Telnyx — use client.webhooks.unwrap()
+  )
+
+  hallucinated_hits=0
+  for pattern in "${HALLUCINATED_METHODS[@]}"; do
+    matches=$(search_files "$pattern" "*.py" "*.js" "*.ts" "*.rb" "*.go")
+    count=$(count_matches "$matches")
+    if [ "$count" -gt 0 ]; then
+      hallucinated_hits=$((hallucinated_hits + count))
+      lint_issue "hallucinated_method" \
+        "Non-existent Telnyx method pattern '$pattern' found in $count location(s)" \
+        "Consult {baseDir}/sdk-reference/{language}/{product}.md for the correct method signature" \
+        "$(matches_to_json "$matches")"
+    fi
+  done
+  if [ "$hallucinated_hits" -eq 0 ]; then
+    lint_pass "hallucinated_method" "No hallucinated Telnyx method names found"
+  fi
+fi
+
+# ============================================================
 # WEBHOOK SIGNATURE VALIDATION
 # ============================================================
 if product_applies "all"; then
@@ -464,7 +503,6 @@ if product_applies "voice"; then
   polly_refs=$(search_files "Polly\.[A-Z][a-z]+" "*.xml" "*.py" "*.js" "*.ts" "*.rb" "*.go" "*.java" "*.php")
   polly_count=$(count_matches "$polly_refs")
   if [ "$polly_count" -gt 0 ]; then
-    neural_refs=$(echo "$polly_refs" | grep -c "\-Neural" || true)
     non_neural=$(echo "$polly_refs" | grep -v "\-Neural" || true)
     non_neural_count=$(count_matches "$non_neural")
     if [ "$non_neural_count" -gt 0 ]; then
@@ -553,8 +591,6 @@ fi
 # ============================================================
 # OUTPUT
 # ============================================================
-
-TOTAL=$((ISSUE_COUNT + WARN_COUNT + PASS_COUNT))
 
 if [ "$JSON_MODE" = true ]; then
   jq -n \

@@ -419,12 +419,15 @@ fi
 if product_applies "all"; then
   section_header "Hallucinated Method Names"
 
+  # Entries must be high-confidence: the pattern should be something a user is
+  # extremely unlikely to write for a legitimate non-Telnyx reason. Plain
+  # `messages.create(` is intentionally NOT here — it's already covered by the
+  # Twilio-pattern check in the Messaging section above, and matching it at
+  # file-scope here produces false positives against internal app code that
+  # happens to have a `messages` service/model.
   HALLUCINATED_METHODS=(
     'verifications\.submitVerification'   # correct: verifications.byPhoneNumber.actions.verify
     'verifications\.checkVerification'    # correct: verifications.byPhoneNumber.actions.verify
-    'verifications\.check\('              # correct: verifications.byPhoneNumber.actions.verify
-    'verifications\.verify\('             # correct: verifications.byPhoneNumber.actions.verify
-    'messages\.create\('                  # correct: messages.send()
     'new TelnyxWebhook\('                 # not a real class — use client.webhooks.unwrap()
     'telnyx\.Webhook\.construct'          # Stripe-style, not Telnyx — use client.webhooks.unwrap()
   )

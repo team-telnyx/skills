@@ -17,6 +17,7 @@
 set -euo pipefail
 
 # --- Colors ---
+# shellcheck disable=SC2034  # BLUE reserved for info lines; kept for palette consistency
 if [ -t 1 ]; then
   RED='\033[0;31m' YELLOW='\033[0;33m' GREEN='\033[0;32m' BLUE='\033[0;34m' BOLD='\033[1m' NC='\033[0m'
 else
@@ -101,6 +102,7 @@ SRC_TWILIO="" TEST_TWILIO="" DOC_TWILIO="" CONFIG_TWILIO=""
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   rel=$(echo "$f" | sed "s|$PROJECT_ROOT/||")
+  # shellcheck disable=SC2221,SC2222  # bash case is case-sensitive: *test* and *Test* are distinct
   case "$rel" in
     *test*|*Test*|*spec*|*Spec*|*__tests__*) TEST_TWILIO="$TEST_TWILIO$rel"$'\n' ;;
     *.md|*.txt|*.rst|README*|CONTRIBUTING*|CHANGELOG*|LICENSE*) DOC_TWILIO="$DOC_TWILIO$rel"$'\n' ;;
@@ -367,9 +369,7 @@ fi
 echo ""
 echo -e "${BOLD}9. Git changes${NC}"
 
-GIT_DIFF_STAT=""
 if [ -d "$PROJECT_ROOT/.git" ]; then
-  GIT_DIFF_STAT=$(cd "$PROJECT_ROOT" && git diff --stat HEAD~1 2>/dev/null || git diff --stat 2>/dev/null || echo "")
   FILES_CHANGED=$(cd "$PROJECT_ROOT" && git diff --shortstat HEAD~1 2>/dev/null || git diff --shortstat 2>/dev/null || echo "")
   if [ -n "$FILES_CHANGED" ]; then
     echo "  $FILES_CHANGED"

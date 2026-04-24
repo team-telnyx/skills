@@ -565,9 +565,11 @@ print(errors[0].get('detail', '') if errors else '')
 
         # Wait for call to connect, then send TTS and hang up
         echo -e "  ${BLUE}INFO${NC}  Waiting for call to connect..."
+        # shellcheck disable=SC2034  # CALL_START kept as a timing anchor for future duration reporting
         CALL_START=$(date +%s)
         REACHED_ACTIVE=false
 
+        # shellcheck disable=SC2034  # i is a poll-count counter; body polls call status each iteration
         for i in $(seq 1 15); do
           sleep 2
           STATUS=$(curl -s \

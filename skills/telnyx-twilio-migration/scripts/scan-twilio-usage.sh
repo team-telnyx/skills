@@ -79,8 +79,10 @@ EXCLUDE_ARGS+=(--exclude='package-lock.json' --exclude='yarn.lock' --exclude='pn
 # State — associative arrays / arrays collected during the scan
 # ---------------------------------------------------------------------------
 
-declare -A LANG_SET          # languages_detected  (key=lang, value=1)
-declare -A PRODUCT_SET       # products_used        (key=product, value=1)
+# NOTE: associative arrays MUST be initialized with =() so that `${#ARR[@]}`
+# is safe under `set -u` even when no entries are added (clean/empty scan).
+declare -A LANG_SET=()       # languages_detected  (key=lang, value=1)
+declare -A PRODUCT_SET=()    # products_used        (key=product, value=1)
 
 # Per-file info stored as parallel indexed arrays
 declare -a FILE_PATHS=()     # relative paths
@@ -90,7 +92,7 @@ declare -a FILE_PATTERNS=()  # comma-separated matched patterns per file
 
 declare -a ENV_NAMES=()      # env var names
 declare -a ENV_FILES=()      # comma-separated files per env var
-declare -A ENV_MAP           # name -> comma-separated files
+declare -A ENV_MAP=()        # name -> comma-separated files
 
 declare -a CFG_PATHS=()      # config file relative paths
 declare -a CFG_TYPES=()      # config types (pip, npm, gem, ...)
