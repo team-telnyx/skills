@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { TelnyxCredentialSchema } from "./models-config"
@@ -16,12 +16,12 @@ export type JsonObject = Record<string, unknown>
 // ---------------------------------------------------------------------------
 
 export interface Dependencies {
-  readFile: (path: string) => string
+  readFile: (path: string) => Promise<string>
   fetchModels: (url: string, key: string | undefined) => Promise<JsonObject[]>
 }
 
 const defaultDeps: Dependencies = {
-  readFile: (path) => readFileSync(path, "utf8"),
+  readFile: (path) => readFile(path, "utf8"),
   fetchModels: async (url, key) => {
     if (!key) return []
     const response = await fetch(url, {
@@ -65,9 +65,9 @@ export function authFilePath(): string {
   return join(dataHome, "opencode", "auth.json")
 }
 
-export function storedApiKey(): string | undefined {
+export async function storedApiKey(): Promise<string | undefined> {
   try {
-    const auth = JSON.parse(deps.readFile(authFilePath())) as unknown
+    const auth = JSON.parse(await deps.readFile(authFilePath())) as unknown
     if (!isObject(auth)) return undefined
     const telnyx = auth[PROVIDER_ID]
     const parsed = TelnyxCredentialSchema.safeParse(telnyx)
@@ -83,8 +83,8 @@ export function storedApiKey(): string | undefined {
   }
 }
 
-export function apiKey(): string | undefined {
-  return process.env.TELNYX_API_KEY ?? storedApiKey()
+export async function apiKey(): Promise<string | undefined> {
+  return process.env.TELNYX_API_KEY ?? await storedApiKey()
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +194,29 @@ export async function fetchHostedModels(
   } catch (error) {
     console.error("[telnyx] failed to fetch hosted models:", error)
     return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Provider config builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the provider config object shared by server and TUI entry points.
+ * The `apiKey` field is omitted when `key` is undefined (server fallback).
+ */
+export function buildProviderConfig(
+  key: string | undefined,
+  models: Record<string, JsonObject>,
+): Record<string, unknown> {
+  return {
+    npm: "@ai-sdk/openai-compatible",
+    name: "Telnyx",
+    options: {
+      baseURL: OPENAI_BASE,
+      ...(key ? { apiKey: key } : {}),
+    },
+    models,
   }
 }
 

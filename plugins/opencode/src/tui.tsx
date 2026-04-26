@@ -3,8 +3,8 @@ import type { TuiPlugin, TuiPluginModule, TuiPluginApi } from "@opencode-ai/plug
 import { loadEnabledModels, persistEnabledModels } from "./models-config"
 import {
   PROVIDER_ID,
-  OPENAI_BASE,
   apiKey,
+  buildProviderConfig,
   fetchHostedModels,
   providerModels,
 } from "./shared"
@@ -22,7 +22,7 @@ function buildDialogOptions(
 }
 
 async function openManager(api: TuiPluginApi): Promise<void> {
-  const key = apiKey()
+  const key = await apiKey()
   if (!key) {
     api.ui.toast({ title: "Telnyx", message: "No API key found. Run opencode auth login --provider telnyx" })
     return
@@ -38,8 +38,8 @@ async function openManager(api: TuiPluginApi): Promise<void> {
 
   // Re-render the dialog in-place after each toggle instead of recursing.
   // This avoids unbounded stack growth from the previous recursive pattern.
-  function renderDialog(): void {
-    const enabled = new Set(loadEnabledModels())
+  async function renderDialog(): Promise<void> {
+    const enabled = new Set(await loadEnabledModels())
     const options = buildDialogOptions(models, enabled)
 
     api.ui.dialog.replace(() => (
@@ -49,7 +49,7 @@ async function openManager(api: TuiPluginApi): Promise<void> {
         options={options}
         current={options[0]?.value}
         onSelect={async (option) => {
-          const next = new Set(loadEnabledModels())
+          const next = new Set(await loadEnabledModels())
           if (next.has(option.value)) next.delete(option.value)
           else next.add(option.value)
           const persisted = [...next].sort((left, right) => left.localeCompare(right))
@@ -58,15 +58,7 @@ async function openManager(api: TuiPluginApi): Promise<void> {
             await api.client.config.update({
               config: {
                 provider: {
-                  [PROVIDER_ID]: {
-                    npm: "@ai-sdk/openai-compatible",
-                    name: "Telnyx",
-                    options: {
-                      baseURL: OPENAI_BASE,
-                      apiKey: key,
-                    },
-                    models: modelsMap,
-                  },
+                  [PROVIDER_ID]: buildProviderConfig(key, modelsMap),
                 },
               },
             })
@@ -75,20 +67,20 @@ async function openManager(api: TuiPluginApi): Promise<void> {
             api.ui.toast({ title: "Telnyx", message: `Failed to update ${option.title}` })
             return
           }
-          persistEnabledModels(persisted)
+          await persistEnabledModels(persisted)
           api.ui.toast({
             title: "Telnyx",
             message: `${next.has(option.value) ? "Enabled" : "Disabled"} ${option.title}`,
           })
           // Re-render the dialog with updated state instead of recursing.
-          renderDialog()
+          void renderDialog()
         }}
       />
     ))
     api.ui.dialog.setSize("large")
   }
 
-  renderDialog()
+  void renderDialog()
 }
 
 const tui: TuiPlugin = async (api) => {

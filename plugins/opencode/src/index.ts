@@ -2,8 +2,8 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { DEFAULT_ENABLED_MODELS, loadEnabledModels, persistEnabledModels } from "./models-config"
 import {
   PROVIDER_ID,
-  OPENAI_BASE,
   apiKey,
+  buildProviderConfig,
   fetchModels,
   fetchAllHostedModelIDs,
   isObject,
@@ -13,15 +13,15 @@ type ModelSelectionPreset = "recommended" | "all" | "existing"
 
 async function resolveEnabledModelsForPreset(key: string, preset: ModelSelectionPreset): Promise<string[]> {
   if (preset === "recommended") return [...DEFAULT_ENABLED_MODELS]
-  if (preset === "existing") return loadEnabledModels()
+  if (preset === "existing") return await loadEnabledModels()
 
   const allHostedModels = await fetchAllHostedModelIDs(key)
-  return allHostedModels.length > 0 ? allHostedModels : loadEnabledModels()
+  return allHostedModels.length > 0 ? allHostedModels : await loadEnabledModels()
 }
 
 const TelnyxAuthPlugin: Plugin = async () => {
-  const key = apiKey()
-  const enabledModels = loadEnabledModels()
+  const key = await apiKey()
+  const enabledModels = await loadEnabledModels()
   const models = await fetchModels(key, enabledModels)
 
   return {
@@ -69,7 +69,7 @@ const TelnyxAuthPlugin: Plugin = async () => {
             ? inputs.modelPreset
             : "recommended"
           const nextEnabledModels = await resolveEnabledModelsForPreset(providedKey, preset)
-          persistEnabledModels(nextEnabledModels)
+          await persistEnabledModels(nextEnabledModels)
 
           return {
             type: "success" as const,
@@ -88,15 +88,7 @@ const TelnyxAuthPlugin: Plugin = async () => {
 
     config: async (config: { provider?: Record<string, unknown> }) => {
       config.provider ??= {}
-      config.provider[PROVIDER_ID] = {
-        npm: "@ai-sdk/openai-compatible",
-        name: "Telnyx",
-        options: {
-          baseURL: OPENAI_BASE,
-          ...(key ? { apiKey: key } : {}),
-        },
-        models,
-      }
+      config.provider[PROVIDER_ID] = buildProviderConfig(key, models)
     },
 
     "chat.params": async (input: { model?: { providerID?: string } }, output: { maxOutputTokens?: number }) => {

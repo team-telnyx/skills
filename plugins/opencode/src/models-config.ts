@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { existsSync } from "node:fs"
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { z } from "zod"
@@ -57,21 +58,21 @@ export function defaultModelsConfig(): ModelsConfigFile {
 // Persistence
 // ---------------------------------------------------------------------------
 
-export function persistDefaultModelsConfigIfMissing(): void {
+export async function persistDefaultModelsConfigIfMissing(): Promise<void> {
   const path = modelsConfigPath()
   if (existsSync(path)) return
 
   const payload = `${JSON.stringify(defaultModelsConfig(), null, 2)}\n`
-  mkdirSync(dirname(path), { recursive: true })
+  await mkdir(dirname(path), { recursive: true })
   const tempPath = `${path}.tmp`
-  writeFileSync(tempPath, payload, "utf8")
-  renameSync(tempPath, path)
+  await writeFile(tempPath, payload, "utf8")
+  await rename(tempPath, path)
 }
 
-export function loadEnabledModels(): string[] {
+export async function loadEnabledModels(): Promise<string[]> {
   try {
-    persistDefaultModelsConfigIfMissing()
-    const raw = JSON.parse(readFileSync(modelsConfigPath(), "utf8")) as unknown
+    await persistDefaultModelsConfigIfMissing()
+    const raw = JSON.parse(await readFile(modelsConfigPath(), "utf8")) as unknown
     const parsed = ModelsConfigFileSchema.safeParse(raw)
     if (!parsed.success) {
       console.error("[telnyx] invalid models config file, falling back to defaults:", parsed.error)
@@ -90,14 +91,16 @@ export function loadEnabledModels(): string[] {
   }
 }
 
-export function persistEnabledModels(enabledModels: readonly string[]): void {
+export async function persistEnabledModels(enabledModels: readonly string[]): Promise<void> {
   const payload: ModelsConfigFile = {
     version: MODELS_CONFIG_VERSION,
     enabledModels: [...new Set(enabledModels)],
   }
+  // Validate before writing — guarantees we can always read back what we write.
+  ModelsConfigFileSchema.parse(payload)
   const path = modelsConfigPath()
-  mkdirSync(dirname(path), { recursive: true })
+  await mkdir(dirname(path), { recursive: true })
   const tempPath = `${path}.tmp`
-  writeFileSync(tempPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8")
-  renameSync(tempPath, path)
+  await writeFile(tempPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8")
+  await rename(tempPath, path)
 }
