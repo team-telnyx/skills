@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin"
-import { DEFAULT_ENABLED_MODELS, loadEnabledModels, persistEnabledModels } from "./models-config"
+import { DEFAULT_ENABLED_MODELS, loadEnabledModels, persistEnabledModels } from "./models-config.js"
 import {
   PROVIDER_ID,
   apiKey,
@@ -7,7 +7,7 @@ import {
   fetchModels,
   fetchAllHostedModelIDs,
   isObject,
-} from "./shared"
+} from "./shared.js"
 
 type ModelSelectionPreset = "recommended" | "all" | "existing"
 
@@ -88,6 +88,8 @@ const TelnyxAuthPlugin: Plugin = async () => {
 
     config: async (config: { provider?: Record<string, unknown> }) => {
       config.provider ??= {}
+      // Server startup already filters models to the persisted allowlist above.
+      // The TUI hot-reload path sends all models plus blacklist to avoid stale deep-merged entries.
       config.provider[PROVIDER_ID] = buildProviderConfig(key, models)
     },
 

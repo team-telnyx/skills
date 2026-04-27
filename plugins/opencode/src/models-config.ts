@@ -72,7 +72,7 @@ export async function persistDefaultModelsConfigIfMissing(): Promise<void> {
 export async function loadEnabledModels(): Promise<string[]> {
   try {
     await persistDefaultModelsConfigIfMissing()
-    const raw = JSON.parse(await readFile(modelsConfigPath(), "utf8")) as unknown
+    const raw: unknown = JSON.parse(await readFile(modelsConfigPath(), "utf8"))
     const parsed = ModelsConfigFileSchema.safeParse(raw)
     if (!parsed.success) {
       console.error("[telnyx] invalid models config file, falling back to defaults:", parsed.error)

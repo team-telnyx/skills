@@ -68,7 +68,7 @@ describe("models-config", () => {
       assert.deepEqual(models, [...DEFAULT_ENABLED_MODELS])
 
       // Verify it was persisted
-      const persisted = JSON.parse(await readFile(configPath, "utf8")) as Record<string, unknown>
+      const persisted = ModelsConfigFileSchema.parse(JSON.parse(await readFile(configPath, "utf8")))
       assert.equal(persisted.version, MODELS_CONFIG_VERSION)
       assert.deepEqual(persisted.enabledModels, [...DEFAULT_ENABLED_MODELS])
     })
@@ -136,7 +136,7 @@ describe("models-config", () => {
       await setup()
       await persistEnabledModels(["org/model-a", "org/model-b"])
 
-      const raw = JSON.parse(await readFile(configPath, "utf8")) as Record<string, unknown>
+      const raw = ModelsConfigFileSchema.parse(JSON.parse(await readFile(configPath, "utf8")))
       assert.equal(raw.version, MODELS_CONFIG_VERSION)
       assert.deepEqual(raw.enabledModels, ["org/model-a", "org/model-b"])
     })
@@ -145,7 +145,7 @@ describe("models-config", () => {
       await setup()
       await persistEnabledModels(["a", "b", "a"])
 
-      const raw = JSON.parse(await readFile(configPath, "utf8")) as Record<string, unknown>
+      const raw = ModelsConfigFileSchema.parse(JSON.parse(await readFile(configPath, "utf8")))
       assert.deepEqual(raw.enabledModels, ["a", "b"])
     })
 
@@ -156,7 +156,7 @@ describe("models-config", () => {
       const models = await loadEnabledModels()
       assert.deepEqual(models, [])
 
-      const raw = JSON.parse(await readFile(configPath, "utf8")) as Record<string, unknown>
+      const raw = ModelsConfigFileSchema.parse(JSON.parse(await readFile(configPath, "utf8")))
       assert.deepEqual(raw.enabledModels, [])
     })
 
@@ -177,7 +177,7 @@ describe("models-config", () => {
       // logic produced an invalid payload — which it can't with the current code.
       // Instead we verify that the written file passes schema validation.
       await persistEnabledModels(["org/model"])
-      const raw = JSON.parse(await readFile(configPath, "utf8")) as unknown
+      const raw: unknown = JSON.parse(await readFile(configPath, "utf8"))
       const result = ModelsConfigFileSchema.safeParse(raw)
       assert.equal(result.success, true)
     })
