@@ -351,9 +351,17 @@ class TestReadonly:
 
     def test_readonly_list_faxes(self):
         """GET /v2/faxes returns a list or valid error."""
-        r = httpx.get(
-            f"{BASE_URL}/faxes", headers=HEADERS, params={"page[size]": 1}
-        )
+        try:
+            r = httpx.get(
+                f"{BASE_URL}/faxes",
+                headers=HEADERS,
+                params={"page[size]": 1},
+                timeout=60,
+            )
+        except httpx.ReadTimeout:
+            pytest.xfail("Telnyx /faxes intermittently times out from CI runners")
+        if r.status_code == 503:
+            pytest.xfail("Telnyx /faxes intermittently returns 503 from CI runners")
         assert r.status_code in (200, 401, 403, 404), (
             f"Expected 200/401/403/404, got {r.status_code}"
         )

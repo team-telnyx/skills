@@ -25,10 +25,12 @@
     "build:tui": "bun scripts/build-tui.ts",
     "build:types": "tsup src/index.ts src/tui.tsx --dts-only --format esm --out-dir dist",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test test/run.ts"
+    "test": "node --test test/run.ts",
+    "test:unit": "rm -rf .test-dist && tsc -p tsconfig.unit.json && node --test .test-dist/test/*.test.js"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "^1.2.27"
+    "@opencode-ai/plugin": "^1.2.27",
+    "zod": "^3.25.0"
   },
   "peerDependencies": {
     "@opentui/core": ">=0.1.101",
