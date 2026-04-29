@@ -1,0 +1,51 @@
+{
+  "name": "@telnyx/opencode",
+  "version": "0.1.2",
+  "description": "Telnyx auth and provider plugin for OpenCode",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    "./server": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./tui":    "./src/tui.tsx"
+  },
+  "files": ["dist", "src", "README.md"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/team-telnyx/ai.git",
+    "directory": "plugins/opencode"
+  },
+  "bugs": { "url": "https://github.com/team-telnyx/ai/issues" },
+  "oc-plugin": ["server", "tui"],
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "build": "npm run build:clean && npm run build:server && npm run build:tui && npm run build:types",
+    "build:clean": "rm -rf dist",
+    "build:server": "tsup src/index.ts --format esm --out-dir dist",
+    "build:tui": "bun scripts/build-tui.ts",
+    "build:types": "tsup src/index.ts src/tui.tsx --dts-only --format esm --out-dir dist",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test test/run.ts"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.2.27"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.1.101",
+    "@opentui/solid": ">=0.1.101",
+    "solid-js": ">=1.9.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentui/core": { "optional": true },
+    "@opentui/solid": { "optional": true },
+    "solid-js": { "optional": true }
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
+    "@opentui/core": "^0.1.101",
+    "@opentui/solid": "^0.1.101",
+    "solid-js": "^1.9.0"
+  }
+}

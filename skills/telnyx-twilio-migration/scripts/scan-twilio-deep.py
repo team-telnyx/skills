@@ -1660,7 +1660,9 @@ def run_scan(project_root: Path) -> Dict[str, Any]:
     # --- Post-processing: improve webhook handler detection ---
     _webhook_keywords = re.compile(
         r"RequestValidator|validateRequest|X-Twilio-Signature|"
-        r"webhook|request_validator|validate_request|@app\.(route|post|get)",
+        r"Twilio::Security|twilio\.webhook|"
+        r"webhook|request_validator|validate_request|validate_twilio_request|"
+        r"@app\.(route|post|get)",
         re.IGNORECASE,
     )
     for fr in file_results:

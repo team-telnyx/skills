@@ -22,6 +22,7 @@
 set -euo pipefail
 
 # --- Colors (disabled if not a terminal) ---
+# shellcheck disable=SC2034  # BLUE reserved for info lines; kept for palette consistency
 if [ -t 1 ]; then
   RED='\033[0;31m'
   YELLOW='\033[0;33m'
@@ -713,8 +714,6 @@ fi
 # ============================================================
 # OUTPUT
 # ============================================================
-
-TOTAL=$((PASS_COUNT + FAIL_COUNT + WARN_COUNT))
 
 if [ "$FAIL_COUNT" -gt 0 ]; then
   RESULT="incomplete"

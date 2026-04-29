@@ -1,0 +1,27 @@
+node_modules/
+dist/
+.DS_Store
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.der
+
+# Local artifacts
+*.log
+coverage/
+auth.json
+credentials.json
+*.local
+
+test/.artifacts/
+config.json

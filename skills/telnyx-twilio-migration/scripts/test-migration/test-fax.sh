@@ -96,9 +96,7 @@ if ! command -v curl &>/dev/null; then
   ERRORS=$((ERRORS + 1))
 fi
 
-HAS_JQ=false
 if command -v jq &>/dev/null; then
-  HAS_JQ=true
   echo -e "  ${GREEN}PASS${NC}  jq is available"
 else
   echo -e "  ${YELLOW}WARN${NC}  jq not installed — required for auto-setup"

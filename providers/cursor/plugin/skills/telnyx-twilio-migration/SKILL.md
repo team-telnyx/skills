@@ -15,6 +15,8 @@ metadata:
 
 # Twilio to Telnyx Migration
 
+> **Path convention:** `{baseDir}` in this document is the directory containing this `SKILL.md` file (e.g., `/path/to/skills/telnyx-twilio-migration`). Substitute the absolute path before running any script shown below — do not pass the literal string `{baseDir}` to bash.
+
 You MUST follow these phases in order (0 → 1 → 2 → 3 → 4 → 5 → 6). Do NOT skip phases. Each phase has prerequisites and exit criteria — do not proceed until the exit criteria are met. You MUST run the scripts specified in each phase (do not substitute your own checks). You MUST modify the user's source files to complete the migration.
 
 **Interaction model**: Phase 0 collects ALL user input (API key, phone number, cost approval). Phases 1–6 run **fully autonomously** — do NOT ask the user any questions. Make all decisions deterministically using the rules in each phase. The only exception: if a failure persists after 3 fix attempts, present the issue to the user with error details and what you tried.

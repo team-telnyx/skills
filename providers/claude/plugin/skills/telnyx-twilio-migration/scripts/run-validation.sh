@@ -86,7 +86,9 @@ echo ""
 echo -e "${BOLD}Step 5.1: Migration Validation${NC}"
 echo "────────────────────────────────"
 
-bash "$SCRIPT_DIR/validate-migration.sh" "$PROJECT_ROOT"
+VALIDATE_ARGS=("$PROJECT_ROOT")
+[ "$JSON_MODE" = true ] && VALIDATE_ARGS+=("--json")
+bash "$SCRIPT_DIR/validate-migration.sh" "${VALIDATE_ARGS[@]}"
 VALIDATE_EXIT=$?
 
 if [ "$VALIDATE_EXIT" -eq 0 ]; then

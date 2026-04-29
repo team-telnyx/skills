@@ -1,10 +1,11 @@
-# Publish @telnyx/agent-toolkit and @telnyx/agent-cli to npm using OIDC.
+# Publish @telnyx npm packages using OIDC.
 # Triggered by GitHub Release or manual dispatch.
 #
 # npm setup required (one-time, by someone with @telnyx npm org access):
 #   1. Create packages on npm (if they don't exist):
 #      - @telnyx/agent-toolkit
 #      - @telnyx/agent-cli
+#      - @telnyx/opencode
 #   2. For each package, go to Settings → Provenance and link:
 #      - Repository: https://github.com/team-telnyx/ai
 #      - Workflow: publish-npm.yml
@@ -23,6 +24,7 @@ on:
           - typescript
           - cli
           - mcp
+          - opencode
   release:
     types: [published]
 
@@ -98,6 +100,32 @@ jobs:
 
       - name: Publish @telnyx/mcp
         run: bash ./.github/bin/publish-npm tools/mcp
+
+  publish-opencode:
+    name: publish @telnyx/opencode
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository == 'team-telnyx/ai' &&
+      (github.event_name == 'release' || github.event.inputs.package == 'all' || github.event.inputs.package == 'opencode')
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: plugins/opencode
+        run: npm ci --legacy-peer-deps
+
+      - name: Publish @telnyx/opencode
+        run: bash ./.github/bin/publish-npm plugins/opencode
 
   publish-mcp-registry:
     name: publish to MCP Registry

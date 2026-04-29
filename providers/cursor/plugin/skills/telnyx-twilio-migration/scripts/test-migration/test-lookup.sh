@@ -22,6 +22,7 @@
 set -euo pipefail
 
 # --- Colors (disabled if not a terminal) ---
+# shellcheck disable=SC2034  # BLUE reserved for info lines; kept for palette consistency
 if [ -t 1 ]; then
   RED='\033[0;31m'
   YELLOW='\033[0;33m'
