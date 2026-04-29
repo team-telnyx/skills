@@ -31,6 +31,51 @@ Good bridge use cases:
 3. **AI-adjacent functions**
    - redaction, enrichment, scoring, post-processing, lightweight transforms
 
+## Quick Start
+
+```bash
+# Authenticate with the dedicated Edge CLI
+telnyx-edge auth login
+
+# Start from the MCP server example
+telnyx-edge new-func --from-dir=examples/ts/mcp-server --name=my-mcp-server
+cd my-mcp-server
+
+# Add required secrets and deploy
+telnyx-edge secrets add TELNYX_API_KEY <your-api-key>
+telnyx-edge ship
+```
+
+Once deployed, use `team-telnyx/ai` for orchestration and capability discovery, and use the deployed Edge endpoint for execution.
+
+## API Reference
+
+Edge Compute lifecycle is owned by the separate `telnyx-edge` CLI rather than the `team-telnyx/ai` SDK surface.
+
+Common lifecycle commands:
+
+```bash
+telnyx-edge auth status
+telnyx-edge list
+telnyx-edge secrets list
+telnyx-edge bindings get
+```
+
+| Command | Purpose |
+|---------|---------|
+| `telnyx-edge auth login` | Authenticate the Edge CLI |
+| `telnyx-edge new-func` | Scaffold a new function or clone an example |
+| `telnyx-edge ship` | Deploy the current function |
+| `telnyx-edge list` | List deployed functions |
+| `telnyx-edge secrets` | Manage runtime secrets |
+| `telnyx-edge bindings` | Manage Telnyx API key bindings |
+
+## Prerequisites
+
+- Telnyx account
+- Access to the dedicated `telnyx-edge` CLI
+- A use case where AI workflows need a real deployed HTTP or MCP execution surface
+
 ## Prerequisite: install `telnyx-edge`
 
 Edge Compute is managed through the separate CLI:
@@ -133,7 +178,28 @@ Not before.
 
 A simple pattern is to let your AI app call a deployed edge function for specialized execution.
 
-```ts
+```python
+import os
+import requests
+
+response = requests.post(
+    "https://<your-edge-endpoint>",
+    headers={
+        "content-type": "application/json",
+        "authorization": f"Bearer {os.environ['TELNYX_API_KEY']}",
+    },
+    json={
+        "task": "redact_pii",
+        "payload": {
+            "text": "Call me at +1 555 123 4567",
+        },
+    },
+)
+
+print(response.json())
+```
+
+```typescript
 const response = await fetch("https://<your-edge-endpoint>", {
   method: "POST",
   headers: {
@@ -205,6 +271,20 @@ Example use cases:
 - enrich messages before downstream routing
 - score or classify inbound events
 - clean transcripts before analysis
+
+You can also smoke-test a deployed edge endpoint directly:
+
+```bash
+curl -X POST "https://<your-edge-endpoint>" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -d '{
+    "task": "redact_pii",
+    "payload": {
+      "text": "Call me at +1 555 123 4567"
+    }
+  }'
+```
 
 ## What this repo should and should not claim
 
