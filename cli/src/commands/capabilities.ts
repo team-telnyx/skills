@@ -42,6 +42,7 @@ const CAPABILITIES: Record<string, Capability[]> = {
   ],
   "⚡ Edge Compute": [
     { name: "Edge Functions", description: "Discover how to pair Telnyx AI workflows with Telnyx Edge Compute. Function lifecycle is owned by the separate telnyx-edge CLI.", actions: ["see_guides_edge_compute"] },
+    { name: "Deployment Handoff", description: "Use team-telnyx/ai for orchestration patterns and telnyx-edge for deploy, secrets, bindings, and lifecycle management.", actions: ["telnyx_edge_ship", "telnyx_edge_secrets", "telnyx_edge_bindings"] },
   ],
   "📋 10DLC Compliance": [
     { name: "10DLC Registration", description: "Register brands and campaigns for US A2P messaging", actions: ["create_10dlc_brand", "create_10dlc_campaign", "assign_10dlc_number"] },

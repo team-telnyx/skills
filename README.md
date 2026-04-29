@@ -190,6 +190,11 @@ In practice:
 - use `team-telnyx/ai` for agent workflows, capability discovery, and AI-oriented integration patterns
 - use `team-telnyx/edge-compute` + `telnyx-edge` for function creation, deployment, secrets, bindings, and lifecycle management
 
+The intended end state is a clean bridge:
+- `ai` = orchestrates and explains
+- Edge Compute = deploys and runs
+- the boundary between them is a documented HTTP/MCP/function contract
+
 See [Edge Compute guide](/guides/edge-compute.md).
 
 
