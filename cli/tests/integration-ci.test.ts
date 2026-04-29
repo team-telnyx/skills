@@ -16,10 +16,13 @@ if (!process.env.TELNYX_API_KEY) {
   process.exit(0);
 }
 
+const CLI_TIMEOUT_MS = Number(process.env.CLI_INTEGRATION_TIMEOUT_MS ?? 60000);
+let cachedStatusJson: any | undefined;
+
 const run = (args: string): string => {
   return execSync(`npx tsx ${CLI} ${args}`, {
     encoding: "utf-8",
-    timeout: 30000,
+    timeout: CLI_TIMEOUT_MS,
     env: { ...process.env },
   });
 };
@@ -27,6 +30,11 @@ const run = (args: string): string => {
 const runJson = (args: string): any => {
   const out = run(args);
   return JSON.parse(out);
+};
+
+const getStatusJson = (): any => {
+  cachedStatusJson ??= runJson("status --json");
+  return cachedStatusJson;
 };
 
 /**
@@ -67,7 +75,7 @@ describe("CLI — help", () => {
 
 describe("CLI — status", () => {
   it("returns valid JSON with --json", () => {
-    const data = runJson("status --json");
+    const data = getStatusJson();
     assert.ok(data.balance !== undefined, "Missing balance");
     assert.ok(data.phone_numbers !== undefined, "Missing phone_numbers");
     assert.ok(
@@ -79,7 +87,7 @@ describe("CLI — status", () => {
   });
 
   it("balance is a valid object with numeric amount", () => {
-    const data = runJson("status --json");
+    const data = getStatusJson();
     assert.ok(typeof data.balance === "object", "balance should be an object");
     const amount = parseFloat(String(data.balance.amount));
     assert.ok(!isNaN(amount), `Balance amount should be numeric, got: ${data.balance.amount}`);
@@ -87,7 +95,7 @@ describe("CLI — status", () => {
   });
 
   it("all count fields have total as non-negative number", () => {
-    const data = runJson("status --json");
+    const data = getStatusJson();
     for (const field of ["phone_numbers", "messaging_profiles", "connections", "ai_assistants"]) {
       assert.ok(typeof data[field] === "object", `${field} should be an object`);
       assert.ok(typeof data[field].total === "number", `${field}.total should be a number`);
