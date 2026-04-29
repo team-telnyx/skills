@@ -58,6 +58,9 @@ jobs:
       - name: CLI compilation
         working-directory: cli
         run: npx tsc --noEmit
+      - name: CLI unit tests
+        working-directory: cli
+        run: npm test
 
       # Cross-package parity
       - name: Cross-package parity check

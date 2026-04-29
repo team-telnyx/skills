@@ -37,7 +37,7 @@ export async function searchNumbers(
 ): Promise<Array<Record<string, unknown>>> {
   const args = ["available-phone-numbers", "list", "--filter.country-code", country];
   if (opts?.type) args.push("--filter.phone-number-type", opts.type);
-  if (opts?.limit) args.push("--page.size", String(opts.limit));
+  if (opts?.limit) args.push("--page-size", String(opts.limit));
   if (opts?.features) args.push("--filter.features", opts.features);
 
   const res = await telnyxCli(args);
