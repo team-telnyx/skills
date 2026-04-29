@@ -10,6 +10,9 @@ import { setupWireguardCommand } from "./commands/setup-wireguard.ts";
 import { setupVerifyCommand } from "./commands/setup-verify.ts";
 import { setup10dlcCommand } from "./commands/setup-10dlc.ts";
 import { setupPortingCommand } from "./commands/setup-porting.ts";
+import { edgeDoctorCommand } from "./commands/edge-doctor.ts";
+import { setupEdgeMcpCommand } from "./commands/setup-edge-mcp.ts";
+import { setupEdgeWebhookCommand } from "./commands/setup-edge-webhook.ts";
 import { capabilitiesCommand } from "./commands/capabilities.ts";
 import { statusCommand } from "./commands/status.ts";
 import { fundAccountCommand } from "./commands/fund-account.ts";
@@ -30,6 +33,9 @@ Commands:
   setup-verify      Zero to verification: create profile, buy number
   setup-10dlc       Zero to A2P: create brand, campaign, assign number
   setup-porting     Zero to porting: check portability, create order, submit
+  edge-doctor       Validate Edge Compute prerequisites and handoff readiness
+  setup-edge-mcp    Handoff to an Edge-hosted MCP server example
+  setup-edge-webhook Handoff to an Edge-hosted webhook receiver example
   status            Account health overview
   capabilities      List all available API capabilities
   fund-account      Fund account via x402 USDC payment (EIP-712 signing)
@@ -75,6 +81,9 @@ Examples:
   telnyx-agent setup-voice --webhook https://example.com/calls
   telnyx-agent setup-ai --instructions "You are a pizza ordering bot"
   telnyx-agent setup-porting --phone-numbers +13125550001,+13125550002 --customer-name "Acme Corp"
+  telnyx-agent edge-doctor --json
+  telnyx-agent setup-edge-mcp --name my-mcp-server
+  telnyx-agent setup-edge-webhook --name my-webhook
   telnyx-agent fund-account --amount 50.00
   telnyx-agent fund-account --amount 50.00 --wallet-key 0x... --json
 `;
@@ -88,6 +97,9 @@ const COMMANDS: Record<string, (flags: Record<string, string | boolean>) => Prom
   "setup-verify": setupVerifyCommand,
   "setup-10dlc": setup10dlcCommand,
   "setup-porting": setupPortingCommand,
+  "edge-doctor": edgeDoctorCommand,
+  "setup-edge-mcp": setupEdgeMcpCommand,
+  "setup-edge-webhook": setupEdgeWebhookCommand,
   capabilities: capabilitiesCommand,
   status: statusCommand,
   "fund-account": fundAccountCommand,
