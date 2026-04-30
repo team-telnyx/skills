@@ -19,9 +19,10 @@ const execFileAsync = promisify(execFile);
 
 /**
  * Resolve the telnyx binary path.
- * Checks the vendor/ directory first (installed by postinstall), then falls back to PATH.
+ * Checks an explicit env override first, then vendor/ (installed by postinstall), then PATH.
  */
 function findTelnyxBinary(): string {
+  if (process.env.TELNYX_CLI_PATH) return process.env.TELNYX_CLI_PATH;
   // Check vendor directory first (installed by postinstall)
   const vendorPath = join(dirname(fileURLToPath(import.meta.url)), "..", "vendor", "telnyx");
   if (existsSync(vendorPath)) return vendorPath;
