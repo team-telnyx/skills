@@ -194,7 +194,7 @@ In practice:
 
 The intended end state is a clean bridge:
 - `ai` = orchestrates and explains
-- Edge Compute = deploys and runs
+- Edge Compute = deploys and runs (prefer API-key auth for agent flows)
 - the boundary between them is a documented HTTP/MCP/function contract
 
 See [Edge Compute guide](/guides/edge-compute.md).

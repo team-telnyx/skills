@@ -35,14 +35,31 @@ export type EdgeAuthStatus = {
 export function getEdgeAuthStatus(): EdgeAuthStatus {
   const raw = runEdge(["auth", "status"]);
   const text = raw.toLowerCase();
-  const authenticated = !text.includes("not authenticated") && !text.includes("status: ❌");
+  const authenticated =
+    !text.includes("authentication status: none") &&
+    !text.includes("not authenticated") &&
+    !text.includes("status: ❌") &&
+    !text.includes("status: x");
 
   let mode: EdgeAuthStatus["mode"] = "unknown";
-  if (text.includes("not authenticated") || text.includes("status: ❌")) {
+  if (
+    text.includes("authentication status: none") ||
+    text.includes("not authenticated") ||
+    text.includes("status: ❌") ||
+    text.includes("status: x")
+  ) {
     mode = "none";
-  } else if (text.includes("api key")) {
+  } else if (
+    text.includes("authentication status: api key") ||
+    text.includes("api key")
+  ) {
     mode = "api_key";
-  } else if (text.includes("oauth") || text.includes("browser") || text.includes("logged in")) {
+  } else if (
+    text.includes("authentication status: oauth") ||
+    text.includes("oauth") ||
+    text.includes("browser") ||
+    text.includes("logged in")
+  ) {
     mode = "oauth";
   }
 

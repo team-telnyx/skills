@@ -34,8 +34,8 @@ Good bridge use cases:
 ## Quick Start
 
 ```bash
-# Authenticate with the dedicated Edge CLI
-telnyx-edge auth login
+# Authenticate with the dedicated Edge CLI (preferred for agents)
+telnyx-edge auth api-key set <your-api-key>
 
 # Start from the MCP server example
 telnyx-edge new-func --from-dir=examples/ts/mcp-server --name=my-mcp-server
@@ -63,7 +63,7 @@ telnyx-edge bindings get
 
 | Command | Purpose |
 |---------|---------|
-| `telnyx-edge auth login` | Authenticate the Edge CLI |
+| `telnyx-edge auth api-key set` | Authenticate the Edge CLI non-interactively |
 | `telnyx-edge new-func` | Scaffold a new function or clone an example |
 | `telnyx-edge ship` | Deploy the current function |
 | `telnyx-edge list` | List deployed functions |
@@ -84,8 +84,8 @@ Edge Compute is managed through the separate CLI:
 # See the edge-compute repo for install/setup details
 # https://github.com/team-telnyx/edge-compute
 
-telnyx-edge auth login
-telnyx-edge status
+telnyx-edge auth api-key set <your-api-key>
+telnyx-edge auth status
 ```
 
 Typical lifecycle commands live there:
@@ -303,7 +303,7 @@ This repo **should not** claim that it:
 
 Here is the most practical end-to-end test loop:
 
-1. install and authenticate `telnyx-edge`
+1. install `telnyx-edge` and authenticate with `telnyx-edge auth api-key set <your-api-key>`
 2. start from a working example in `team-telnyx/edge-compute`
 3. deploy it with `telnyx-edge ship`
 4. expose a stable HTTP or MCP boundary
@@ -316,7 +316,7 @@ That gives you a real integration test without pretending `team-telnyx/ai` owns 
 
 If you want to use Edge Compute from an AI workflow today:
 
-1. install and authenticate `telnyx-edge`
+1. install `telnyx-edge` and authenticate with `telnyx-edge auth api-key set <your-api-key>`
 2. create/deploy your function in `team-telnyx/edge-compute`
 3. expose a stable HTTP or MCP boundary
 4. use `team-telnyx/ai` to orchestrate calls into that deployed endpoint
