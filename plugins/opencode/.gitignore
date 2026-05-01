@@ -24,4 +24,5 @@ credentials.json
 *.local
 
 test/.artifacts/
+.test-dist/
 config.json

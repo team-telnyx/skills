@@ -1,15 +1,30 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { existsSync } from "node:fs"
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
+import { z } from "zod"
 
 const MODELS_CONFIG_FILE = "telnyx-models.json"
 
-type JsonObject = Record<string, unknown>
+// ---------------------------------------------------------------------------
+// Zod schemas
+// ---------------------------------------------------------------------------
 
-export type ModelsConfigFile = {
-  version: number
-  enabledModels: string[]
-}
+export const ModelsConfigFileSchema = z.object({
+  version: z.number().int().nonnegative(),
+  enabledModels: z.array(z.string().min(1)),
+})
+
+export const TelnyxCredentialSchema = z.object({
+  type: z.literal("api"),
+  key: z.string().min(1),
+})
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type ModelsConfigFile = z.infer<typeof ModelsConfigFileSchema>
 
 export const MODELS_CONFIG_VERSION = 1
 export const DEFAULT_ENABLED_MODELS = [
@@ -18,9 +33,9 @@ export const DEFAULT_ENABLED_MODELS = [
   "MiniMaxAI/MiniMax-M2.7",
 ] as const
 
-function isObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null
-}
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function configDirPath(): string {
   const configHome = process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config")
@@ -39,43 +54,62 @@ export function defaultModelsConfig(): ModelsConfigFile {
   }
 }
 
-export function persistDefaultModelsConfigIfMissing(): void {
+// ---------------------------------------------------------------------------
+// Persistence
+// ---------------------------------------------------------------------------
+
+export async function persistDefaultModelsConfigIfMissing(): Promise<void> {
   const path = modelsConfigPath()
   if (existsSync(path)) return
 
   const payload = `${JSON.stringify(defaultModelsConfig(), null, 2)}\n`
-  mkdirSync(dirname(path), { recursive: true })
+  await mkdir(dirname(path), { recursive: true })
   const tempPath = `${path}.tmp`
-  writeFileSync(tempPath, payload, "utf8")
-  renameSync(tempPath, path)
+  await writeFile(tempPath, payload, "utf8")
+  await rename(tempPath, path)
 }
 
-function parseEnabledModels(raw: unknown): string[] | undefined {
-  if (!isObject(raw) || raw.version !== MODELS_CONFIG_VERSION || !Array.isArray(raw.enabledModels)) {
-    return undefined
-  }
-
-  return [...new Set(raw.enabledModels.filter((value): value is string => typeof value === "string" && value.length > 0))]
-}
-
-export function loadEnabledModels(): string[] {
+export async function loadEnabledModels(): Promise<string[]> {
   try {
-    persistDefaultModelsConfigIfMissing()
-    const raw = JSON.parse(readFileSync(modelsConfigPath(), "utf8")) as unknown
-    return parseEnabledModels(raw) ?? [...DEFAULT_ENABLED_MODELS]
-  } catch {
+    await persistDefaultModelsConfigIfMissing()
+    const raw: unknown = JSON.parse(await readFile(modelsConfigPath(), "utf8"))
+    // Try strict parse first; if it fails, salvage valid entries individually.
+    const parsed = ModelsConfigFileSchema.safeParse(raw)
+    if (parsed.success) {
+      if (parsed.data.version !== MODELS_CONFIG_VERSION) {
+        console.error(`[telnyx] models config version ${parsed.data.version} != expected ${MODELS_CONFIG_VERSION}, falling back to defaults`)
+        return [...DEFAULT_ENABLED_MODELS]
+      }
+      return [...new Set(parsed.data.enabledModels)]
+    }
+
+    // Schema failed — salvage valid string entries rather than nuking user selections.
+    const rawRecord = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {}
+    const rawArray = Array.isArray(rawRecord.enabledModels) ? rawRecord.enabledModels as unknown[] : []
+    const salvaged = rawArray.filter((e): e is string => typeof e === "string" && e.length > 0)
+    if (salvaged.length > 0) {
+      console.warn("[telnyx] invalid models config file, salvaged valid entries:", salvaged)
+      return [...new Set(salvaged)]
+    }
+
+    console.error("[telnyx] invalid models config file, falling back to defaults:", parsed.error)
+    return [...DEFAULT_ENABLED_MODELS]
+  } catch (error) {
+    console.error("[telnyx] failed to load models config, falling back to defaults:", error)
     return [...DEFAULT_ENABLED_MODELS]
   }
 }
 
-export function persistEnabledModels(enabledModels: readonly string[]): void {
+export async function persistEnabledModels(enabledModels: readonly string[]): Promise<void> {
   const payload: ModelsConfigFile = {
     version: MODELS_CONFIG_VERSION,
     enabledModels: [...new Set(enabledModels)],
   }
+  // Validate before writing — guarantees we can always read back what we write.
+  ModelsConfigFileSchema.parse(payload)
   const path = modelsConfigPath()
-  mkdirSync(dirname(path), { recursive: true })
+  await mkdir(dirname(path), { recursive: true })
   const tempPath = `${path}.tmp`
-  writeFileSync(tempPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8")
-  renameSync(tempPath, path)
+  await writeFile(tempPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8")
+  await rename(tempPath, path)
 }
