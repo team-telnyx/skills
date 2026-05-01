@@ -111,6 +111,15 @@
       "requires": []
     },
     {
+      "id": "edge_compute",
+      "name": "Edge Compute",
+      "description": "Deploy webhook and MCP-adjacent functions on Telnyx edge infrastructure. Discovery and integration guidance live here; function lifecycle is handled by the separate telnyx-edge CLI, with a docs-first bridge focused on real testable handoff patterns.",
+      "guide": "/guides/edge-compute.md",
+      "cli": "telnyx-edge ship",
+      "docs": "https://developers.telnyx.com/docs/edge-compute",
+      "requires": []
+    },
+    {
       "id": "webhooks",
       "name": "Webhooks",
       "description": "Real-time event notifications for messaging, voice, and account events.",

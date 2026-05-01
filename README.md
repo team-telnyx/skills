@@ -176,9 +176,28 @@ See [MCP](/tools/mcp) for more details.
 
 ## Guides
 
-Curl-first operational guides for common Telnyx workflows — SMS messaging, voice call control, AI assistants, phone numbers, porting, verification, webhooks, 10DLC registration, WireGuard networking, and x402 payments.
+Curl-first operational guides for common Telnyx workflows — SMS messaging, voice call control, AI assistants, phone numbers, porting, verification, webhooks, 10DLC registration, WireGuard networking, x402 payments, and Edge Compute handoff patterns.
+
+For Edge Compute specifically, the goal is to make the handoff testable fast: start from a real `telnyx-edge` example, deploy it, and let `team-telnyx/ai` orchestrate against that live endpoint.
 
 See [Guides](/guides) for the full list.
+
+## Edge Compute
+
+`team-telnyx/ai` does not currently own native Edge Compute lifecycle support.
+
+Instead, this repo should be treated as the orchestration/discoverability layer, while the actual function lifecycle lives in the separate `team-telnyx/edge-compute` repo and the `telnyx-edge` CLI.
+
+In practice:
+- use `team-telnyx/ai` for agent workflows, capability discovery, and AI-oriented integration patterns
+- use `team-telnyx/edge-compute` + `telnyx-edge` for function creation, deployment, secrets, bindings, and lifecycle management
+
+The intended end state is a clean bridge:
+- `ai` = orchestrates and explains
+- Edge Compute = deploys and runs (prefer API-key auth for agent flows)
+- the boundary between them is a documented HTTP/MCP/function contract
+
+See [Edge Compute guide](/guides/edge-compute.md).
 
 
 ## License
