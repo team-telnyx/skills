@@ -203,3 +203,8 @@ See [Edge Compute guide](/guides/edge-compute.md).
 ## License
 
 [MIT](LICENSE)
+
+## AFK bot demo change
+- Issue: AIF2-1
+- Title: AFK bot sandbox smoke issue
+- This line was produced by the deterministic local sandbox runner.
