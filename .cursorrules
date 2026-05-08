@@ -1,0 +1,48 @@
+# Cursor rules — team-telnyx/ai
+
+Operating instructions for the Cursor agent working in this repo.
+This file is the legacy single-file convention. The MDC equivalent
+lives at `.cursor/rules/main.mdc`. The canonical source of truth
+for everything below is `AGENTS.md` at the repo root — keep these
+rules in sync with it when changing project-wide guidance.
+
+## What this repo is
+Telnyx AI — agent toolkits, plugins for Claude Code / Cursor / Gemini /
+OpenCode, an MCP proxy, 235+ agent skills, and operational guides.
+The skills under `skills/` are the source of truth; they are synced to
+`providers/{claude,cursor}/plugin/skills/` via `scripts/sync-skills.sh`.
+
+## Hard rules (don't break these)
+- **Don't hand-edit** files under `providers/claude/plugin/skills/` or
+  `providers/cursor/plugin/skills/` — they are generated. Edit the
+  source under `skills/` and run `./scripts/sync-skills.sh`.
+- **Don't run `npm install` at the repo root.** Each package has its
+  own `package.json` and `node_modules/`. Install per-package:
+  `cd cli && npm ci`, `cd tools/typescript && npm ci`, etc.
+- **Don't introduce a root-level test runner.** Each package owns its
+  own tests. Run only the package you touched.
+- **Don't commit credentials, API keys, or `.env` files.** Use the
+  patterns in existing `.env.example` files.
+
+## Per-package commands
+- `cli/`: `cd cli && npm test`
+- `tools/python/`: `cd tools/python && pytest`
+- `tools/typescript/`: `cd tools/typescript && npm test`
+- `tools/mcp/`: `cd tools/mcp && npm run build`
+- `guides/`: `npm run test:guides` from repo root
+- Guides API tests: `npm run test:guides-api` from repo root
+
+## Code style
+- TypeScript: ES2020+, strict mode, ESM where the package supports it.
+- Python: 3.10+, PEP 8, type hints required for public functions.
+- Markdown: GitHub-flavored. ATX headings (`#`), no underline headings.
+- One concern per PR. Keep skill regenerations in the same PR as the
+  skill source change (run `./scripts/sync-skills.sh` and commit both).
+
+## Commits and PRs
+- Conventional Commits prefix in the title (`feat:`, `fix:`, `chore:`,
+  `docs:`).
+- Sign commits — the maintainers' setup expects verified signatures.
+- Reference the issue number in the PR description if one exists.
+
+For everything not covered here, read `AGENTS.md`.

@@ -1,0 +1,64 @@
+---
+description: Project-wide rules for Cursor agents working on team-telnyx/ai. Loaded by Cursor for every request.
+alwaysApply: true
+---
+
+# team-telnyx/ai — Cursor agent rules
+
+The canonical source of truth is `AGENTS.md` at the repo root. This MDC
+file holds the rules Cursor's agent must always have in context. Keep
+in sync with `AGENTS.md` and `.cursorrules` when changing project-wide
+guidance.
+
+## Hard rules (don't break these)
+
+- **Generated files**: never hand-edit under
+  `providers/claude/plugin/skills/` or `providers/cursor/plugin/skills/`.
+  Edit the source under `skills/` and run `./scripts/sync-skills.sh`.
+- **Per-package install/test**: `npm ci` and tests run from each
+  package's directory, not the repo root. Don't introduce a root-level
+  test runner.
+- **Secrets**: never commit credentials, API keys, or `.env` files.
+- **Conventional Commits**: title prefix required (`feat:`, `fix:`,
+  `chore:`, `docs:`). Commits must be signed.
+
+## Where things live
+
+- `skills/` — canonical SKILL.md files (235+ skills).
+- `providers/{claude,cursor}/` — synced from `skills/`. Generated.
+- `plugins/opencode/` — OpenCode plugin source.
+- `tools/{python,typescript,mcp,ffl-cli}/` — agent toolkits.
+- `cli/` — agent CLI source.
+- `inference/` — Telnyx-hosted inference docs.
+- `guides/` — operational guides.
+- `agent.json` — top-level agent manifest (capabilities, auth, endpoints).
+
+## Per-package commands
+
+| Package | Test/build |
+| --- | --- |
+| `cli/` | `cd cli && npm test` |
+| `tools/python/` | `cd tools/python && pytest` |
+| `tools/typescript/` | `cd tools/typescript && npm test` |
+| `tools/mcp/` | `cd tools/mcp && npm run build` |
+| `guides/` | `npm run test:guides` (root) |
+
+## Editing skills
+
+After touching anything under `skills/`, run:
+
+```bash
+./scripts/sync-skills.sh
+```
+
+Commit the sync output in the same PR as the skill source change.
+
+## Style
+
+- TypeScript: ES2020+, strict mode, ESM where the package supports it.
+- Python: 3.10+, PEP 8, type hints on public functions.
+- Markdown: GitHub-flavored, ATX headings.
+- One concern per PR.
+
+For runtime-agent (consumer) guidance, see `AGENTS.md` §"Consuming this
+repo as a runtime agent".
