@@ -53,12 +53,13 @@ function modelConfig(model: JsonObject): [string, JsonObject] | undefined {
 
   const shortId = id.includes("/") ? id.split("/").pop() ?? id : id
   const vision = model.is_vision_supported === true
+  const output = typeof model.max_output_length === "number" ? model.max_output_length : 16384
 
   return [
     id,
     {
       name: shortId,
-      limit: { context },
+      limit: { context, output },
       ...(vision
         ? {
             attachment: true,
