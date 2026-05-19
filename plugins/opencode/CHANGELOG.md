@@ -4,9 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-05-19
+
 ### Fixed
 
 - Fixed README install instructions to use `opencode plugin @telnyx/opencode` (there is no `install` subcommand)
+- Added `limit.output` (with 16384 fallback) to model config — fixes `config.get: Missing key` crash on opencode 1.14.44+ when `max_output_length` is null in the Telnyx API response
 
 ## [0.1.2] - 2026-04-24
 
