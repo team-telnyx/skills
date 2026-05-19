@@ -4,15 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed README install instructions to use `opencode plugin @telnyx/opencode` (there is no `install` subcommand)
+
 ## [0.1.2] - 2026-04-24
 
 ### Added
 
-- Added `oc-plugin` field declaring both server and TUI targets for `opencode plugin install` compatibility
+- Added `oc-plugin` field declaring both server and TUI targets for `opencode plugin` compatibility
 
 ### Fixed
 
-- Fixed README install instructions to use `opencode plugin install` (the standard method that auto-configures both `opencode.json` and `tui.json`)
+- Fixed README install instructions to use `opencode plugin` (the standard method that auto-configures both `opencode.json` and `tui.json`)
 
 ## [0.1.1] - 2026-04-24
 

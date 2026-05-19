@@ -5,7 +5,7 @@
 ## Install
 
 ```bash
-opencode plugin install @telnyx/opencode
+opencode plugin @telnyx/opencode
 ```
 
 This auto-detects both the server and TUI targets and adds the plugin to `opencode.json` (server) and `tui.json` (TUI) automatically.
@@ -13,7 +13,7 @@ This auto-detects both the server and TUI targets and adds the plugin to `openco
 For global install (all projects):
 
 ```bash
-opencode plugin install -g @telnyx/opencode
+opencode plugin -g @telnyx/opencode
 ```
 
 ## What it does
@@ -175,7 +175,7 @@ Some smaller models cannot fit OpenCode's full tool list and system prompt into 
 
 ### `/telnyx` does not appear
 
-The TUI plugin requires a `tui.json` entry. Run `opencode plugin install @telnyx/opencode` which configures both `opencode.json` and `tui.json` automatically. If you added the plugin manually to `opencode.json`, you also need `tui.json`:
+The TUI plugin requires a `tui.json` entry. Run `opencode plugin @telnyx/opencode` which configures both `opencode.json` and `tui.json` automatically. If you added the plugin manually to `opencode.json`, you also need `tui.json`:
 
 ```json
 {
