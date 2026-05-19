@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-05-19
+
+### Fixed
+
+- Added `limit.output` (16384 fallback) to TUI `providerModels()` — fixes `/telnyx` model toggles not appearing in `/models`
+
 ## [0.1.3] - 2026-05-19
 
 ### Fixed
