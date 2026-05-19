@@ -82,7 +82,7 @@ function providerModels(models: Array<{ id: string; name: string; context: numbe
       if (!enabled.has(model.id)) return []
       const entry: Record<string, unknown> = {
         name: model.name,
-        limit: { context: model.context },
+        limit: { context: model.context, output: 16384 },
       }
       if (model.vision) {
         entry.attachment = true
